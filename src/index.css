@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Ametista Conversões usa apenas tema escuro — não existe alternância de tema. */
+@layer base {
+  :root {
+    --background: 215 50% 8%;
+    --foreground: 0 0% 100%;
+
+    --card: 220 40% 13%;
+    --card-foreground: 0 0% 100%;
+
+    --secondary: 220 30% 17%;
+    --secondary-foreground: 0 0% 100%;
+
+    --primary: 263 70% 58%;
+    --primary-foreground: 0 0% 100%;
+
+    --muted: 220 30% 17%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 220 30% 17%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 30% 17%;
+    --input: 220 30% 17%;
+    --ring: 263 70% 58%;
+
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+}
+
+/* Scrollbar customizada do design system */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1a2540 #0b1220;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: #0b1220;
+}
+*::-webkit-scrollbar-thumb {
+  background: #1a2540;
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #7c3aed;
+}
