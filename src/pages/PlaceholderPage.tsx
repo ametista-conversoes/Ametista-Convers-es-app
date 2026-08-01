@@ -30,7 +30,7 @@ export function PlaceholderPage({ title, portal }: PlaceholderPageProps) {
             <p className="text-sm text-muted-foreground">
               Esta é a página de {title.toLowerCase()}. O conteúdo real chega nas próximas fases.
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button>Ação principal</Button>
               <Button variant="secondary">
                 <Bell className="h-4 w-4" />
