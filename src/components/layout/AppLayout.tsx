@@ -10,7 +10,13 @@ export function AppLayout() {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div
+      className="flex min-h-dvh bg-background"
+      style={{
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
+      }}
+    >
       <Sidebar />
 
       {/* Menu retrátil (drawer) para telas pequenas */}
@@ -47,9 +53,12 @@ export function AppLayout() {
         </div>
       </div>
 
-      <div className="flex min-h-screen flex-1 flex-col">
+      <div className="flex min-h-dvh flex-1 flex-col">
         <TopBar onMenuClick={() => setIsMobileNavOpen(true)} />
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
+        <main
+          className="flex-1 p-4 md:p-6 lg:p-8"
+          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+        >
           <Outlet />
         </main>
       </div>

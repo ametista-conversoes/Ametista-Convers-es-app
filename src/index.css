@@ -38,9 +38,32 @@
   * {
     @apply border-border;
   }
+
+  html {
+    @apply bg-background;
+    width: 100%;
+    min-height: 100%;
+    min-height: 100dvh;
+    /* Trava qualquer overflow lateral de 1px causado por arredondamento
+       em navegadores mobile — evita que o fundo branco padrão da página
+       apareça por trás numa das bordas. */
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-background text-foreground;
+    width: 100%;
+    min-height: 100%;
+    min-height: 100dvh;
+    overflow-x: hidden;
     font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+
+  #root {
+    @apply bg-background;
+    width: 100%;
+    min-height: 100%;
+    min-height: 100dvh;
   }
 }
 
