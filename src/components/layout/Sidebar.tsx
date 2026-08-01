@@ -57,7 +57,7 @@ export function Sidebar({ className }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'hidden w-64 shrink-0 border-r border-secondary bg-card md:block',
+        'hidden w-64 shrink-0 border-r border-secondary bg-card md:sticky md:top-0 md:block md:h-dvh',
         className,
       )}
     >

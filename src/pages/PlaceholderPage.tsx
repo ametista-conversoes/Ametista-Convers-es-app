@@ -16,10 +16,10 @@ export function PlaceholderPage({ title, portal }: PlaceholderPageProps) {
         <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="content-grid gap-4">
         <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
           <CardHeader className="p-0">
-            <CardTitle className="flex items-center justify-between text-base">
+            <CardTitle className="flex items-center justify-between gap-2 text-base">
               Exemplo de card
               <Badge className="border-emerald-500/20 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/10">
                 Ativo

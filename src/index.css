@@ -67,6 +67,30 @@
   }
 }
 
+/* Grades de conteúdo que reagem à largura real da área disponível
+   (não à largura da janela inteira). Isso evita que a sidebar fixa
+   "engane" o layout fazendo-o achar que tem mais espaço do que tem —
+   problema visível em telas de tablet (iPad, dobráveis, Nest Hub) onde
+   a janela é larga o suficiente para "md"/"lg", mas o espaço que sobra
+   depois da sidebar não é. */
+.content-grid-container {
+  container-type: inline-size;
+}
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+@container (min-width: 30rem) {
+  .content-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container (min-width: 48rem) {
+  .content-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 /* Scrollbar customizada do design system */
 * {
   scrollbar-width: thin;
