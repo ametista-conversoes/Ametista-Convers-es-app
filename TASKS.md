@@ -19,9 +19,10 @@
 - [x] Testado com as 3 contas de teste (`admin`, `gestor`, `cliente`) pelo usuário — todos os critérios de aceite confirmados
 
 ## Fase 3 — Entidades e banco de dados
-- [ ] Criar as 16 entidades listadas no `CLAUDE.md`, com campos e relacionamentos corretos
-- [ ] Configurar Row Level Security (cliente só vê os próprios dados)
-- [ ] Popular dados de teste (seed) para visualização
+- [x] Criar as 16 entidades listadas no `CLAUDE.md`, com campos e relacionamentos corretos
+- [x] Configurar Row Level Security (cliente só vê os próprios dados)
+- [x] Popular dados de teste (seed) para visualização
+- [x] Testado com verificação automática de segurança (9 testes: anônimo, cliente e admin) — todos os critérios de aceite confirmados
 
 ## Fase 4 — Portal do Cliente (provisório, detalhar quando chegar a vez)
 - [ ] Construir as páginas reais do Portal do Cliente (dashboard, performance, projeto, tarefas, arquivos, comentários, reuniões, IA, relatórios, configurações) ligadas ao banco de dados
