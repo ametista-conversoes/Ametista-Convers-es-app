@@ -73,6 +73,35 @@ export interface AlertRecord {
   created_at: string
 }
 
+export interface CommentRecord {
+  id: string
+  content: string
+  author_id: string | null
+  author_name: string | null
+  author_role: string | null
+  created_at: string
+}
+
+export interface FileItemRecord {
+  id: string
+  name: string
+  folder: string | null
+  file_url: string | null
+  file_type: string | null
+  status: string
+  created_at: string
+}
+
+export interface ApprovalRecord {
+  id: string
+  title: string
+  file_url: string | null
+  file_type: string | null
+  status: string
+  feedback: string | null
+  created_at: string
+}
+
 export interface OnboardingStepRecord {
   id: string
   title: string
@@ -228,5 +257,183 @@ export function usePerformanceSnapshots() {
       return data as PerformanceSnapshotRecord[]
     },
     enabled: !!clientId,
+  })
+}
+
+export interface NewTaskInput {
+  title: string
+  category: string | null
+  due_date: string | null
+  priority: string
+}
+
+export function useCreateTask() {
+  const { clientId } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: NewTaskInput) => {
+      const { error } = await supabase.from('tasks').insert({ ...input, client_id: clientId })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks', clientId] })
+    },
+  })
+}
+
+export function useSetTaskDone() {
+  const { clientId } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ taskId, done }: { taskId: string; done: boolean }) => {
+      const { error } = await supabase.rpc('set_task_done', { task_id: taskId, is_done: done })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks', clientId] })
+    },
+  })
+}
+
+const COMMENTS_ENTITY_TYPE = 'general'
+
+export function useComments() {
+  const { clientId } = useAuth()
+  return useQuery({
+    queryKey: ['comments', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('comments')
+        .select('*')
+        .eq('client_id', clientId as string)
+        .eq('entity_type', COMMENTS_ENTITY_TYPE)
+        .order('created_at', { ascending: true })
+      if (error) throw error
+      return data as CommentRecord[]
+    },
+    enabled: !!clientId,
+  })
+}
+
+export function useCreateComment() {
+  const { clientId, user, fullName, role } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (content: string) => {
+      const { error } = await supabase.from('comments').insert({
+        content,
+        client_id: clientId,
+        entity_type: COMMENTS_ENTITY_TYPE,
+        entity_id: clientId,
+        author_id: user?.id,
+        author_name: fullName,
+        author_role: role,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['comments', clientId] })
+    },
+  })
+}
+
+export interface NewMeetingInput {
+  title: string
+  date: string
+  meeting_link: string | null
+}
+
+export function useCreateMeeting() {
+  const { clientId } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: NewMeetingInput) => {
+      const { error } = await supabase.from('meetings').insert({ ...input, client_id: clientId })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meetings', clientId] })
+    },
+  })
+}
+
+export function useFileItems() {
+  const { clientId } = useAuth()
+  return useQuery({
+    queryKey: ['file-items', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('file_items')
+        .select('*')
+        .eq('client_id', clientId as string)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data as FileItemRecord[]
+    },
+    enabled: !!clientId,
+  })
+}
+
+export interface NewFileItemInput {
+  name: string
+  folder: string | null
+  file_url: string
+  file_type: string | null
+}
+
+export function useCreateFileItem() {
+  const { clientId } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: NewFileItemInput) => {
+      const { error } = await supabase.from('file_items').insert({ ...input, client_id: clientId })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['file-items', clientId] })
+    },
+  })
+}
+
+export function useApprovals() {
+  const { clientId } = useAuth()
+  return useQuery({
+    queryKey: ['approvals', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('approvals')
+        .select('*')
+        .eq('client_id', clientId as string)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data as ApprovalRecord[]
+    },
+    enabled: !!clientId,
+  })
+}
+
+export function useRespondToApproval() {
+  const { clientId } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      approvalId,
+      status,
+      feedback,
+    }: {
+      approvalId: string
+      status: 'approved' | 'rejected' | 'revision_requested'
+      feedback: string | null
+    }) => {
+      const { error } = await supabase.rpc('respond_to_approval', {
+        approval_id: approvalId,
+        new_status: status,
+        feedback_text: feedback,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['approvals', clientId] })
+    },
   })
 }

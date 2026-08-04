@@ -37,10 +37,11 @@
 - [x] Testado com dados reais do Supabase, incluindo marcar/desmarcar uma etapa do onboarding e navegação entre as 4 abas, e responsividade nas larguras problemáticas (iPad Air ~820px, Zenbook Fold ~853px)
 
 ### Fase 4.3 — Tarefas, Arquivos, Comentários e Reuniões
-- [ ] Tarefas (`/tasks`): lista com filtro, nova tarefa, toggle de conclusão
-- [ ] Arquivos (`/files`): abas Arquivos e Aprovações, upload, aprovar/rejeitar/pedir revisão
-- [ ] Comentários (`/comments`): feed com novo comentário
-- [ ] Reuniões (`/meetings`): agendar, lista com status
+- [x] Tarefas (`/tasks`): lista com filtro, nova tarefa, toggle de conclusão
+- [x] Arquivos (`/files`): abas Arquivos e Aprovações, upload, aprovar/rejeitar/pedir revisão
+- [x] Comentários (`/comments`): feed com novo comentário
+- [x] Reuniões (`/meetings`): agendar, lista com status
+- [x] Testado com dados reais do Supabase: criar tarefa e concluir, subir e abrir arquivo, aprovar uma aprovação, enviar comentário (com nome/papel), agendar reunião, e responsividade nas larguras problemáticas (iPad Air ~820px, Zenbook Fold ~853px)
 
 ### Fase 4.4 — Configurações
 - [ ] Configurações (`/settings`): abas Globais/Agência/Cliente/Usuário filtradas por papel

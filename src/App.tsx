@@ -8,10 +8,14 @@ import ForgotPassword from '@/pages/auth/ForgotPassword'
 import Login from '@/pages/auth/Login'
 import Register from '@/pages/auth/Register'
 import ResetPassword from '@/pages/auth/ResetPassword'
+import Comments from '@/pages/client/Comments'
 import Dashboard from '@/pages/client/Dashboard'
+import Files from '@/pages/client/Files'
+import Meetings from '@/pages/client/Meetings'
 import Performance from '@/pages/client/Performance'
 import Project from '@/pages/client/Project'
 import Reports from '@/pages/client/Reports'
+import Tasks from '@/pages/client/Tasks'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 
 // Rotas do Portal Cliente que já têm página real — as demais continuam
@@ -21,6 +25,10 @@ const clientPagesReady: Record<string, ComponentType> = {
   '/performance': Performance,
   '/project': Project,
   '/reports': Reports,
+  '/tasks': Tasks,
+  '/files': Files,
+  '/comments': Comments,
+  '/meetings': Meetings,
 }
 
 function App() {

@@ -1,0 +1,112 @@
+import { useState } from 'react'
+import { CheckCircle2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import type { ApprovalRecord } from '@/hooks/useClientPortalData'
+import { useRespondToApproval } from '@/hooks/useClientPortalData'
+import { formatDateTime } from '@/lib/format'
+import { reviewStatusLabels, reviewStatusStyles } from '@/lib/status-styles'
+import { ApprovalFeedbackDialog } from './ApprovalFeedbackDialog'
+
+interface ApprovalListProps {
+  approvals: ApprovalRecord[]
+}
+
+export function ApprovalList({ approvals }: ApprovalListProps) {
+  const respondToApproval = useRespondToApproval()
+  const [dialogFor, setDialogFor] = useState<{ approval: ApprovalRecord; status: 'rejected' | 'revision_requested' } | null>(null)
+
+  async function handleApprove(approval: ApprovalRecord) {
+    try {
+      await respondToApproval.mutateAsync({ approvalId: approval.id, status: 'approved', feedback: null })
+    } catch {
+      toast.error('Não foi possível aprovar.')
+    }
+  }
+
+  async function handleConfirmFeedback(feedback: string) {
+    if (!dialogFor) return
+    try {
+      await respondToApproval.mutateAsync({
+        approvalId: dialogFor.approval.id,
+        status: dialogFor.status,
+        feedback,
+      })
+      setDialogFor(null)
+    } catch {
+      toast.error('Não foi possível registrar a resposta.')
+    }
+  }
+
+  return (
+    <>
+      <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
+        <CardHeader className="p-0">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CheckCircle2 className="h-4 w-4 text-purple-400" />
+            Aprovações
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 p-0 pt-4">
+          {approvals.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma aprovação pendente.</p>}
+          {approvals.map((approval) => (
+            <div key={approval.id} className="rounded-lg bg-secondary/50 px-3 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-medium text-foreground">{approval.title}</p>
+                <Badge className={reviewStatusStyles[approval.status]}>
+                  {reviewStatusLabels[approval.status] ?? approval.status}
+                </Badge>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(approval.created_at)}</p>
+              {approval.file_url && (
+                <a
+                  href={approval.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-block text-xs text-purple-400 hover:underline"
+                >
+                  Ver arquivo
+                </a>
+              )}
+              {approval.feedback && (
+                <p className="mt-2 text-xs text-muted-foreground">Feedback: {approval.feedback}</p>
+              )}
+              {approval.status === 'pending' && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => handleApprove(approval)} disabled={respondToApproval.isPending}>
+                    Aprovar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setDialogFor({ approval, status: 'revision_requested' })}
+                  >
+                    Pedir revisão
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setDialogFor({ approval, status: 'rejected' })}
+                  >
+                    Rejeitar
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <ApprovalFeedbackDialog
+        open={!!dialogFor}
+        onOpenChange={(open) => !open && setDialogFor(null)}
+        title={dialogFor?.status === 'rejected' ? 'Rejeitar aprovação' : 'Pedir revisão'}
+        description="Conte pra agência o motivo — esse comentário fica salvo na aprovação."
+        submitting={respondToApproval.isPending}
+        onConfirm={handleConfirmFeedback}
+      />
+    </>
+  )
+}

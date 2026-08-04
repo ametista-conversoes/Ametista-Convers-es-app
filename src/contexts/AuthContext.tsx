@@ -9,6 +9,7 @@ interface AuthContextValue {
   session: Session | null
   role: UserRole | null
   clientId: string | null
+  fullName: string | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signUp: (
@@ -27,16 +28,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [role, setRole] = useState<UserRole | null>(null)
   const [clientId, setClientId] = useState<string | null>(null)
+  const [fullName, setFullName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let active = true
 
     async function loadProfile(userId: string) {
-      const { data } = await supabase.from('profiles').select('role, client_id').eq('id', userId).single()
+      const { data } = await supabase
+        .from('profiles')
+        .select('role, client_id, full_name')
+        .eq('id', userId)
+        .single()
       if (!active) return
       setRole((data?.role as UserRole) ?? null)
       setClientId(data?.client_id ?? null)
+      setFullName(data?.full_name ?? null)
     }
 
     supabase.auth.getSession().then(({ data }) => {
@@ -58,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setRole(null)
         setClientId(null)
+        setFullName(null)
       }
     })
 
@@ -108,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         role,
         clientId,
+        fullName,
         loading,
         signIn,
         signUp,

@@ -51,6 +51,18 @@ export const severityStyles: Record<string, string> = {
   critical: 'border-destructive/20 bg-destructive/10 text-destructive',
 }
 
+export const roleLabels: Record<string, string> = {
+  admin: 'Admin',
+  gestor: 'Gestor',
+  cliente: 'Cliente',
+}
+
+export const roleStyles: Record<string, string> = {
+  admin: 'border-purple-500/20 bg-purple-500/10 text-purple-400',
+  gestor: 'border-sky-500/20 bg-sky-500/10 text-sky-400',
+  cliente: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+}
+
 export const clientStatusLabels: Record<string, string> = {
   active: 'Ativo',
   onboarding: 'Onboarding',
@@ -79,6 +91,20 @@ export const projectStatusStyles: Record<string, string> = {
   paused: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
   completed: 'border-purple-500/20 bg-purple-500/10 text-purple-400',
   cancelled: 'border-destructive/20 bg-destructive/10 text-destructive',
+}
+
+export const reviewStatusLabels: Record<string, string> = {
+  pending: 'Pendente',
+  approved: 'Aprovado',
+  rejected: 'Rejeitado',
+  revision_requested: 'Revisão pedida',
+}
+
+export const reviewStatusStyles: Record<string, string> = {
+  pending: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
+  approved: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+  rejected: 'border-destructive/20 bg-destructive/10 text-destructive',
+  revision_requested: 'border-purple-500/20 bg-purple-500/10 text-purple-400',
 }
 
 export const smartGoalStatusLabels: Record<string, string> = {
