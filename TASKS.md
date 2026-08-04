@@ -24,8 +24,25 @@
 - [x] Popular dados de teste (seed) para visualização
 - [x] Testado com verificação automática de segurança (9 testes: anônimo, cliente e admin) — todos os critérios de aceite confirmados
 
-## Fase 4 — Portal do Cliente (provisório, detalhar quando chegar a vez)
-- [ ] Construir as páginas reais do Portal do Cliente (dashboard, performance, projeto, tarefas, arquivos, comentários, reuniões, IA, relatórios, configurações) ligadas ao banco de dados
+## Fase 4 — Portal do Cliente (detalhada em `Prompt fase 4.txt`)
+
+### Fase 4.1 — Dashboard e Performance
+- [x] Dashboard (`/`): KPIs, Health Score expansível (4 sub-notas), reuniões, tarefas, resumo financeiro, metas, notificações, botão Pausa de Emergência
+- [x] Performance (`/performance`): métricas em 3 categorias, gráfico de barras (canal) e gráfico de linha (tendência)
+- [x] Testado com dados reais do Supabase, incluindo o gráfico mudando ao editar um valor no banco, e responsividade nas larguras problemáticas (iPad Air ~820px, Zenbook Fold ~853px)
+
+### Fase 4.2 — Relatórios e Meu Projeto
+- [ ] Relatórios (`/reports`): 4 abas (Performance de Tráfego, Financeiro, Distribuição & Canais, Clientes & Mensalidades)
+- [ ] Meu Projeto (`/project`): info cards, cronograma, checklist de onboarding, metas SMART, lista de tarefas
+
+### Fase 4.3 — Tarefas, Arquivos, Comentários e Reuniões
+- [ ] Tarefas (`/tasks`): lista com filtro, nova tarefa, toggle de conclusão
+- [ ] Arquivos (`/files`): abas Arquivos e Aprovações, upload, aprovar/rejeitar/pedir revisão
+- [ ] Comentários (`/comments`): feed com novo comentário
+- [ ] Reuniões (`/meetings`): agendar, lista com status
+
+### Fase 4.4 — Configurações
+- [ ] Configurações (`/settings`): abas Globais/Agência/Cliente/Usuário filtradas por papel
 
 ## Fase 5 — Portal do Gestor (provisório, detalhar quando chegar a vez)
 - [ ] Construir as páginas reais do Portal do Gestor (dashboard executivo, clientes, kanban, workflows, incidentes, ativos digitais, alertas, timeline, metas SMART, onboarding) ligadas ao banco de dados

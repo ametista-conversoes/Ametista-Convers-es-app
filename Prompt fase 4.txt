@@ -1,0 +1,78 @@
+# Prompt — Fase 4: Portal do Cliente
+
+Cole no Claude Code. As Fases 1, 2 e 3 já foram concluídas e aprovadas.
+
+---
+
+Antes de começar, releia o `CLAUDE.md` e (se existir) `docs/especificacao-completa.md` para os detalhes de cada página abaixo.
+
+Continue seguindo as mesmas regras de trabalho já combinadas:
+1. Uma sub-fase por vez — não avance sem eu aprovar.
+2. Use Plan Mode antes de criar/alterar arquivos.
+3. Ao final de cada sub-fase, pare, resuma em linguagem simples e me diga exatamente o que testar.
+4. Atualize o `TASKS.md` marcando os itens concluídos.
+5. Um commit por sub-fase concluída.
+6. Pergunte antes de instalar qualquer dependência nova.
+7. Todas as páginas desta fase são do **Portal do Cliente** — teste sempre logado como o usuário de teste com papel `cliente`.
+
+Comece pela Fase 4.1.
+
+## Fase 4.1 — Dashboard e Performance
+
+**Objetivo:** as duas telas de visão geral, sem interações de edição.
+
+Tarefas:
+- Dashboard (`/`): header com botão "Pausa de Emergência", 5 KPI cards (Investimento, Receita, ROAS, CPA, Conversões), Health Score (gauge expansível com sub-scores), lista de próximas reuniões, lista de tarefas atribuídas, resumo financeiro com aviso legal, objetivos & metas com barra de progresso, notificações
+- Performance (`/performance`): métricas em 3 categorias (Marketing, Financeiro, Negócio), gráfico de barras (investimento vs receita por canal) e gráfico de linha (tendência)
+
+**Critérios de aceite:**
+- Os dados exibidos correspondem aos dados de teste (seed) criados na Fase 3
+- O Health Score expande e mostra os 4 sub-scores ao clicar
+- Os gráficos renderizam sem erro e mudam se eu alterar um valor de teste no banco
+- Nenhuma opção de edição aparece nessas duas páginas (são só leitura)
+- A responsividade nas larguras problemáticas já corrigidas (iPad Air ~820px, Zenbook Fold ~853px) continua correta nessas novas páginas
+
+## Fase 4.2 — Relatórios e Meu Projeto
+
+**Objetivo:** relatório consolidado e o perfil do projeto do cliente.
+
+Tarefas:
+- Relatórios (`/reports`): 4 abas internas — Performance de Tráfego, Financeiro, Distribuição & Canais, Clientes & Mensalidades
+- Meu Projeto (`/project`): info cards (empresa, objetivo, ICP, segmento), cronograma/status, checklist de onboarding, metas SMART, lista de tarefas do projeto (componente reutilizável)
+
+**Critérios de aceite:**
+- Consigo navegar entre as 4 abas de Relatórios sem a página recarregar por completo
+- O checklist de onboarding em Meu Projeto permite marcar uma etapa como concluída e a barra de progresso atualiza
+- A lista de tarefas do projeto mostra as mesmas tarefas de teste da Fase 3
+
+## Fase 4.3 — Tarefas, Arquivos, Comentários e Reuniões
+
+**Objetivo:** páginas com interação direta (criar, editar, aprovar).
+
+Tarefas:
+- Tarefas (`/tasks`): lista com filtro por status, botão de nova tarefa, toggle de conclusão
+- Arquivos (`/files`): 2 abas (Arquivos e Aprovações), upload, aprovar/rejeitar/pedir revisão
+- Comentários (`/comments`): feed com campo de novo comentário
+- Reuniões (`/meetings`): agendar nova reunião, lista com status
+
+**Critérios de aceite:**
+- Consigo criar uma nova tarefa de teste e ela aparece na lista imediatamente
+- Consigo marcar uma tarefa como concluída e o status muda visualmente
+- Consigo enviar um comentário de teste e ele aparece no feed com meu nome/papel
+- Consigo agendar uma reunião de teste e ela aparece na lista
+
+## Fase 4.4 — Configurações
+
+**Objetivo:** tela de configurações com os 4 níveis (filtrados por papel).
+
+Tarefas:
+- Configurações (`/settings`): abas Globais (admin), Agência (admin/gestor), Cliente (todos), Usuário (todos)
+
+**Critérios de aceite:**
+- Logado como `cliente`, só vejo as abas "Cliente" e "Usuário" — não vejo "Globais" nem "Agência"
+- Alterar uma preferência de usuário (ex: nome, telefone) salva corretamente
+- Logout funciona a partir dessa tela
+
+---
+
+Ao terminar a Fase 4.4 e eu confirmar que todos os critérios passaram, pare e aguarde antes de seguir para a Fase 5 (Portal do Gestor).

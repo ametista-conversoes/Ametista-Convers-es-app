@@ -8,6 +8,7 @@ interface AuthContextValue {
   user: User | null
   session: Session | null
   role: UserRole | null
+  clientId: string | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signUp: (
@@ -25,21 +26,24 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [role, setRole] = useState<UserRole | null>(null)
+  const [clientId, setClientId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let active = true
 
-    async function loadRole(userId: string) {
-      const { data } = await supabase.from('profiles').select('role').eq('id', userId).single()
-      if (active) setRole((data?.role as UserRole) ?? null)
+    async function loadProfile(userId: string) {
+      const { data } = await supabase.from('profiles').select('role, client_id').eq('id', userId).single()
+      if (!active) return
+      setRole((data?.role as UserRole) ?? null)
+      setClientId(data?.client_id ?? null)
     }
 
     supabase.auth.getSession().then(({ data }) => {
       if (!active) return
       setSession(data.session)
       if (data.session?.user) {
-        loadRole(data.session.user.id).finally(() => active && setLoading(false))
+        loadProfile(data.session.user.id).finally(() => active && setLoading(false))
       } else {
         setLoading(false)
       }
@@ -50,9 +54,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession)
       if (newSession?.user) {
-        loadRole(newSession.user.id)
+        loadProfile(newSession.user.id)
       } else {
         setRole(null)
+        setClientId(null)
       }
     })
 
@@ -102,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: session?.user ?? null,
         session,
         role,
+        clientId,
         loading,
         signIn,
         signUp,

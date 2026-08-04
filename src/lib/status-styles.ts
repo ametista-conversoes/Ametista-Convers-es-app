@@ -1,0 +1,66 @@
+// Rótulos e cores de badge para os campos de status/prioridade/severidade
+// vindos do banco (Fase 3). Centralizados aqui porque as mesmas listas
+// vão reaparecer em várias telas nas próximas sub-fases.
+
+export const taskStatusLabels: Record<string, string> = {
+  backlog: 'Backlog',
+  todo: 'A fazer',
+  in_progress: 'Em andamento',
+  review: 'Em revisão',
+  done: 'Concluída',
+}
+
+export const taskStatusStyles: Record<string, string> = {
+  backlog: 'border-slate-500/20 bg-slate-500/10 text-slate-400',
+  todo: 'border-sky-500/20 bg-sky-500/10 text-sky-400',
+  in_progress: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
+  review: 'border-purple-500/20 bg-purple-500/10 text-purple-400',
+  done: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+}
+
+export const taskPriorityLabels: Record<string, string> = {
+  low: 'Baixa',
+  medium: 'Média',
+  high: 'Alta',
+  urgent: 'Urgente',
+}
+
+export const meetingStatusLabels: Record<string, string> = {
+  scheduled: 'Agendada',
+  completed: 'Concluída',
+  cancelled: 'Cancelada',
+}
+
+export const meetingStatusStyles: Record<string, string> = {
+  scheduled: 'border-sky-500/20 bg-sky-500/10 text-sky-400',
+  completed: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+  cancelled: 'border-destructive/20 bg-destructive/10 text-destructive',
+}
+
+export const severityLabels: Record<string, string> = {
+  low: 'Baixa',
+  medium: 'Média',
+  high: 'Alta',
+  critical: 'Crítica',
+}
+
+export const severityStyles: Record<string, string> = {
+  low: 'border-slate-500/20 bg-slate-500/10 text-slate-400',
+  medium: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
+  high: 'border-orange-500/20 bg-orange-500/10 text-orange-400',
+  critical: 'border-destructive/20 bg-destructive/10 text-destructive',
+}
+
+export const smartGoalStatusLabels: Record<string, string> = {
+  on_track: 'No caminho certo',
+  at_risk: 'Em risco',
+  off_track: 'Fora da rota',
+  completed: 'Concluída',
+}
+
+export const smartGoalStatusStyles: Record<string, string> = {
+  on_track: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+  at_risk: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
+  off_track: 'border-destructive/20 bg-destructive/10 text-destructive',
+  completed: 'border-purple-500/20 bg-purple-500/10 text-purple-400',
+}
