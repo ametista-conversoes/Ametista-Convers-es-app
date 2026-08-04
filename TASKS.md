@@ -11,11 +11,12 @@
 - [x] Aplicar os estilos de card, botão e badge conforme o `CLAUDE.md`
 
 ## Fase 2 — Autenticação e permissões (RBAC)
-- [ ] Configurar projeto no Supabase (autenticação + banco) e explicar como criar a conta e pegar as chaves de API
-- [ ] Criar páginas de Login, Registro e Esqueci a senha
-- [ ] Criar o `ProtectedRoute` (bloqueia quem não está logado)
-- [ ] Criar o `RoleRoute` (bloqueia usuários `cliente` de acessarem rotas do Portal do Gestor)
-- [ ] Ligar a Sidebar para mostrar apenas as seções do papel do usuário logado
+- [x] Configurar projeto no Supabase (autenticação + banco) e explicar como criar a conta e pegar as chaves de API
+- [x] Criar páginas de Login, Registro, Esqueci a senha e Redefinir senha
+- [x] Criar o `ProtectedRoute` (bloqueia quem não está logado)
+- [x] Criar o `RoleRoute` (bloqueia usuários `cliente` de acessarem rotas do Portal do Gestor)
+- [x] Ligar a Sidebar para mostrar apenas as seções do papel do usuário logado
+- [x] Testado com as 3 contas de teste (`admin`, `gestor`, `cliente`) pelo usuário — todos os critérios de aceite confirmados
 
 ## Fase 3 — Entidades e banco de dados
 - [ ] Criar as 16 entidades listadas no `CLAUDE.md`, com campos e relacionamentos corretos

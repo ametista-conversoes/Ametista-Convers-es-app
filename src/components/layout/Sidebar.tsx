@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { Gem } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
 import { clientNavItems, managerNavItems, type NavItem } from '@/lib/nav-items'
 import { cn } from '@/lib/utils'
 
@@ -37,6 +38,10 @@ interface SidebarProps {
 }
 
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+  const { role } = useAuth()
+  const showClientSection = role === 'cliente' || role === 'admin'
+  const showManagerSection = role === 'gestor' || role === 'admin'
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center gap-2 px-5">
@@ -46,8 +51,12 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <span className="text-sm font-semibold text-foreground">Ametista Conversões</span>
       </div>
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-6">
-        <NavSection label="Portal Cliente" items={clientNavItems} onNavigate={onNavigate} />
-        <NavSection label="Portal Gestor" items={managerNavItems} onNavigate={onNavigate} />
+        {showClientSection && (
+          <NavSection label="Portal Cliente" items={clientNavItems} onNavigate={onNavigate} />
+        )}
+        {showManagerSection && (
+          <NavSection label="Portal Gestor" items={managerNavItems} onNavigate={onNavigate} />
+        )}
       </nav>
     </div>
   )
