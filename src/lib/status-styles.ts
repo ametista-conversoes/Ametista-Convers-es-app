@@ -51,6 +51,36 @@ export const severityStyles: Record<string, string> = {
   critical: 'border-destructive/20 bg-destructive/10 text-destructive',
 }
 
+export const clientStatusLabels: Record<string, string> = {
+  active: 'Ativo',
+  onboarding: 'Onboarding',
+  paused: 'Pausado',
+  churned: 'Encerrado',
+}
+
+export const clientStatusStyles: Record<string, string> = {
+  active: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+  onboarding: 'border-sky-500/20 bg-sky-500/10 text-sky-400',
+  paused: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
+  churned: 'border-destructive/20 bg-destructive/10 text-destructive',
+}
+
+export const projectStatusLabels: Record<string, string> = {
+  planning: 'Planejamento',
+  active: 'Ativo',
+  paused: 'Pausado',
+  completed: 'Concluído',
+  cancelled: 'Cancelado',
+}
+
+export const projectStatusStyles: Record<string, string> = {
+  planning: 'border-sky-500/20 bg-sky-500/10 text-sky-400',
+  active: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+  paused: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
+  completed: 'border-purple-500/20 bg-purple-500/10 text-purple-400',
+  cancelled: 'border-destructive/20 bg-destructive/10 text-destructive',
+}
+
 export const smartGoalStatusLabels: Record<string, string> = {
   on_track: 'No caminho certo',
   at_risk: 'Em risco',

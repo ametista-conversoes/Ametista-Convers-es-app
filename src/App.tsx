@@ -10,6 +10,8 @@ import Register from '@/pages/auth/Register'
 import ResetPassword from '@/pages/auth/ResetPassword'
 import Dashboard from '@/pages/client/Dashboard'
 import Performance from '@/pages/client/Performance'
+import Project from '@/pages/client/Project'
+import Reports from '@/pages/client/Reports'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 
 // Rotas do Portal Cliente que já têm página real — as demais continuam
@@ -17,6 +19,8 @@ import { PlaceholderPage } from '@/pages/PlaceholderPage'
 const clientPagesReady: Record<string, ComponentType> = {
   '/': Dashboard,
   '/performance': Performance,
+  '/project': Project,
+  '/reports': Reports,
 }
 
 function App() {

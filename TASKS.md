@@ -32,8 +32,9 @@
 - [x] Testado com dados reais do Supabase, incluindo o gráfico mudando ao editar um valor no banco, e responsividade nas larguras problemáticas (iPad Air ~820px, Zenbook Fold ~853px)
 
 ### Fase 4.2 — Relatórios e Meu Projeto
-- [ ] Relatórios (`/reports`): 4 abas (Performance de Tráfego, Financeiro, Distribuição & Canais, Clientes & Mensalidades)
-- [ ] Meu Projeto (`/project`): info cards, cronograma, checklist de onboarding, metas SMART, lista de tarefas
+- [x] Relatórios (`/reports`): 4 abas (Performance de Tráfego, Financeiro, Distribuição & Canais, Clientes & Mensalidades)
+- [x] Meu Projeto (`/project`): info cards, cronograma, checklist de onboarding, metas SMART, lista de tarefas
+- [x] Testado com dados reais do Supabase, incluindo marcar/desmarcar uma etapa do onboarding e navegação entre as 4 abas, e responsividade nas larguras problemáticas (iPad Air ~820px, Zenbook Fold ~853px)
 
 ### Fase 4.3 — Tarefas, Arquivos, Comentários e Reuniões
 - [ ] Tarefas (`/tasks`): lista com filtro, nova tarefa, toggle de conclusão
@@ -54,3 +55,6 @@
 - [ ] Testes automatizados (Vitest + Playwright)
 - [ ] Revisão geral de responsividade e acessibilidade
 - [ ] Preparar o app para publicação (deploy)
+
+## Fase 8 — Integrações externas de dados (provisório, detalhar quando chegar a vez)
+- [ ] Conectar dados reais de plataformas externas (Google Ads, Meta Ads, Google Forms, etc.) via Supabase Edge Functions, alimentando as mesmas tabelas que o app já lê hoje (sem precisar recriar as telas)

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -30,11 +30,15 @@ export interface ProjectRecord {
   channel: string | null
   start_date: string | null
   end_date: string | null
+  objective: string | null
+  icp: string | null
+  segment: string | null
 }
 
 export interface TaskRecord {
   id: string
   title: string
+  project_id: string | null
   status: string
   priority: string
   due_date: string | null
@@ -67,6 +71,15 @@ export interface AlertRecord {
   category: string | null
   resolved: boolean
   created_at: string
+}
+
+export interface OnboardingStepRecord {
+  id: string
+  title: string
+  project_id: string | null
+  completed: boolean
+  step_order: number
+  category: string | null
 }
 
 export interface PerformanceSnapshotRecord {
@@ -167,6 +180,37 @@ export function useAlerts() {
       return data as AlertRecord[]
     },
     enabled: !!clientId,
+  })
+}
+
+export function useOnboardingSteps() {
+  const { clientId } = useAuth()
+  return useQuery({
+    queryKey: ['onboarding-steps', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('onboarding_steps')
+        .select('*')
+        .eq('client_id', clientId as string)
+        .order('step_order', { ascending: true })
+      if (error) throw error
+      return data as OnboardingStepRecord[]
+    },
+    enabled: !!clientId,
+  })
+}
+
+export function useToggleOnboardingStep() {
+  const { clientId } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ stepId, completed }: { stepId: string; completed: boolean }) => {
+      const { error } = await supabase.rpc('toggle_onboarding_step', { step_id: stepId, is_completed: completed })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['onboarding-steps', clientId] })
+    },
   })
 }
 
