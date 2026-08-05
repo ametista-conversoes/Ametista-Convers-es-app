@@ -6,6 +6,7 @@ import { KpiCard } from '@/components/dashboard/KpiCard'
 import { useAuth } from '@/contexts/AuthContext'
 import { useProjects, usePerformanceSnapshots } from '@/hooks/useClientPortalData'
 import { formatCurrency, formatMultiplier, formatNumber, formatPercent } from '@/lib/format'
+import { kpiDescriptions } from '@/lib/kpi-descriptions'
 import { aggregateProjectKpis, averageCtr, averageHealthScore, buildTrendSeries, groupByChannel } from '@/lib/metrics'
 
 export default function Performance() {
@@ -43,8 +44,13 @@ export default function Performance() {
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/70">Marketing</h2>
         <div className="content-grid-container">
           <div className="content-grid gap-4">
-            <KpiCard label="CTR médio" value={formatPercent(ctr)} icon={MousePointerClick} />
-            <KpiCard label="ROAS" value={formatMultiplier(kpis.roas)} icon={Gauge} />
+            <KpiCard
+              label="CTR médio"
+              value={formatPercent(ctr)}
+              icon={MousePointerClick}
+              description={kpiDescriptions.ctrMedio}
+            />
+            <KpiCard label="ROAS" value={formatMultiplier(kpis.roas)} icon={Gauge} description={kpiDescriptions.roas} />
           </div>
         </div>
       </section>
@@ -53,9 +59,19 @@ export default function Performance() {
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/70">Financeiro</h2>
         <div className="content-grid-container">
           <div className="content-grid gap-4">
-            <KpiCard label="Investimento" value={formatCurrency(kpis.spend)} icon={DollarSign} />
-            <KpiCard label="Receita" value={formatCurrency(kpis.revenue)} icon={TrendingUp} />
-            <KpiCard label="CPA" value={formatCurrency(kpis.cpa)} icon={Target} />
+            <KpiCard
+              label="Investimento"
+              value={formatCurrency(kpis.spend)}
+              icon={DollarSign}
+              description={kpiDescriptions.investimento}
+            />
+            <KpiCard
+              label="Receita"
+              value={formatCurrency(kpis.revenue)}
+              icon={TrendingUp}
+              description={kpiDescriptions.receita}
+            />
+            <KpiCard label="CPA" value={formatCurrency(kpis.cpa)} icon={Target} description={kpiDescriptions.cpa} />
           </div>
         </div>
       </section>
@@ -64,8 +80,18 @@ export default function Performance() {
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/70">Negócio</h2>
         <div className="content-grid-container">
           <div className="content-grid gap-4">
-            <KpiCard label="Conversões" value={formatNumber(kpis.conversions)} icon={CheckCircle2} />
-            <KpiCard label="Health Score médio" value={healthAvg !== null ? formatNumber(healthAvg) : '—'} icon={Activity} />
+            <KpiCard
+              label="Conversões"
+              value={formatNumber(kpis.conversions)}
+              icon={CheckCircle2}
+              description={kpiDescriptions.conversoes}
+            />
+            <KpiCard
+              label="Health Score médio"
+              value={healthAvg !== null ? formatNumber(healthAvg) : '—'}
+              icon={Activity}
+              description={kpiDescriptions.healthScoreMedio}
+            />
           </div>
         </div>
       </section>

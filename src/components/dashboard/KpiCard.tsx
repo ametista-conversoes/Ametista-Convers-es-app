@@ -1,19 +1,21 @@
-import type { LucideIcon } from 'lucide-react'
+import { HelpCircle, type LucideIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 interface KpiCardProps {
   label: string
   value: string
   icon: LucideIcon
+  description?: string
   className?: string
 }
 
-export function KpiCard({ label, value, icon: Icon, className }: KpiCardProps) {
+export function KpiCard({ label, value, icon: Icon, description, className }: KpiCardProps) {
   return (
     <Card
       className={cn(
-        'rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6',
+        'relative rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6',
         className,
       )}
     >
@@ -24,6 +26,23 @@ export function KpiCard({ label, value, icon: Icon, className }: KpiCardProps) {
         </div>
       </div>
       <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
+
+      {description && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="absolute bottom-3 right-3 text-muted-foreground/50 transition-colors hover:text-purple-400"
+              aria-label={`O que é ${label}`}
+            >
+              <HelpCircle className="h-3.5 w-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" align="end">
+            <p className="whitespace-pre-line">{description}</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
     </Card>
   )
 }

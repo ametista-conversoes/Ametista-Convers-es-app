@@ -17,6 +17,7 @@ import {
   useUpcomingMeetings,
 } from '@/hooks/useClientPortalData'
 import { formatCurrency, formatMultiplier, formatNumber } from '@/lib/format'
+import { kpiDescriptions } from '@/lib/kpi-descriptions'
 import { aggregateProjectKpis } from '@/lib/metrics'
 
 export default function Dashboard() {
@@ -55,11 +56,26 @@ export default function Dashboard() {
 
       <div className="content-grid-container">
         <div className="content-grid gap-4">
-          <KpiCard label="Investimento" value={formatCurrency(kpis.spend)} icon={DollarSign} />
-          <KpiCard label="Receita" value={formatCurrency(kpis.revenue)} icon={TrendingUp} />
-          <KpiCard label="ROAS" value={formatMultiplier(kpis.roas)} icon={Gauge} />
-          <KpiCard label="CPA" value={formatCurrency(kpis.cpa)} icon={Target} />
-          <KpiCard label="Conversões" value={formatNumber(kpis.conversions)} icon={CheckCircle2} />
+          <KpiCard
+            label="Investimento"
+            value={formatCurrency(kpis.spend)}
+            icon={DollarSign}
+            description={kpiDescriptions.investimento}
+          />
+          <KpiCard
+            label="Receita"
+            value={formatCurrency(kpis.revenue)}
+            icon={TrendingUp}
+            description={kpiDescriptions.receita}
+          />
+          <KpiCard label="ROAS" value={formatMultiplier(kpis.roas)} icon={Gauge} description={kpiDescriptions.roas} />
+          <KpiCard label="CPA" value={formatCurrency(kpis.cpa)} icon={Target} description={kpiDescriptions.cpa} />
+          <KpiCard
+            label="Conversões"
+            value={formatNumber(kpis.conversions)}
+            icon={CheckCircle2}
+            description={kpiDescriptions.conversoes}
+          />
         </div>
       </div>
 

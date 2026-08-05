@@ -14,6 +14,7 @@ import { RecentIncidentsList } from '@/components/admin/RecentIncidentsList'
 import { KpiCard } from '@/components/dashboard/KpiCard'
 import { useAllClients, useAllIncidents, useAllProjects, useAllTasks } from '@/hooks/useManagerPortalData'
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/format'
+import { kpiDescriptions } from '@/lib/kpi-descriptions'
 import { computeExecutiveKpis } from '@/lib/manager-metrics'
 
 export default function DashboardExecutivo() {
@@ -37,14 +38,54 @@ export default function DashboardExecutivo() {
 
       <div className="content-grid-container">
         <div className="content-grid gap-4">
-          <KpiCard label="MRR Total" value={formatCurrency(kpis.mrrTotal)} icon={DollarSign} />
-          <KpiCard label="Clientes Ativos" value={formatNumber(kpis.activeClients)} icon={Users} />
-          <KpiCard label="Churn Rate" value={formatPercent(kpis.churnRate)} icon={TrendingDown} />
-          <KpiCard label="Incidentes Abertos" value={formatNumber(kpis.openIncidents)} icon={Siren} />
-          <KpiCard label="Clientes em Risco" value={formatNumber(kpis.atRiskClients)} icon={AlertTriangle} />
-          <KpiCard label="Carga de Trabalho" value={formatNumber(kpis.workload)} icon={Briefcase} />
-          <KpiCard label="Produtividade" value={formatPercent(kpis.productivity)} icon={Zap} />
-          <KpiCard label="Budget Gerenciado" value={formatCurrency(kpis.managedBudget)} icon={Wallet} />
+          <KpiCard
+            label="MRR Total"
+            value={formatCurrency(kpis.mrrTotal)}
+            icon={DollarSign}
+            description={kpiDescriptions.mrrTotal}
+          />
+          <KpiCard
+            label="Clientes Ativos"
+            value={formatNumber(kpis.activeClients)}
+            icon={Users}
+            description={kpiDescriptions.clientesAtivos}
+          />
+          <KpiCard
+            label="Churn Rate"
+            value={formatPercent(kpis.churnRate)}
+            icon={TrendingDown}
+            description={kpiDescriptions.churnRate}
+          />
+          <KpiCard
+            label="Incidentes Abertos"
+            value={formatNumber(kpis.openIncidents)}
+            icon={Siren}
+            description={kpiDescriptions.incidentesAbertos}
+          />
+          <KpiCard
+            label="Clientes em Risco"
+            value={formatNumber(kpis.atRiskClients)}
+            icon={AlertTriangle}
+            description={kpiDescriptions.clientesEmRisco}
+          />
+          <KpiCard
+            label="Carga de Trabalho"
+            value={formatNumber(kpis.workload)}
+            icon={Briefcase}
+            description={kpiDescriptions.cargaDeTrabalho}
+          />
+          <KpiCard
+            label="Produtividade"
+            value={formatPercent(kpis.productivity)}
+            icon={Zap}
+            description={kpiDescriptions.produtividade}
+          />
+          <KpiCard
+            label="Budget Gerenciado"
+            value={formatCurrency(kpis.managedBudget)}
+            icon={Wallet}
+            description={kpiDescriptions.budgetGerenciado}
+          />
         </div>
       </div>
 

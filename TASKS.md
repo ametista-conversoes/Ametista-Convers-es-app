@@ -57,6 +57,7 @@
 - [x] Dashboard Executivo (`/admin`): 8 KPI cards (MRR Total, Clientes Ativos, Churn Rate, Incidentes Abertos, Clientes em Risco, Carga de Trabalho, Produtividade, Budget Gerenciado), gauge de produtividade, lista de clientes em risco, lista de incidentes abertos recentes
 - [x] Clientes (`/clients`): busca por nome/empresa, dialog "Novo Cliente", grid de cards com health score e cor por status
 - [x] Testado logado como `admin`: os 8 KPIs batem com os dados de teste, criar cliente novo aparece na hora no grid com a cor certa; testado logado como `cliente`: `/admin` redireciona com "Acesso Negado" (regressão da Fase 2 confirmada)
+- [x] Melhoria de UX (pedida pelo usuário): ícone de dúvida nos cards de KPI (`KpiCard`) mostrando fórmula/descrição ao passar o mouse — aplicado nos 8 KPIs do Dashboard Executivo e retroativamente no Dashboard, Performance e Relatórios do Portal Cliente (mesmo componente reaproveitado nos 4 lugares)
 
 ### Fase 5.2 — Kanban e Workflows
 - [ ] Kanban (`/kanban`): 5 colunas, arrastar e soltar, criação de tarefa por modelo

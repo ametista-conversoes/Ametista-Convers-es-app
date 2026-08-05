@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClient, usePerformanceSnapshots, useProjects } from '@/hooks/useClientPortalData'
 import { formatCurrency, formatMultiplier, formatPercent } from '@/lib/format'
+import { kpiDescriptions } from '@/lib/kpi-descriptions'
 import { aggregateProjectKpis, averageCtr, buildTrendSeries, groupByChannel } from '@/lib/metrics'
 import { clientStatusLabels, clientStatusStyles } from '@/lib/status-styles'
 
@@ -54,8 +55,13 @@ export default function Reports() {
         <TabsContent value="traffic" className="space-y-4">
           <div className="content-grid-container">
             <div className="content-grid gap-4">
-              <KpiCard label="CTR médio" value={formatPercent(ctr)} icon={MousePointerClick} />
-              <KpiCard label="ROAS" value={formatMultiplier(kpis.roas)} icon={Gauge} />
+              <KpiCard
+                label="CTR médio"
+                value={formatPercent(ctr)}
+                icon={MousePointerClick}
+                description={kpiDescriptions.ctrMedio}
+              />
+              <KpiCard label="ROAS" value={formatMultiplier(kpis.roas)} icon={Gauge} description={kpiDescriptions.roas} />
             </div>
           </div>
           <Card className="min-w-0 overflow-hidden rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
@@ -75,9 +81,19 @@ export default function Reports() {
         <TabsContent value="financial" className="space-y-4">
           <div className="content-grid-container">
             <div className="content-grid gap-4">
-              <KpiCard label="Investimento" value={formatCurrency(kpis.spend)} icon={DollarSign} />
-              <KpiCard label="Receita" value={formatCurrency(kpis.revenue)} icon={TrendingUp} />
-              <KpiCard label="CPA" value={formatCurrency(kpis.cpa)} icon={Target} />
+              <KpiCard
+                label="Investimento"
+                value={formatCurrency(kpis.spend)}
+                icon={DollarSign}
+                description={kpiDescriptions.investimento}
+              />
+              <KpiCard
+                label="Receita"
+                value={formatCurrency(kpis.revenue)}
+                icon={TrendingUp}
+                description={kpiDescriptions.receita}
+              />
+              <KpiCard label="CPA" value={formatCurrency(kpis.cpa)} icon={Target} description={kpiDescriptions.cpa} />
             </div>
           </div>
           <FinancialSummaryCard monthlyFee={client?.monthly_fee ?? null} spend={kpis.spend} revenue={kpis.revenue} />
