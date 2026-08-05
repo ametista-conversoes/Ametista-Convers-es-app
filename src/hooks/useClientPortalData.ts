@@ -38,6 +38,7 @@ export interface ProjectRecord {
 export interface TaskRecord {
   id: string
   title: string
+  description: string | null
   project_id: string | null
   status: string
   priority: string
@@ -75,6 +76,7 @@ export interface AlertRecord {
 
 export interface CommentRecord {
   id: string
+  title: string | null
   content: string
   author_id: string | null
   author_name: string | null
@@ -262,6 +264,7 @@ export function usePerformanceSnapshots() {
 
 export interface NewTaskInput {
   title: string
+  description: string | null
   category: string | null
   due_date: string | null
   priority: string
@@ -319,8 +322,9 @@ export function useCreateComment() {
   const { clientId, user, fullName, role } = useAuth()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (content: string) => {
+    mutationFn: async ({ title, content }: { title: string; content: string }) => {
       const { error } = await supabase.from('comments').insert({
+        title,
         content,
         client_id: clientId,
         entity_type: COMMENTS_ENTITY_TYPE,

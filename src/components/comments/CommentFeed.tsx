@@ -22,8 +22,9 @@ export function CommentFeed({ comments }: CommentFeedProps) {
         {comments.length === 0 && <p className="text-sm text-muted-foreground">Nenhum comentário ainda.</p>}
         {comments.map((comment) => (
           <div key={comment.id} className="rounded-lg bg-secondary/50 px-3 py-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm font-medium text-foreground">{comment.author_name ?? 'Alguém'}</p>
+            {comment.title && <p className="text-sm font-semibold text-foreground">{comment.title}</p>}
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <p className="text-xs font-medium text-muted-foreground">{comment.author_name ?? 'Alguém'}</p>
               {comment.author_role && (
                 <Badge className={roleStyles[comment.author_role]}>
                   {roleLabels[comment.author_role] ?? comment.author_role}

@@ -33,3 +33,10 @@ export function formatDateTime(value: string | null | undefined): string {
   if (!value) return '—'
   return dateTimeFormatter.format(new Date(value))
 }
+
+/** Data de hoje no formato "AAAA-MM-DD", usada como `min` em campos `type="date"`. */
+export function getTodayIsoDate(): string {
+  const now = new Date()
+  const offset = now.getTimezoneOffset()
+  return new Date(now.getTime() - offset * 60 * 1000).toISOString().slice(0, 10)
+}

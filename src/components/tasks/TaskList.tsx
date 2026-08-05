@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { CheckSquare } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -5,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import type { TaskRecord } from '@/hooks/useClientPortalData'
 import { formatDate } from '@/lib/format'
 import { taskPriorityLabels, taskStatusLabels, taskStatusStyles } from '@/lib/status-styles'
+import { TaskDetailDialog } from './TaskDetailDialog'
 
 interface TaskListProps {
   tasks: TaskRecord[]
@@ -22,6 +24,8 @@ export function TaskList({
   onToggleDone,
   togglingTaskId = null,
 }: TaskListProps) {
+  const [selectedTask, setSelectedTask] = useState<TaskRecord | null>(null)
+
   return (
     <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
       <CardHeader className="p-0">
@@ -35,13 +39,19 @@ export function TaskList({
         {tasks.map((task) => {
           const isDone = task.status === 'done'
           return (
-            <div key={task.id} className="flex items-center gap-3 rounded-lg bg-secondary/50 px-3 py-2">
+            <div
+              key={task.id}
+              className="flex cursor-pointer items-center gap-3 rounded-lg bg-secondary/50 px-3 py-2"
+              onClick={() => setSelectedTask(task)}
+            >
               {interactive && (
-                <Checkbox
-                  checked={isDone}
-                  disabled={togglingTaskId === task.id}
-                  onCheckedChange={(checked) => onToggleDone?.(task.id, checked === true)}
-                />
+                <span onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={isDone}
+                    disabled={togglingTaskId === task.id}
+                    onCheckedChange={(checked) => onToggleDone?.(task.id, checked === true)}
+                  />
+                </span>
               )}
               <div className="min-w-0 flex-1">
                 <p className={`truncate text-sm font-medium ${isDone ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
@@ -57,6 +67,8 @@ export function TaskList({
           )
         })}
       </CardContent>
+
+      <TaskDetailDialog task={selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)} />
     </Card>
   )
 }

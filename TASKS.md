@@ -42,6 +42,7 @@
 - [x] Comentários (`/comments`): feed com novo comentário
 - [x] Reuniões (`/meetings`): agendar, lista com status
 - [x] Testado com dados reais do Supabase: criar tarefa e concluir, subir e abrir arquivo, aprovar uma aprovação, enviar comentário (com nome/papel), agendar reunião, e responsividade nas larguras problemáticas (iPad Air ~820px, Zenbook Fold ~853px)
+- [x] Ajustes pós-teste: trava de data passada em tarefas e reuniões, popup de detalhes da tarefa com campo de descrição, seletor de horário pré-definido nas reuniões, título nos comentários, e novas aprovações de exemplo em "Pendente"
 
 ### Fase 4.4 — Configurações
 - [ ] Configurações (`/settings`): abas Globais/Agência/Cliente/Usuário filtradas por papel
