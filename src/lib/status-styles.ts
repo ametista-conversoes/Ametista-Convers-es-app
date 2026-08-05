@@ -37,6 +37,20 @@ export const meetingStatusStyles: Record<string, string> = {
   cancelled: 'border-destructive/20 bg-destructive/10 text-destructive',
 }
 
+export const incidentStatusLabels: Record<string, string> = {
+  open: 'Aberto',
+  in_progress: 'Em andamento',
+  resolved: 'Resolvido',
+  closed: 'Fechado',
+}
+
+export const incidentStatusStyles: Record<string, string> = {
+  open: 'border-destructive/20 bg-destructive/10 text-destructive',
+  in_progress: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
+  resolved: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+  closed: 'border-slate-500/20 bg-slate-500/10 text-slate-400',
+}
+
 export const severityLabels: Record<string, string> = {
   low: 'Baixa',
   medium: 'Média',

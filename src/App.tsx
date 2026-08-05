@@ -18,6 +18,8 @@ import Reports from '@/pages/client/Reports'
 import Tasks from '@/pages/client/Tasks'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import Settings from '@/pages/Settings'
+import Clients from '@/pages/admin/Clients'
+import DashboardExecutivo from '@/pages/admin/DashboardExecutivo'
 
 // Rotas do Portal Cliente que já têm página real — as demais continuam
 // com a página de exemplo até as próximas sub-fases da Fase 4.
@@ -32,6 +34,13 @@ const clientPagesReady: Record<string, ComponentType> = {
   '/comments': Comments,
   '/meetings': Meetings,
   '/settings': Settings,
+}
+
+// Rotas do Portal Gestor que já têm página real — as demais continuam
+// com a página de exemplo até as próximas sub-fases da Fase 5.
+const managerPagesReady: Record<string, ComponentType> = {
+  '/admin': DashboardExecutivo,
+  '/clients': Clients,
 }
 
 function App() {
@@ -56,13 +65,16 @@ function App() {
           })}
 
           <Route element={<RoleRoute allowedRoles={['admin', 'gestor']} />}>
-            {managerNavItems.map((item) => (
-              <Route
-                key={item.href}
-                path={item.href}
-                element={<PlaceholderPage title={item.title} portal="Portal Gestor" />}
-              />
-            ))}
+            {managerNavItems.map((item) => {
+              const ReadyPage = managerPagesReady[item.href]
+              return (
+                <Route
+                  key={item.href}
+                  path={item.href}
+                  element={ReadyPage ? <ReadyPage /> : <PlaceholderPage title={item.title} portal="Portal Gestor" />}
+                />
+              )
+            })}
           </Route>
         </Route>
       </Route>

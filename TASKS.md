@@ -51,8 +51,26 @@
 - [x] Corrigido: "Configurações" agora aparece no menu lateral para o papel `gestor` também (antes só existia para `cliente`/`admin`)
 - [x] Testado com 3 contas de teste (`cliente`, `gestor`, `admin`) — abas corretas por papel, edição de perfil persistindo, e logout funcionando
 
-## Fase 5 — Portal do Gestor (provisório, detalhar quando chegar a vez)
-- [ ] Construir as páginas reais do Portal do Gestor (dashboard executivo, clientes, kanban, workflows, incidentes, ativos digitais, alertas, timeline, metas SMART, onboarding) ligadas ao banco de dados
+## Fase 5 — Portal do Gestor
+
+### Fase 5.1 — Dashboard Executivo e Clientes
+- [x] Dashboard Executivo (`/admin`): 8 KPI cards (MRR Total, Clientes Ativos, Churn Rate, Incidentes Abertos, Clientes em Risco, Carga de Trabalho, Produtividade, Budget Gerenciado), gauge de produtividade, lista de clientes em risco, lista de incidentes abertos recentes
+- [x] Clientes (`/clients`): busca por nome/empresa, dialog "Novo Cliente", grid de cards com health score e cor por status
+- [x] Testado logado como `admin`: os 8 KPIs batem com os dados de teste, criar cliente novo aparece na hora no grid com a cor certa; testado logado como `cliente`: `/admin` redireciona com "Acesso Negado" (regressão da Fase 2 confirmada)
+
+### Fase 5.2 — Kanban e Workflows
+- [ ] Kanban (`/kanban`): 5 colunas, arrastar e soltar, criação de tarefa por modelo
+- [ ] Workflows (`/workflows`): 4 modelos (Novo Cliente, Nova Campanha, Produção de Criativos, Configuração de Pixel), botão "Aplicar Workflow"
+
+### Fase 5.3 — Incidentes, Alertas e Timeline
+- [ ] Incidentes (`/incidents`), Alertas (`/alerts`), Timeline (`/timeline`)
+- [ ] Registro automático de eventos na Timeline (incidente, alerta, workflow)
+- [ ] Botão "Pausa de Emergência" do Portal Cliente (Fase 4.1) passa a criar um incidente crítico de verdade
+
+### Fase 5.4 — Ativos Digitais, Metas SMART e Onboarding
+- [ ] Banco de Ativos Digitais (`/assets`), Metas SMART (`/smart-goals`), Onboarding (`/onboarding`)
+
+> **Nota sobre a ordem das próximas fases:** ao terminar a Fase 5, a intenção é seguir para as integrações externas (Google Ads, Meta Ads, Google Forms) — hoje anotadas como "Fase 8" logo abaixo. A numeração final (se essa fase vira "Fase 6" e empurra as demais, ou fica como está) será decidida quando chegarmos lá; por enquanto nenhuma fase provisória foi apagada ou renumerada.
 
 ## Fase 6 — Recursos avançados / IA (provisório, detalhar quando chegar a vez)
 - [ ] Funcionalidades da assistente Cassie (IA) e automações que dependerem dela
