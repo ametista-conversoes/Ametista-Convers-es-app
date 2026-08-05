@@ -284,12 +284,12 @@ export function useCreateTask() {
   })
 }
 
-export function useSetTaskDone() {
+export function useSetTaskStatus() {
   const { clientId } = useAuth()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ taskId, done }: { taskId: string; done: boolean }) => {
-      const { error } = await supabase.rpc('set_task_done', { task_id: taskId, is_done: done })
+    mutationFn: async ({ taskId, status }: { taskId: string; status: string }) => {
+      const { error } = await supabase.rpc('set_task_status', { task_id: taskId, new_status: status })
       if (error) throw error
     },
     onSuccess: () => {

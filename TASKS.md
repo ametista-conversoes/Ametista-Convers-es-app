@@ -43,6 +43,7 @@
 - [x] Reuniões (`/meetings`): agendar, lista com status
 - [x] Testado com dados reais do Supabase: criar tarefa e concluir, subir e abrir arquivo, aprovar uma aprovação, enviar comentário (com nome/papel), agendar reunião, e responsividade nas larguras problemáticas (iPad Air ~820px, Zenbook Fold ~853px)
 - [x] Ajustes pós-teste: trava de data passada em tarefas e reuniões, popup de detalhes da tarefa com campo de descrição, seletor de horário pré-definido nas reuniões, título nos comentários, e novas aprovações de exemplo em "Pendente"
+- [x] Mais ajustes: menu de horário reescrito com Radix Select (altura limitada, cores do design system — corrigido também um bug real do `--popover` que deixava menus suspensos transparentes), arquivos categorizados por tipo com prévia de imagem/vídeo (sem o selo de aprovação, que confundia com a aba Aprovações), e menu de status da tarefa (Backlog/A fazer/Em andamento/Em revisão) direto no badge
 
 ### Fase 4.4 — Configurações
 - [ ] Configurações (`/settings`): abas Globais/Agência/Cliente/Usuário filtradas por papel

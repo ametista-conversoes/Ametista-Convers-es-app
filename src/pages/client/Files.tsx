@@ -38,11 +38,15 @@ export default function Files() {
           <TabsTrigger value="approvals">Aprovações</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="files">
+        <TabsContent value="files" className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Repertório organizado com a agência — sem pendência de decisão.
+          </p>
           <FileList files={files ?? []} />
         </TabsContent>
 
-        <TabsContent value="approvals">
+        <TabsContent value="approvals" className="space-y-3">
+          <p className="text-xs text-muted-foreground">Itens enviados pela agência que precisam da sua decisão.</p>
           <ApprovalList approvals={approvals ?? []} />
         </TabsContent>
       </Tabs>

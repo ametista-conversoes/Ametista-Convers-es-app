@@ -111,7 +111,7 @@ export function NewMeetingDialog() {
                   <FormItem>
                     <FormLabel>Horário</FormLabel>
                     <FormControl>
-                      <TimeSlotSelect {...field} />
+                      <TimeSlotSelect value={field.value} onValueChange={field.onChange} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -3,18 +3,27 @@ import { CheckSquare } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import type { TaskRecord } from '@/hooks/useClientPortalData'
 import { formatDate } from '@/lib/format'
 import { taskPriorityLabels, taskStatusLabels, taskStatusStyles } from '@/lib/status-styles'
 import { TaskDetailDialog } from './TaskDetailDialog'
 
+const CHANGEABLE_STATUSES = ['backlog', 'todo', 'in_progress', 'review'] as const
+
 interface TaskListProps {
   tasks: TaskRecord[]
   title?: string
-  /** Quando true, mostra um checkbox para marcar/desmarcar a tarefa como concluída. */
+  /** Quando true, mostra o checkbox de conclusão e o menu de status. */
   interactive?: boolean
   onToggleDone?: (taskId: string, done: boolean) => void
-  togglingTaskId?: string | null
+  onChangeStatus?: (taskId: string, status: string) => void
+  updatingTaskId?: string | null
 }
 
 export function TaskList({
@@ -22,7 +31,8 @@ export function TaskList({
   title = 'Tarefas do projeto',
   interactive = false,
   onToggleDone,
-  togglingTaskId = null,
+  onChangeStatus,
+  updatingTaskId = null,
 }: TaskListProps) {
   const [selectedTask, setSelectedTask] = useState<TaskRecord | null>(null)
 
@@ -38,6 +48,7 @@ export function TaskList({
         {tasks.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma tarefa cadastrada.</p>}
         {tasks.map((task) => {
           const isDone = task.status === 'done'
+          const isUpdating = updatingTaskId === task.id
           return (
             <div
               key={task.id}
@@ -48,7 +59,7 @@ export function TaskList({
                 <span onClick={(e) => e.stopPropagation()}>
                   <Checkbox
                     checked={isDone}
-                    disabled={togglingTaskId === task.id}
+                    disabled={isUpdating}
                     onCheckedChange={(checked) => onToggleDone?.(task.id, checked === true)}
                   />
                 </span>
@@ -62,7 +73,24 @@ export function TaskList({
                   {task.category ? ` · ${task.category}` : ''}
                 </p>
               </div>
-              <Badge className={taskStatusStyles[task.status]}>{taskStatusLabels[task.status] ?? task.status}</Badge>
+              {interactive ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild disabled={isUpdating} onClick={(e) => e.stopPropagation()}>
+                    <Badge className={`cursor-pointer ${taskStatusStyles[task.status]}`}>
+                      {taskStatusLabels[task.status] ?? task.status}
+                    </Badge>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                    {CHANGEABLE_STATUSES.map((status) => (
+                      <DropdownMenuItem key={status} onSelect={() => onChangeStatus?.(task.id, status)}>
+                        {taskStatusLabels[status]}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Badge className={taskStatusStyles[task.status]}>{taskStatusLabels[task.status] ?? task.status}</Badge>
+              )}
             </div>
           )
         })}

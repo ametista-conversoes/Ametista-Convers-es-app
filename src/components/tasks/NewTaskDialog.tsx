@@ -15,7 +15,7 @@ import {
 import { toast } from 'sonner'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useCreateTask } from '@/hooks/useClientPortalData'
 import { getTodayIsoDate } from '@/lib/format'
@@ -142,15 +142,20 @@ export function NewTaskDialog() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Prioridade</FormLabel>
-                  <FormControl>
-                    <Select {...field}>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
                       {Object.entries(taskPriorityLabels).map(([value, label]) => (
-                        <option key={value} value={value}>
+                        <SelectItem key={value} value={value}>
                           {label}
-                        </option>
+                        </SelectItem>
                       ))}
-                    </Select>
-                  </FormControl>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

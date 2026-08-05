@@ -4,7 +4,7 @@ import { NewTaskDialog } from '@/components/tasks/NewTaskDialog'
 import { TaskList } from '@/components/tasks/TaskList'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/contexts/AuthContext'
-import { useSetTaskDone, useTasks } from '@/hooks/useClientPortalData'
+import { useSetTaskStatus, useTasks } from '@/hooks/useClientPortalData'
 import { taskStatusLabels } from '@/lib/status-styles'
 
 const FILTERS = ['todos', 'backlog', 'todo', 'in_progress', 'review', 'done'] as const
@@ -13,9 +13,9 @@ type Filter = (typeof FILTERS)[number]
 export default function Tasks() {
   const { clientId } = useAuth()
   const { data: tasks, isLoading } = useTasks()
-  const setTaskDone = useSetTaskDone()
+  const setTaskStatus = useSetTaskStatus()
   const [filter, setFilter] = useState<Filter>('todos')
-  const [togglingTaskId, setTogglingTaskId] = useState<string | null>(null)
+  const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null)
 
   if (!clientId) {
     return (
@@ -32,14 +32,14 @@ export default function Tasks() {
   const allTasks = tasks ?? []
   const filteredTasks = filter === 'todos' ? allTasks : allTasks.filter((task) => task.status === filter)
 
-  async function handleToggleDone(taskId: string, done: boolean) {
-    setTogglingTaskId(taskId)
+  async function handleChangeStatus(taskId: string, status: string) {
+    setUpdatingTaskId(taskId)
     try {
-      await setTaskDone.mutateAsync({ taskId, done })
+      await setTaskStatus.mutateAsync({ taskId, status })
     } catch {
       toast.error('Não foi possível atualizar a tarefa.')
     } finally {
-      setTogglingTaskId(null)
+      setUpdatingTaskId(null)
     }
   }
 
@@ -84,8 +84,9 @@ export default function Tasks() {
         tasks={filteredTasks}
         title="Todas as tarefas"
         interactive
-        onToggleDone={handleToggleDone}
-        togglingTaskId={togglingTaskId}
+        onToggleDone={(taskId, done) => handleChangeStatus(taskId, done ? 'done' : 'todo')}
+        onChangeStatus={handleChangeStatus}
+        updatingTaskId={updatingTaskId}
       />
     </div>
   )
