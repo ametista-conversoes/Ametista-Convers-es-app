@@ -10,6 +10,7 @@ interface AuthContextValue {
   role: UserRole | null
   clientId: string | null
   fullName: string | null
+  phone: string | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signUp: (
@@ -20,6 +21,7 @@ interface AuthContextValue {
   signOut: () => Promise<void>
   sendPasswordReset: (email: string) => Promise<{ error: string | null }>
   updatePassword: (newPassword: string) => Promise<{ error: string | null }>
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -29,22 +31,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<UserRole | null>(null)
   const [clientId, setClientId] = useState<string | null>(null)
   const [fullName, setFullName] = useState<string | null>(null)
+  const [phone, setPhone] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+
+  async function loadProfile(userId: string) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('role, client_id, full_name, phone')
+      .eq('id', userId)
+      .single()
+    setRole((data?.role as UserRole) ?? null)
+    setClientId(data?.client_id ?? null)
+    setFullName(data?.full_name ?? null)
+    setPhone(data?.phone ?? null)
+  }
 
   useEffect(() => {
     let active = true
-
-    async function loadProfile(userId: string) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('role, client_id, full_name')
-        .eq('id', userId)
-        .single()
-      if (!active) return
-      setRole((data?.role as UserRole) ?? null)
-      setClientId(data?.client_id ?? null)
-      setFullName(data?.full_name ?? null)
-    }
 
     supabase.auth.getSession().then(({ data }) => {
       if (!active) return
@@ -66,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRole(null)
         setClientId(null)
         setFullName(null)
+        setPhone(null)
       }
     })
 
@@ -109,6 +113,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null }
   }
 
+  async function refreshProfile() {
+    if (session?.user) {
+      await loadProfile(session.user.id)
+    }
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -117,12 +127,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role,
         clientId,
         fullName,
+        phone,
         loading,
         signIn,
         signUp,
         signOut,
         sendPasswordReset,
         updatePassword,
+        refreshProfile,
       }}
     >
       {children}

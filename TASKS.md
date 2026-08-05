@@ -46,7 +46,10 @@
 - [x] Mais ajustes: menu de horário reescrito com Radix Select (altura limitada, cores do design system — corrigido também um bug real do `--popover` que deixava menus suspensos transparentes), arquivos categorizados por tipo com prévia de imagem/vídeo (sem o selo de aprovação, que confundia com a aba Aprovações), e menu de status da tarefa (Backlog/A fazer/Em andamento/Em revisão) direto no badge
 
 ### Fase 4.4 — Configurações
-- [ ] Configurações (`/settings`): abas Globais/Agência/Cliente/Usuário filtradas por papel
+- [x] Configurações (`/settings`): abas Globais/Agência/Cliente/Usuário filtradas por papel (Globais só admin; Agência admin/gestor; Cliente e Usuário para todos)
+- [x] Aba Usuário: editar nome/telefone (salva de verdade) e botão Sair
+- [x] Corrigido: "Configurações" agora aparece no menu lateral para o papel `gestor` também (antes só existia para `cliente`/`admin`)
+- [x] Testado com 3 contas de teste (`cliente`, `gestor`, `admin`) — abas corretas por papel, edição de perfil persistindo, e logout funcionando
 
 ## Fase 5 — Portal do Gestor (provisório, detalhar quando chegar a vez)
 - [ ] Construir as páginas reais do Portal do Gestor (dashboard executivo, clientes, kanban, workflows, incidentes, ativos digitais, alertas, timeline, metas SMART, onboarding) ligadas ao banco de dados

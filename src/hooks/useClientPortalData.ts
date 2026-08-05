@@ -441,3 +441,57 @@ export function useRespondToApproval() {
     },
   })
 }
+
+export function useUpdateProfile() {
+  const { refreshProfile } = useAuth()
+  return useMutation({
+    mutationFn: async ({ fullName, phone }: { fullName: string; phone: string | null }) => {
+      const { error } = await supabase.rpc('update_own_profile', {
+        new_full_name: fullName,
+        new_phone: phone,
+      })
+      if (error) throw error
+    },
+    onSuccess: async () => {
+      await refreshProfile()
+    },
+  })
+}
+
+export interface OrganizationRecord {
+  id: string
+  name: string
+  plan: string | null
+  status: string | null
+  domain: string | null
+}
+
+export function useOrganization() {
+  return useQuery({
+    queryKey: ['organization'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('organizations').select('*').limit(1).maybeSingle()
+      if (error) throw error
+      return data as OrganizationRecord | null
+    },
+  })
+}
+
+export interface FeatureFlagRecord {
+  id: string
+  key: string
+  label: string | null
+  enabled: boolean
+  scope: string
+}
+
+export function useFeatureFlags() {
+  return useQuery({
+    queryKey: ['feature-flags'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('feature_flags').select('*').order('key', { ascending: true })
+      if (error) throw error
+      return data as FeatureFlagRecord[]
+    },
+  })
+}

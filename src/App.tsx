@@ -17,9 +17,11 @@ import Project from '@/pages/client/Project'
 import Reports from '@/pages/client/Reports'
 import Tasks from '@/pages/client/Tasks'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
+import Settings from '@/pages/Settings'
 
 // Rotas do Portal Cliente que já têm página real — as demais continuam
 // com a página de exemplo até as próximas sub-fases da Fase 4.
+// "/settings" é compartilhada pelos 3 papéis (ver Sidebar.tsx).
 const clientPagesReady: Record<string, ComponentType> = {
   '/': Dashboard,
   '/performance': Performance,
@@ -29,6 +31,7 @@ const clientPagesReady: Record<string, ComponentType> = {
   '/files': Files,
   '/comments': Comments,
   '/meetings': Meetings,
+  '/settings': Settings,
 }
 
 function App() {
