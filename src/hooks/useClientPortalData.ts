@@ -495,3 +495,12 @@ export function useFeatureFlags() {
     },
   })
 }
+
+export function useTriggerEmergencyPause() {
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc('trigger_emergency_pause')
+      if (error) throw error
+    },
+  })
+}

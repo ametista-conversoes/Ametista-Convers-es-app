@@ -18,9 +18,12 @@ import Reports from '@/pages/client/Reports'
 import Tasks from '@/pages/client/Tasks'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import Settings from '@/pages/Settings'
+import Alerts from '@/pages/admin/Alerts'
 import Clients from '@/pages/admin/Clients'
 import DashboardExecutivo from '@/pages/admin/DashboardExecutivo'
+import Incidents from '@/pages/admin/Incidents'
 import Kanban from '@/pages/admin/Kanban'
+import Timeline from '@/pages/admin/Timeline'
 import Workflows from '@/pages/admin/Workflows'
 
 // Rotas do Portal Cliente que já têm página real — as demais continuam
@@ -45,6 +48,9 @@ const managerPagesReady: Record<string, ComponentType> = {
   '/clients': Clients,
   '/kanban': Kanban,
   '/workflows': Workflows,
+  '/incidents': Incidents,
+  '/alerts': Alerts,
+  '/timeline': Timeline,
 }
 
 function App() {
@@ -79,6 +85,8 @@ function App() {
                 />
               )
             })}
+            {/* "/status" mostra o mesmo conteúdo de "/incidents" (sem item próprio no menu) */}
+            <Route path="/status" element={<Incidents />} />
           </Route>
         </Route>
       </Route>

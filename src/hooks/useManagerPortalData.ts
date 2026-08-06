@@ -21,6 +21,30 @@ export interface ManagerIncidentRecord {
   category: string | null
   resolution: string | null
   created_at: string
+  client: { name: string } | null
+}
+
+export interface ManagerAlertRecord {
+  id: string
+  title: string
+  message: string | null
+  client_id: string
+  severity: string
+  category: string | null
+  resolved: boolean
+  created_at: string
+  client: { name: string } | null
+}
+
+export interface TimelineEventRecord {
+  id: string
+  action: string
+  entity_type: string | null
+  entity_id: string | null
+  client_id: string | null
+  severity: string
+  created_at: string
+  client: { name: string } | null
 }
 
 export interface ManagerProjectRecord {
@@ -60,10 +84,112 @@ export function useAllIncidents() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('incidents')
-        .select('*')
+        .select('*, client:clients(name)')
         .order('created_at', { ascending: false })
       if (error) throw error
-      return data as ManagerIncidentRecord[]
+      return data as unknown as ManagerIncidentRecord[]
+    },
+  })
+}
+
+export interface NewIncidentInput {
+  title: string
+  client_id: string
+  severity: string
+  category: string | null
+}
+
+export function useCreateIncident() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: NewIncidentInput) => {
+      const { error } = await supabase.from('incidents').insert({ ...input, status: 'open' })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-incidents'] })
+      queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
+    },
+  })
+}
+
+export function useResolveIncident() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ incidentId, resolution }: { incidentId: string; resolution: string }) => {
+      const { error } = await supabase
+        .from('incidents')
+        .update({ status: 'resolved', resolution })
+        .eq('id', incidentId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-incidents'] })
+      queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
+    },
+  })
+}
+
+export function useAllAlerts() {
+  return useQuery({
+    queryKey: ['manager-alerts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('alerts')
+        .select('*, client:clients(name)')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data as unknown as ManagerAlertRecord[]
+    },
+  })
+}
+
+export interface NewAlertInput {
+  title: string
+  message: string | null
+  client_id: string
+  severity: string
+  category: string | null
+}
+
+export function useCreateAlert() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: NewAlertInput) => {
+      const { error } = await supabase.from('alerts').insert(input)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-alerts'] })
+      queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
+    },
+  })
+}
+
+export function useResolveAlert() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (alertId: string) => {
+      const { error } = await supabase.from('alerts').update({ resolved: true }).eq('id', alertId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-alerts'] })
+      queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
+    },
+  })
+}
+
+export function useTimelineEvents() {
+  return useQuery({
+    queryKey: ['manager-timeline'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('*, client:clients(name)')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data as unknown as TimelineEventRecord[]
     },
   })
 }
@@ -133,24 +259,25 @@ export function useApplyWorkflow() {
     mutationFn: async ({
       clientId,
       projectId,
+      workflowName,
       steps,
     }: {
       clientId: string
       projectId: string
+      workflowName: string
       steps: { title: string; category: string }[]
     }) => {
-      const rows = steps.map((step) => ({
-        title: step.title,
-        category: step.category,
-        client_id: clientId,
-        project_id: projectId,
-        status: 'backlog',
-      }))
-      const { error } = await supabase.from('tasks').insert(rows)
+      const { error } = await supabase.rpc('apply_workflow', {
+        p_client_id: clientId,
+        p_project_id: projectId,
+        p_workflow_name: workflowName,
+        p_steps: steps,
+      })
       if (error) throw error
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
     },
   })
 }

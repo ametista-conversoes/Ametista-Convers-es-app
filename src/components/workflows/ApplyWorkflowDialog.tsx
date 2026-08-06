@@ -37,7 +37,12 @@ export function ApplyWorkflowDialog({ template }: ApplyWorkflowDialogProps) {
     const project = (projects ?? []).find((p) => p.id === projectId)
     if (!project) return
     try {
-      await applyWorkflow.mutateAsync({ clientId: project.client_id, projectId: project.id, steps: template.steps })
+      await applyWorkflow.mutateAsync({
+        clientId: project.client_id,
+        projectId: project.id,
+        workflowName: template.name,
+        steps: template.steps,
+      })
       toast.success(`${template.steps.length} tarefas criadas no Kanban.`)
       setOpen(false)
       setProjectId('')

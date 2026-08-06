@@ -66,9 +66,12 @@
 - [x] Ajustes de UI pós-teste: colunas do Kanban ganharam altura fixa com rolagem própria (a barra de rolagem horizontal do quadro não fica mais lá embaixo da página) — e corrigido um bug real encontrado no caminho: `overflow-x: hidden` duplicado em `html` **e** `body` quebrava o `position: sticky` da sidebar em páginas altas, fazendo a cor de fundo "sumir" ao rolar (removido do `body`, mantido só no `html`)
 
 ### Fase 5.3 — Incidentes, Alertas e Timeline
-- [ ] Incidentes (`/incidents`), Alertas (`/alerts`), Timeline (`/timeline`)
-- [ ] Registro automático de eventos na Timeline (incidente, alerta, workflow)
-- [ ] Botão "Pausa de Emergência" do Portal Cliente (Fase 4.1) passa a criar um incidente crítico de verdade
+- [x] Incidentes (`/incidents`): novo incidente, contagem por severidade, resolução via dialog — e `/status` mostrando o mesmo conteúdo
+- [x] Alertas (`/alerts`): novo alerta, seção de ativos e de resolvidos
+- [x] Timeline (`/timeline`): lista de eventos com ícone e severidade
+- [x] Registro automático de eventos na Timeline via trigger no banco (não depende do código do front): criar/resolver incidente, criar/resolver alerta, aplicar workflow — todos gravam sozinhos em `audit_logs`
+- [x] Botão "Pausa de Emergência" do Portal Cliente (Fase 4.1) conectado de verdade: cria um incidente crítico (via RPC `trigger_emergency_pause`) que aparece automaticamente em Incidentes e na Timeline do Portal Gestor — confirmando que os dois portais estão conectados
+- [x] Testado: incidente/alerta de teste aparecem na Timeline na hora certa (criação e resolução); Pausa de Emergência do cliente gera o incidente crítico automaticamente; `/status` espelha `/incidents`; regressão confirmada (`cliente` continua bloqueado em `/incidents`, `/alerts`, `/timeline`)
 
 ### Fase 5.4 — Ativos Digitais, Metas SMART e Onboarding
 - [ ] Banco de Ativos Digitais (`/assets`), Metas SMART (`/smart-goals`), Onboarding (`/onboarding`)
