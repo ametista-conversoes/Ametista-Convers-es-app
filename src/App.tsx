@@ -20,6 +20,8 @@ import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import Settings from '@/pages/Settings'
 import Clients from '@/pages/admin/Clients'
 import DashboardExecutivo from '@/pages/admin/DashboardExecutivo'
+import Kanban from '@/pages/admin/Kanban'
+import Workflows from '@/pages/admin/Workflows'
 
 // Rotas do Portal Cliente que já têm página real — as demais continuam
 // com a página de exemplo até as próximas sub-fases da Fase 4.
@@ -41,6 +43,8 @@ const clientPagesReady: Record<string, ComponentType> = {
 const managerPagesReady: Record<string, ComponentType> = {
   '/admin': DashboardExecutivo,
   '/clients': Clients,
+  '/kanban': Kanban,
+  '/workflows': Workflows,
 }
 
 function App() {

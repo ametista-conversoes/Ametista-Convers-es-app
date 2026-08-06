@@ -60,8 +60,9 @@
 - [x] Melhoria de UX (pedida pelo usuário): ícone de dúvida nos cards de KPI (`KpiCard`) mostrando fórmula/descrição ao passar o mouse — aplicado nos 8 KPIs do Dashboard Executivo e retroativamente no Dashboard, Performance e Relatórios do Portal Cliente (mesmo componente reaproveitado nos 4 lugares)
 
 ### Fase 5.2 — Kanban e Workflows
-- [ ] Kanban (`/kanban`): 5 colunas, arrastar e soltar, criação de tarefa por modelo
-- [ ] Workflows (`/workflows`): 4 modelos (Novo Cliente, Nova Campanha, Produção de Criativos, Configuração de Pixel), botão "Aplicar Workflow"
+- [x] Kanban (`/kanban`): 5 colunas (Backlog/A fazer/Em andamento/Em revisão/Concluída — os mesmos valores de status das tarefas), arrastar e soltar com `@dnd-kit` (dependência nova, autorizada), filtro por cliente, botão "Nova tarefa"
+- [x] Workflows (`/workflows`): 4 modelos fixos (Novo Cliente, Nova Campanha, Produção de Criativos, Configuração de Pixel), botão "Aplicar Workflow" com seleção de projeto — cria várias tarefas de uma vez, todas em Backlog
+- [x] Testado: arrastar um card e recarregar a página confirma que o status salvou de verdade; aplicar um workflow cria as tarefas no Kanban E elas aparecem na página Tarefas do cliente dono do projeto (Fase 4.3); testado logado como `cliente`: `/kanban` e `/workflows` continuam bloqueados (regressão da Fase 2)
 
 ### Fase 5.3 — Incidentes, Alertas e Timeline
 - [ ] Incidentes (`/incidents`), Alertas (`/alerts`), Timeline (`/timeline`)
