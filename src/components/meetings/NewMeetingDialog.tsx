@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { useCreateMeeting } from '@/hooks/useClientPortalData'
@@ -89,7 +90,7 @@ export function NewMeetingDialog() {
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="date"
@@ -97,7 +98,7 @@ export function NewMeetingDialog() {
                   <FormItem>
                     <FormLabel>Data</FormLabel>
                     <FormControl>
-                      <Input type="date" min={TODAY} {...field} />
+                      <DatePicker value={field.value} onChange={field.onChange} minDate={TODAY} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

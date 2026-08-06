@@ -72,6 +72,13 @@
 - [x] Registro automático de eventos na Timeline via trigger no banco (não depende do código do front): criar/resolver incidente, criar/resolver alerta, aplicar workflow — todos gravam sozinhos em `audit_logs`
 - [x] Botão "Pausa de Emergência" do Portal Cliente (Fase 4.1) conectado de verdade: cria um incidente crítico (via RPC `trigger_emergency_pause`) que aparece automaticamente em Incidentes e na Timeline do Portal Gestor — confirmando que os dois portais estão conectados
 - [x] Testado: incidente/alerta de teste aparecem na Timeline na hora certa (criação e resolução); Pausa de Emergência do cliente gera o incidente crítico automaticamente; `/status` espelha `/incidents`; regressão confirmada (`cliente` continua bloqueado em `/incidents`, `/alerts`, `/timeline`)
+- [x] Ajustes de UX/responsividade pós-teste (pedidos pelo usuário, valem para os dois portais):
+  - Pausa de Emergência ganhou campo de motivo + lista de campanhas ativas com checkbox — agora pausa de verdade os projetos escolhidos (`status = paused`) além de abrir o incidente crítico
+  - Ícone de dúvida dos KPIs trocou de `Tooltip` (hover) para `Popover` (clique) — no celular, tocar não fazia sentido com hover e "sumia" a métrica; agora abre ao tocar e fica até tocar de novo ou tocar fora
+  - Kanban: sensor de arrastar do `@dnd-kit` separado em mouse (imediato) e toque (segura ~200ms) — corrige o celular não deixar rolar o quadro pro lado
+  - `SelectContent` (menus como o de horário) e `TabsList` (abas de Relatórios) ganharam largura/rolagem travada — não esticavam mais que o campo/página em telas estreitas
+  - Campo "Data" (Nova Tarefa, Agendar Reunião) trocou o seletor numérico nativo por um calendário de verdade (`react-day-picker` + Popover), componente pronto para reaproveitar nas próximas fases
+  - Fileira "Data + Horário" do formulário de reunião empilha em telas estreitas em vez de espremer
 
 ### Fase 5.4 — Ativos Digitais, Metas SMART e Onboarding
 - [ ] Banco de Ativos Digitais (`/assets`), Metas SMART (`/smart-goals`), Onboarding (`/onboarding`)

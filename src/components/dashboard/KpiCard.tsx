@@ -1,6 +1,6 @@
 import { HelpCircle, type LucideIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 
 interface KpiCardProps {
@@ -28,20 +28,21 @@ export function KpiCard({ label, value, icon: Icon, description, className }: Kp
       <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
 
       {description && (
-        <Tooltip>
-          <TooltipTrigger asChild>
+        <Popover>
+          <PopoverTrigger asChild>
             <button
               type="button"
+              onClick={(e) => e.stopPropagation()}
               className="absolute bottom-3 right-3 text-muted-foreground/50 transition-colors hover:text-purple-400"
               aria-label={`O que é ${label}`}
             >
               <HelpCircle className="h-3.5 w-3.5" />
             </button>
-          </TooltipTrigger>
-          <TooltipContent side="top" align="end">
+          </PopoverTrigger>
+          <PopoverContent side="top" align="end" className="w-72 text-sm">
             <p className="whitespace-pre-line">{description}</p>
-          </TooltipContent>
-        </Tooltip>
+          </PopoverContent>
+        </Popover>
       )}
     </Card>
   )

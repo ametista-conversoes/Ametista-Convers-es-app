@@ -497,10 +497,18 @@ export function useFeatureFlags() {
 }
 
 export function useTriggerEmergencyPause() {
+  const { clientId } = useAuth()
+  const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.rpc('trigger_emergency_pause')
+    mutationFn: async ({ reason, projectIds }: { reason: string; projectIds: string[] }) => {
+      const { error } = await supabase.rpc('trigger_emergency_pause', {
+        p_reason: reason,
+        p_project_ids: projectIds,
+      })
       if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects', clientId] })
     },
   })
 }

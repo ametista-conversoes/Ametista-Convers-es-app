@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -129,7 +130,7 @@ export function NewTaskDialog() {
                 <FormItem>
                   <FormLabel>Prazo (opcional)</FormLabel>
                   <FormControl>
-                    <Input type="date" min={TODAY} {...field} />
+                    <DatePicker value={field.value} onChange={field.onChange} minDate={TODAY} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

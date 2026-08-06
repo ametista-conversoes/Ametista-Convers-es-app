@@ -1,4 +1,4 @@
-import { DndContext, type DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { DndContext, type DragEndEvent, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { toast } from 'sonner'
 import { KanbanColumn } from './KanbanColumn'
 import type { ManagerTaskRecord } from '@/hooks/useManagerPortalData'
@@ -13,7 +13,14 @@ interface KanbanBoardProps {
 
 export function KanbanBoard({ tasks }: KanbanBoardProps) {
   const updateTaskStatus = useUpdateTaskStatus()
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
+  // Mouse: arrasta ao mover um pouquinho (resposta rápida no desktop).
+  // Touch: só começa a arrastar depois de segurar ~200ms — assim um
+  // toque rápido (swipe) continua rolando o quadro pro lado no celular,
+  // em vez de ser interpretado como "arrastar o card".
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  )
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
