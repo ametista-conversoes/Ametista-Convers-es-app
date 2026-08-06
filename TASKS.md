@@ -63,6 +63,7 @@
 - [x] Kanban (`/kanban`): 5 colunas (Backlog/A fazer/Em andamento/Em revisão/Concluída — os mesmos valores de status das tarefas), arrastar e soltar com `@dnd-kit` (dependência nova, autorizada), filtro por cliente, botão "Nova tarefa"
 - [x] Workflows (`/workflows`): 4 modelos fixos (Novo Cliente, Nova Campanha, Produção de Criativos, Configuração de Pixel), botão "Aplicar Workflow" com seleção de projeto — cria várias tarefas de uma vez, todas em Backlog
 - [x] Testado: arrastar um card e recarregar a página confirma que o status salvou de verdade; aplicar um workflow cria as tarefas no Kanban E elas aparecem na página Tarefas do cliente dono do projeto (Fase 4.3); testado logado como `cliente`: `/kanban` e `/workflows` continuam bloqueados (regressão da Fase 2)
+- [x] Ajustes de UI pós-teste: colunas do Kanban ganharam altura fixa com rolagem própria (a barra de rolagem horizontal do quadro não fica mais lá embaixo da página) — e corrigido um bug real encontrado no caminho: `overflow-x: hidden` duplicado em `html` **e** `body` quebrava o `position: sticky` da sidebar em páginas altas, fazendo a cor de fundo "sumir" ao rolar (removido do `body`, mantido só no `html`)
 
 ### Fase 5.3 — Incidentes, Alertas e Timeline
 - [ ] Incidentes (`/incidents`), Alertas (`/alerts`), Timeline (`/timeline`)

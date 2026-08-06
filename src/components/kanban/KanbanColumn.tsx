@@ -16,15 +16,15 @@ export function KanbanColumn({ id, title, tasks }: KanbanColumnProps) {
     <div
       ref={setNodeRef}
       className={cn(
-        'flex min-h-[16rem] w-72 shrink-0 flex-col gap-3 rounded-xl border border-[#1A2540] bg-[#0B1220] p-3',
+        'flex h-[65vh] w-72 shrink-0 flex-col gap-3 rounded-xl border border-[#1A2540] bg-[#0B1220] p-3',
         isOver && 'border-purple-600/50 bg-purple-600/5',
       )}
     >
-      <div className="flex items-center justify-between px-1">
+      <div className="flex shrink-0 items-center justify-between px-1">
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         <span className="text-xs text-muted-foreground">{tasks.length}</span>
       </div>
-      <div className="flex flex-1 flex-col gap-2">
+      <div className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
         {tasks.length === 0 && (
           <p className="rounded-lg border border-dashed border-[#1A2540] p-3 text-center text-xs text-muted-foreground">
             Nenhuma tarefa

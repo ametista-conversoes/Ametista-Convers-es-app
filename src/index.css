@@ -58,7 +58,9 @@
     width: 100%;
     min-height: 100%;
     min-height: 100dvh;
-    overflow-x: hidden;
+    /* Não repete "overflow-x: hidden" aqui — já está no html, e ter nos
+       dois ao mesmo tempo quebra o "position: sticky" da sidebar em
+       páginas altas (confirmado ao vivo no navegador). */
     font-feature-settings: 'rlig' 1, 'calt' 1;
   }
 
