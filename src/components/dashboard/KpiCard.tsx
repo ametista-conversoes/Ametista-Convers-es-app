@@ -1,6 +1,8 @@
+import { useId } from 'react'
 import { HelpCircle, type LucideIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { useKpiPopover } from '@/contexts/KpiPopoverContext'
 import { cn } from '@/lib/utils'
 
 interface KpiCardProps {
@@ -12,6 +14,10 @@ interface KpiCardProps {
 }
 
 export function KpiCard({ label, value, icon: Icon, description, className }: KpiCardProps) {
+  const id = useId()
+  const { openId, setOpenId } = useKpiPopover()
+  const isOpen = openId === id
+
   return (
     <Card
       className={cn(
@@ -28,7 +34,7 @@ export function KpiCard({ label, value, icon: Icon, description, className }: Kp
       <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
 
       {description && (
-        <Popover>
+        <Popover open={isOpen} onOpenChange={(next) => setOpenId(next ? id : null)}>
           <PopoverTrigger asChild>
             <button
               type="button"

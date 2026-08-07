@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/ui/date-picker'
 import {
   Dialog,
   DialogContent,
@@ -17,13 +18,20 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAllClients, useAllProjects, useCreateManagerTask } from '@/hooks/useManagerPortalData'
+import { getTodayIsoDate } from '@/lib/format'
 import { taskPriorityLabels } from '@/lib/status-styles'
+
+const TODAY = getTodayIsoDate()
 
 const newTaskSchema = z.object({
   title: z.string().min(2, 'Digite um título'),
   clientId: z.string().min(1, 'Escolha um cliente'),
   projectId: z.string().optional(),
   category: z.string().optional(),
+  due_date: z
+    .string()
+    .optional()
+    .refine((value) => !value || value >= TODAY, { message: 'O prazo não pode ser uma data passada' }),
   priority: z.enum(['low', 'medium', 'high', 'urgent']),
 })
 
@@ -37,7 +45,7 @@ export function NewKanbanTaskDialog() {
 
   const form = useForm<NewTaskValues>({
     resolver: zodResolver(newTaskSchema),
-    defaultValues: { title: '', clientId: '', projectId: '', category: '', priority: 'medium' },
+    defaultValues: { title: '', clientId: '', projectId: '', category: '', due_date: '', priority: 'medium' },
   })
 
   const selectedClientId = form.watch('clientId')
@@ -55,6 +63,7 @@ export function NewKanbanTaskDialog() {
         client_id: values.clientId,
         project_id: values.projectId?.trim() ? values.projectId : null,
         category: values.category?.trim() ? values.category.trim() : null,
+        due_date: values.due_date?.trim() ? values.due_date : null,
         priority: values.priority,
       })
       form.reset()
@@ -156,6 +165,20 @@ export function NewKanbanTaskDialog() {
                   <FormLabel>Categoria (opcional)</FormLabel>
                   <FormControl>
                     <Input placeholder="Ex: Criativo, Técnico, Relatório" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="due_date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Prazo (opcional)</FormLabel>
+                  <FormControl>
+                    <DatePicker value={field.value} onChange={field.onChange} minDate={TODAY} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

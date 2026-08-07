@@ -1,10 +1,10 @@
 import { ListChecks } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import type { WorkflowTemplate } from '@/lib/workflow-templates'
+import type { WorkflowTemplateRecord } from '@/hooks/useManagerPortalData'
 import { ApplyWorkflowDialog } from './ApplyWorkflowDialog'
 
 interface WorkflowCardProps {
-  template: WorkflowTemplate
+  template: WorkflowTemplateRecord
 }
 
 export function WorkflowCard({ template }: WorkflowCardProps) {

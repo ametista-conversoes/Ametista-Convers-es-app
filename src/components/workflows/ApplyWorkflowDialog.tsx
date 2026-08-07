@@ -13,10 +13,10 @@ import {
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAllClients, useAllProjects, useApplyWorkflow } from '@/hooks/useManagerPortalData'
-import type { WorkflowTemplate } from '@/lib/workflow-templates'
+import type { WorkflowTemplateRecord } from '@/hooks/useManagerPortalData'
 
 interface ApplyWorkflowDialogProps {
-  template: WorkflowTemplate
+  template: WorkflowTemplateRecord
 }
 
 export function ApplyWorkflowDialog({ template }: ApplyWorkflowDialogProps) {

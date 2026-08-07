@@ -80,6 +80,11 @@
   - Campo "Data" (Nova Tarefa, Agendar Reunião) trocou o seletor numérico nativo por um calendário de verdade (`react-day-picker` + Popover), componente pronto para reaproveitar nas próximas fases
   - Fileira "Data + Horário" do formulário de reunião empilha em telas estreitas em vez de espremer
 
+- [x] Ajustes pós-teste adicionais (pedidos pelo usuário):
+  - Workflows (Portal Gestor) deixaram de ser fixos no código: agora moram no banco (`workflow_templates`), e só a conta `admin` vê o botão "Novo modelo" para criar e estruturar modelos novos (nome, descrição, lista de etapas) — `gestor` continua podendo aplicar os modelos existentes, mas não criar
+  - Kanban: diálogo "Nova tarefa" ganhou o campo "Prazo (opcional)" com o mesmo calendário (`DatePicker`) já usado no Portal Cliente
+  - Ícones de dúvida dos KPIs: só uma dica fica aberta por vez em toda a tela (estado compartilhado entre os cards) — abrir uma fecha a anterior automaticamente
+
 ### Fase 5.4 — Ativos Digitais, Metas SMART e Onboarding
 - [ ] Banco de Ativos Digitais (`/assets`), Metas SMART (`/smart-goals`), Onboarding (`/onboarding`)
 

@@ -238,6 +238,7 @@ export interface NewManagerTaskInput {
   project_id: string | null
   category: string | null
   priority: string
+  due_date: string | null
 }
 
 export function useCreateManagerTask() {
@@ -278,6 +279,51 @@ export function useApplyWorkflow() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-tasks'] })
       queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
+    },
+  })
+}
+
+export interface WorkflowTemplateStep {
+  title: string
+  category: string
+}
+
+export interface WorkflowTemplateRecord {
+  id: string
+  name: string
+  description: string | null
+  steps: WorkflowTemplateStep[]
+}
+
+export function useWorkflowTemplates() {
+  return useQuery({
+    queryKey: ['workflow-templates'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('workflow_templates')
+        .select('id, name, description, steps')
+        .order('name', { ascending: true })
+      if (error) throw error
+      return data as unknown as WorkflowTemplateRecord[]
+    },
+  })
+}
+
+export interface NewWorkflowTemplateInput {
+  name: string
+  description: string | null
+  steps: WorkflowTemplateStep[]
+}
+
+export function useCreateWorkflowTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: NewWorkflowTemplateInput) => {
+      const { error } = await supabase.from('workflow_templates').insert(input)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflow-templates'] })
     },
   })
 }
