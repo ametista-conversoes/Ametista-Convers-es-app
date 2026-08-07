@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { ApprovalList } from '@/components/files/ApprovalList'
 import { FileList } from '@/components/files/FileList'
 import { NewFileDialog } from '@/components/files/NewFileDialog'
+import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/contexts/AuthContext'
 import { useApprovals, useFileItems } from '@/hooks/useClientPortalData'
@@ -9,6 +11,7 @@ export default function Files() {
   const { clientId } = useAuth()
   const { data: files, isLoading: loadingFiles } = useFileItems()
   const { data: approvals, isLoading: loadingApprovals } = useApprovals()
+  const [deleteMode, setDeleteMode] = useState(false)
 
   if (!clientId) {
     return (
@@ -25,9 +28,12 @@ export default function Files() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-sm text-muted-foreground">Portal Cliente</p>
-          <h1 className="text-2xl font-semibold text-foreground">Arquivos</h1>
+        <div className="flex items-center gap-2">
+          <div>
+            <p className="text-sm text-muted-foreground">Portal Cliente</p>
+            <h1 className="text-2xl font-semibold text-foreground">Arquivos</h1>
+          </div>
+          <DeleteModeToggle active={deleteMode} onToggle={() => setDeleteMode((v) => !v)} />
         </div>
         <NewFileDialog />
       </div>
@@ -42,7 +48,7 @@ export default function Files() {
           <p className="text-xs text-muted-foreground">
             Repertório organizado com a agência — sem pendência de decisão.
           </p>
-          <FileList files={files ?? []} />
+          <FileList files={files ?? []} deleteMode={deleteMode} />
         </TabsContent>
 
         <TabsContent value="approvals" className="space-y-3">

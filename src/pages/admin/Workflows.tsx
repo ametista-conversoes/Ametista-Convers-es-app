@@ -1,18 +1,24 @@
+import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { WorkflowCard } from '@/components/workflows/WorkflowCard'
 import { NewWorkflowTemplateDialog } from '@/components/workflows/NewWorkflowTemplateDialog'
+import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { useWorkflowTemplates } from '@/hooks/useManagerPortalData'
 
 export default function Workflows() {
   const { role } = useAuth()
   const { data: templates, isLoading } = useWorkflowTemplates()
+  const [deleteMode, setDeleteMode] = useState(false)
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm text-muted-foreground">Portal Gestor</p>
-          <h1 className="text-2xl font-semibold text-foreground">Workflows</h1>
+        <div className="flex items-center gap-2">
+          <div>
+            <p className="text-sm text-muted-foreground">Portal Gestor</p>
+            <h1 className="text-2xl font-semibold text-foreground">Workflows</h1>
+          </div>
+          {role === 'admin' && <DeleteModeToggle active={deleteMode} onToggle={() => setDeleteMode((v) => !v)} />}
         </div>
         {role === 'admin' && <NewWorkflowTemplateDialog />}
       </div>
@@ -25,7 +31,7 @@ export default function Workflows() {
       <div className="content-grid-container">
         <div className="content-grid gap-4">
           {(templates ?? []).map((template) => (
-            <WorkflowCard key={template.id} template={template} />
+            <WorkflowCard key={template.id} template={template} deleteMode={role === 'admin' && deleteMode} />
           ))}
         </div>
       </div>

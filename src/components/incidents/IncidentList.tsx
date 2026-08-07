@@ -3,17 +3,21 @@ import { Siren } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
 import type { ManagerIncidentRecord } from '@/hooks/useManagerPortalData'
+import { useDeleteIncident } from '@/hooks/useManagerPortalData'
 import { formatDateTime } from '@/lib/format'
 import { incidentStatusLabels, incidentStatusStyles, severityLabels, severityStyles } from '@/lib/status-styles'
 import { ResolveIncidentDialog } from './ResolveIncidentDialog'
 
 interface IncidentListProps {
   incidents: ManagerIncidentRecord[]
+  deleteMode?: boolean
 }
 
-export function IncidentList({ incidents }: IncidentListProps) {
+export function IncidentList({ incidents, deleteMode }: IncidentListProps) {
   const [resolvingIncident, setResolvingIncident] = useState<ManagerIncidentRecord | null>(null)
+  const deleteIncident = useDeleteIncident()
 
   return (
     <>
@@ -39,6 +43,12 @@ export function IncidentList({ incidents }: IncidentListProps) {
                     <Badge className={incidentStatusStyles[incident.status]}>
                       {incidentStatusLabels[incident.status] ?? incident.status}
                     </Badge>
+                    {deleteMode && (
+                      <DeleteItemButton
+                        label={`o incidente "${incident.title}"`}
+                        onDelete={() => deleteIncident.mutateAsync(incident.id)}
+                      />
+                    )}
                   </div>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">

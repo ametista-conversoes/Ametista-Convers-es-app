@@ -7,18 +7,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
 import type { ManagerDigitalAssetRecord } from '@/hooks/useManagerPortalData'
-import { useUpdateDigitalAssetStatus } from '@/hooks/useManagerPortalData'
+import { useDeleteDigitalAsset, useUpdateDigitalAssetStatus } from '@/hooks/useManagerPortalData'
 import { digitalAssetStatusLabels, digitalAssetStatusStyles, digitalAssetTypeLabels } from '@/lib/status-styles'
 
 interface AssetCardProps {
   asset: ManagerDigitalAssetRecord
+  deleteMode?: boolean
 }
 
 const CHANGEABLE_STATUSES = ['active', 'inactive', 'pending', 'revoked']
 
-export function AssetCard({ asset }: AssetCardProps) {
+export function AssetCard({ asset, deleteMode }: AssetCardProps) {
   const updateStatus = useUpdateDigitalAssetStatus()
+  const deleteAsset = useDeleteDigitalAsset()
 
   return (
     <Card className="flex flex-col rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
@@ -28,6 +31,9 @@ export function AssetCard({ asset }: AssetCardProps) {
             <Boxes className="h-4 w-4 shrink-0 text-purple-400" />
             <span className="truncate">{asset.name}</span>
           </span>
+          {deleteMode && (
+            <DeleteItemButton label={`o ativo "${asset.name}"`} onDelete={() => deleteAsset.mutateAsync(asset.id)} />
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-2 p-0 pt-4">

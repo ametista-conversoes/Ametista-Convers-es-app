@@ -1,12 +1,26 @@
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import type { ManagerClientRecord } from '@/hooks/useManagerPortalData'
+import { useUpdateClientStatus } from '@/hooks/useManagerPortalData'
 import { formatCurrency } from '@/lib/format'
-import { clientStatusLabels, clientStatusStyles } from '@/lib/status-styles'
+import {
+  clientProblemStatusLabel,
+  clientProblemStatusStyle,
+  clientStatusLabels,
+  clientStatusStyles,
+  getHealthScoreColor,
+} from '@/lib/status-styles'
 import { cn } from '@/lib/utils'
 
 interface ClientCardProps {
   client: ManagerClientRecord
+  hasProblems?: boolean
 }
 
 // Cor da borda lateral acompanha o status (mesma paleta semântica já usada
@@ -16,9 +30,14 @@ const statusBorderColor: Record<string, string> = {
   onboarding: 'border-l-sky-500',
   paused: 'border-l-amber-500',
   churned: 'border-l-destructive',
+  at_risk: 'border-l-destructive',
 }
 
-export function ClientCard({ client }: ClientCardProps) {
+const CHANGEABLE_STATUSES = ['active', 'onboarding', 'paused', 'at_risk', 'churned']
+
+export function ClientCard({ client, hasProblems }: ClientCardProps) {
+  const updateStatus = useUpdateClientStatus()
+
   return (
     <Card
       className={cn(
@@ -29,9 +48,26 @@ export function ClientCard({ client }: ClientCardProps) {
       <CardHeader className="p-0">
         <CardTitle className="flex items-start justify-between gap-2 text-base">
           <span className="truncate">{client.name}</span>
-          <Badge className={clientStatusStyles[client.status]}>
-            {clientStatusLabels[client.status] ?? client.status}
-          </Badge>
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            {hasProblems && <Badge className={clientProblemStatusStyle}>{clientProblemStatusLabel}</Badge>}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild disabled={updateStatus.isPending}>
+                <Badge className={`cursor-pointer ${clientStatusStyles[client.status]}`}>
+                  {clientStatusLabels[client.status] ?? client.status}
+                </Badge>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {CHANGEABLE_STATUSES.map((status) => (
+                  <DropdownMenuItem
+                    key={status}
+                    onSelect={() => updateStatus.mutate({ clientId: client.id, status })}
+                  >
+                    {clientStatusLabels[status]}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2 p-0 pt-4 text-sm">
@@ -46,7 +82,9 @@ export function ClientCard({ client }: ClientCardProps) {
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Health Score</span>
-          <span className="font-medium text-foreground">{client.health_score ?? '—'}</span>
+          <span className={cn('font-medium', getHealthScoreColor(client.health_score))}>
+            {client.health_score ?? '—'}
+          </span>
         </div>
       </CardContent>
     </Card>

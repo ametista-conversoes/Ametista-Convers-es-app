@@ -52,4 +52,5 @@ export const managerNavItems: NavItem[] = [
   { title: 'Metas SMART', href: '/smart-goals', icon: Target },
   { title: 'Onboarding', href: '/onboarding', icon: ListChecks },
   { title: 'Comentários', href: '/client-comments', icon: MessageSquare },
+  { title: 'Reuniões', href: '/client-meetings', icon: Calendar },
 ]

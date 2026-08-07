@@ -82,6 +82,7 @@ export const clientStatusLabels: Record<string, string> = {
   onboarding: 'Onboarding',
   paused: 'Pausado',
   churned: 'Encerrado',
+  at_risk: 'Em risco',
 }
 
 export const clientStatusStyles: Record<string, string> = {
@@ -89,6 +90,19 @@ export const clientStatusStyles: Record<string, string> = {
   onboarding: 'border-sky-500/20 bg-sky-500/10 text-sky-400',
   paused: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
   churned: 'border-destructive/20 bg-destructive/10 text-destructive',
+  at_risk: 'border-destructive/20 bg-destructive/10 text-destructive',
+}
+
+// Badge extra e automático (não é um status salvo — calculado em
+// src/lib/client-risk.ts) mostrado junto do status manual do cliente.
+export const clientProblemStatusStyle = 'border-orange-500/20 bg-orange-500/10 text-orange-400'
+export const clientProblemStatusLabel = 'Em problemas'
+
+export function getHealthScoreColor(score: number | null | undefined): string {
+  if (score === null || score === undefined) return 'text-foreground'
+  if (score < 50) return 'text-destructive'
+  if (score < 70) return 'text-amber-400'
+  return 'text-emerald-400'
 }
 
 export const projectStatusLabels: Record<string, string> = {

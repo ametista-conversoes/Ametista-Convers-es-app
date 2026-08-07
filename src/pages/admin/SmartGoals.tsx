@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Info } from 'lucide-react'
 import { NewSmartGoalDialog } from '@/components/smart-goals/NewSmartGoalDialog'
 import { SmartGoalCard } from '@/components/smart-goals/SmartGoalCard'
+import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -22,6 +23,7 @@ export default function SmartGoals() {
   const { data: clients } = useAllClients()
   const { data: goals, isLoading } = useAllSmartGoals()
   const [clientFilter, setClientFilter] = useState(ALL_CLIENTS)
+  const [deleteMode, setDeleteMode] = useState(false)
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Carregando...</p>
@@ -34,9 +36,12 @@ export default function SmartGoals() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-sm text-muted-foreground">Portal Gestor</p>
-          <h1 className="text-2xl font-semibold text-foreground">Metas SMART</h1>
+        <div className="flex items-center gap-2">
+          <div>
+            <p className="text-sm text-muted-foreground">Portal Gestor</p>
+            <h1 className="text-2xl font-semibold text-foreground">Metas SMART</h1>
+          </div>
+          <DeleteModeToggle active={deleteMode} onToggle={() => setDeleteMode((v) => !v)} />
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Select value={clientFilter} onValueChange={setClientFilter}>
@@ -85,7 +90,7 @@ export default function SmartGoals() {
       <div className="content-grid-container">
         <div className="content-grid gap-4">
           {filteredGoals.map((goal) => (
-            <SmartGoalCard key={goal.id} goal={goal} />
+            <SmartGoalCard key={goal.id} goal={goal} deleteMode={deleteMode} />
           ))}
         </div>
       </div>

@@ -3,17 +3,20 @@ import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
 import type { ManagerAlertRecord } from '@/hooks/useManagerPortalData'
-import { useResolveAlert } from '@/hooks/useManagerPortalData'
+import { useDeleteAlert, useResolveAlert } from '@/hooks/useManagerPortalData'
 import { formatDateTime } from '@/lib/format'
 import { severityLabels, severityStyles } from '@/lib/status-styles'
 
 interface AlertListProps {
   alerts: ManagerAlertRecord[]
+  deleteMode?: boolean
 }
 
-export function AlertList({ alerts }: AlertListProps) {
+export function AlertList({ alerts, deleteMode }: AlertListProps) {
   const resolveAlert = useResolveAlert()
+  const deleteAlert = useDeleteAlert()
   const active = alerts.filter((a) => !a.resolved)
   const resolved = alerts.filter((a) => a.resolved)
 
@@ -40,9 +43,17 @@ export function AlertList({ alerts }: AlertListProps) {
             <div key={alert.id} className="rounded-lg bg-secondary/50 px-3 py-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium text-foreground">{alert.title}</p>
-                <Badge className={severityStyles[alert.severity]}>
-                  {severityLabels[alert.severity] ?? alert.severity}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge className={severityStyles[alert.severity]}>
+                    {severityLabels[alert.severity] ?? alert.severity}
+                  </Badge>
+                  {deleteMode && (
+                    <DeleteItemButton
+                      label={`o alerta "${alert.title}"`}
+                      onDelete={() => deleteAlert.mutateAsync(alert.id)}
+                    />
+                  )}
+                </div>
               </div>
               {alert.message && <p className="mt-1 text-xs text-muted-foreground">{alert.message}</p>}
               <p className="mt-1 text-xs text-muted-foreground/70">
@@ -69,9 +80,17 @@ export function AlertList({ alerts }: AlertListProps) {
             <div key={alert.id} className="rounded-lg bg-secondary/30 px-3 py-2 opacity-70">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm text-foreground">{alert.title}</p>
-                <Badge className={severityStyles[alert.severity]}>
-                  {severityLabels[alert.severity] ?? alert.severity}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge className={severityStyles[alert.severity]}>
+                    {severityLabels[alert.severity] ?? alert.severity}
+                  </Badge>
+                  {deleteMode && (
+                    <DeleteItemButton
+                      label={`o alerta "${alert.title}"`}
+                      onDelete={() => deleteAlert.mutateAsync(alert.id)}
+                    />
+                  )}
+                </div>
               </div>
               <p className="mt-1 text-xs text-muted-foreground/70">
                 {alert.client?.name ?? 'Cliente'} · {formatDateTime(alert.created_at)}

@@ -52,6 +52,7 @@ export interface MeetingRecord {
   date: string | null
   meeting_link: string | null
   status: string
+  cancellation_reason: string | null
 }
 
 export interface SmartGoalRecord {
@@ -298,6 +299,20 @@ export function useSetTaskStatus() {
   })
 }
 
+export function useDeleteTask() {
+  const { clientId } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (taskId: string) => {
+      const { error } = await supabase.from('tasks').delete().eq('id', taskId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks', clientId] })
+    },
+  })
+}
+
 const COMMENTS_ENTITY_TYPE = 'general'
 
 export function useComments() {
@@ -361,6 +376,34 @@ export function useCreateMeeting() {
   })
 }
 
+export function useCancelMeeting() {
+  const { clientId } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ meetingId, reason }: { meetingId: string; reason: string }) => {
+      const { error } = await supabase.rpc('cancel_meeting', { meeting_id: meetingId, reason })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meetings', clientId] })
+    },
+  })
+}
+
+export function useDeleteMeeting() {
+  const { clientId } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (meetingId: string) => {
+      const { error } = await supabase.from('meetings').delete().eq('id', meetingId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meetings', clientId] })
+    },
+  })
+}
+
 export function useFileItems() {
   const { clientId } = useAuth()
   return useQuery({
@@ -391,6 +434,20 @@ export function useCreateFileItem() {
   return useMutation({
     mutationFn: async (input: NewFileItemInput) => {
       const { error } = await supabase.from('file_items').insert({ ...input, client_id: clientId })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['file-items', clientId] })
+    },
+  })
+}
+
+export function useDeleteFile() {
+  const { clientId } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (fileId: string) => {
+      const { error } = await supabase.from('file_items').delete().eq('id', fileId)
       if (error) throw error
     },
     onSuccess: () => {

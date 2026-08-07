@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { ListChecks } from 'lucide-react'
 import { NewOnboardingStepDialog } from '@/components/onboarding/NewOnboardingStepDialog'
+import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
+import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Progress } from '@/components/ui/progress'
@@ -9,6 +11,7 @@ import type { ManagerOnboardingStepRecord } from '@/hooks/useManagerPortalData'
 import {
   useAllClients,
   useAllOnboardingSteps,
+  useDeleteOnboardingStep,
   useToggleManagerOnboardingStep,
 } from '@/hooks/useManagerPortalData'
 
@@ -18,7 +21,9 @@ export default function Onboarding() {
   const { data: clients } = useAllClients()
   const { data: steps, isLoading } = useAllOnboardingSteps()
   const toggleStep = useToggleManagerOnboardingStep()
+  const deleteStep = useDeleteOnboardingStep()
   const [clientFilter, setClientFilter] = useState(ALL_CLIENTS)
+  const [deleteMode, setDeleteMode] = useState(false)
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Carregando...</p>
@@ -38,9 +43,12 @@ export default function Onboarding() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-sm text-muted-foreground">Portal Gestor</p>
-          <h1 className="text-2xl font-semibold text-foreground">Onboarding</h1>
+        <div className="flex items-center gap-2">
+          <div>
+            <p className="text-sm text-muted-foreground">Portal Gestor</p>
+            <h1 className="text-2xl font-semibold text-foreground">Onboarding</h1>
+          </div>
+          <DeleteModeToggle active={deleteMode} onToggle={() => setDeleteMode((v) => !v)} />
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Select value={clientFilter} onValueChange={setClientFilter}>
@@ -92,26 +100,31 @@ export default function Onboarding() {
                   </div>
                   <div className="space-y-2">
                     {clientSteps.map((step) => (
-                      <label
-                        key={step.id}
-                        className="flex cursor-pointer items-center gap-3 rounded-lg bg-secondary/50 px-3 py-2"
-                      >
-                        <Checkbox
-                          checked={step.completed}
-                          disabled={toggleStep.isPending}
-                          onCheckedChange={(checked) =>
-                            toggleStep.mutate({ stepId: step.id, completed: checked === true })
-                          }
-                        />
-                        <div className="min-w-0">
-                          <p
-                            className={`truncate text-sm ${step.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}
-                          >
-                            {step.title}
-                          </p>
-                          {step.category && <p className="text-xs text-muted-foreground">{step.category}</p>}
-                        </div>
-                      </label>
+                      <div key={step.id} className="flex items-center gap-2 rounded-lg bg-secondary/50 px-3 py-2">
+                        <label className="flex flex-1 cursor-pointer items-center gap-3">
+                          <Checkbox
+                            checked={step.completed}
+                            disabled={toggleStep.isPending}
+                            onCheckedChange={(checked) =>
+                              toggleStep.mutate({ stepId: step.id, completed: checked === true })
+                            }
+                          />
+                          <div className="min-w-0">
+                            <p
+                              className={`truncate text-sm ${step.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}
+                            >
+                              {step.title}
+                            </p>
+                            {step.category && <p className="text-xs text-muted-foreground">{step.category}</p>}
+                          </div>
+                        </label>
+                        {deleteMode && (
+                          <DeleteItemButton
+                            label={`a etapa "${step.title}"`}
+                            onDelete={() => deleteStep.mutateAsync(step.id)}
+                          />
+                        )}
+                      </div>
                     ))}
                   </div>
                 </CardContent>

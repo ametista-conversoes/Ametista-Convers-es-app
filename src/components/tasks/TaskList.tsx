@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
 import type { TaskRecord } from '@/hooks/useClientPortalData'
 import { formatDate } from '@/lib/format'
 import { taskPriorityLabels, taskStatusLabels, taskStatusStyles } from '@/lib/status-styles'
@@ -24,6 +25,8 @@ interface TaskListProps {
   onToggleDone?: (taskId: string, done: boolean) => void
   onChangeStatus?: (taskId: string, status: string) => void
   updatingTaskId?: string | null
+  deleteMode?: boolean
+  onDelete?: (taskId: string) => Promise<void>
 }
 
 export function TaskList({
@@ -33,6 +36,8 @@ export function TaskList({
   onToggleDone,
   onChangeStatus,
   updatingTaskId = null,
+  deleteMode = false,
+  onDelete,
 }: TaskListProps) {
   const [selectedTask, setSelectedTask] = useState<TaskRecord | null>(null)
 
@@ -90,6 +95,9 @@ export function TaskList({
                 </DropdownMenu>
               ) : (
                 <Badge className={taskStatusStyles[task.status]}>{taskStatusLabels[task.status] ?? task.status}</Badge>
+              )}
+              {deleteMode && onDelete && (
+                <DeleteItemButton label={`a tarefa "${task.title}"`} onDelete={() => onDelete(task.id)} />
               )}
             </div>
           )

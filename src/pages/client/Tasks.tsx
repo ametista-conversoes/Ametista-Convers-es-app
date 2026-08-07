@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { NewTaskDialog } from '@/components/tasks/NewTaskDialog'
 import { TaskList } from '@/components/tasks/TaskList'
+import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/contexts/AuthContext'
-import { useSetTaskStatus, useTasks } from '@/hooks/useClientPortalData'
+import { useDeleteTask, useSetTaskStatus, useTasks } from '@/hooks/useClientPortalData'
 import { taskStatusLabels } from '@/lib/status-styles'
 
 const FILTERS = ['todos', 'backlog', 'todo', 'in_progress', 'review', 'done'] as const
@@ -14,8 +15,10 @@ export default function Tasks() {
   const { clientId } = useAuth()
   const { data: tasks, isLoading } = useTasks()
   const setTaskStatus = useSetTaskStatus()
+  const deleteTask = useDeleteTask()
   const [filter, setFilter] = useState<Filter>('todos')
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null)
+  const [deleteMode, setDeleteMode] = useState(false)
 
   if (!clientId) {
     return (
@@ -46,9 +49,12 @@ export default function Tasks() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-sm text-muted-foreground">Portal Cliente</p>
-          <h1 className="text-2xl font-semibold text-foreground">Tarefas</h1>
+        <div className="flex items-center gap-2">
+          <div>
+            <p className="text-sm text-muted-foreground">Portal Cliente</p>
+            <h1 className="text-2xl font-semibold text-foreground">Tarefas</h1>
+          </div>
+          <DeleteModeToggle active={deleteMode} onToggle={() => setDeleteMode((v) => !v)} />
         </div>
         <NewTaskDialog />
       </div>
@@ -87,6 +93,8 @@ export default function Tasks() {
         onToggleDone={(taskId, done) => handleChangeStatus(taskId, done ? 'done' : 'todo')}
         onChangeStatus={handleChangeStatus}
         updatingTaskId={updatingTaskId}
+        deleteMode={deleteMode}
+        onDelete={(taskId) => deleteTask.mutateAsync(taskId)}
       />
     </div>
   )

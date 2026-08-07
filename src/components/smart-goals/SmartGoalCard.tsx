@@ -2,7 +2,9 @@ import { Target } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
+import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
 import type { ManagerSmartGoalRecord } from '@/hooks/useManagerPortalData'
+import { useDeleteSmartGoal } from '@/hooks/useManagerPortalData'
 import { formatFullDate, getGoalDeadlineStatus } from '@/lib/format'
 import {
   goalDeadlineStatusLabels,
@@ -15,20 +17,27 @@ import { UpdateGoalProgressDialog } from './UpdateGoalProgressDialog'
 
 interface SmartGoalCardProps {
   goal: ManagerSmartGoalRecord
+  deleteMode?: boolean
 }
 
-export function SmartGoalCard({ goal }: SmartGoalCardProps) {
+export function SmartGoalCard({ goal, deleteMode }: SmartGoalCardProps) {
   const target = goal.target_value ?? 0
   const current = goal.current_value ?? 0
   const percent = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
   const deadlineStatus = getGoalDeadlineStatus(goal.target_date, goal.status)
+  const deleteGoal = useDeleteSmartGoal()
 
   return (
     <Card className="flex flex-col rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
       <CardHeader className="p-0">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Target className="h-4 w-4 shrink-0 text-purple-400" />
-          <span className="truncate">{goal.title}</span>
+        <CardTitle className="flex items-center justify-between gap-2 text-base">
+          <span className="flex min-w-0 items-center gap-2">
+            <Target className="h-4 w-4 shrink-0 text-purple-400" />
+            <span className="truncate">{goal.title}</span>
+          </span>
+          {deleteMode && (
+            <DeleteItemButton label={`a meta "${goal.title}"`} onDelete={() => deleteGoal.mutateAsync(goal.id)} />
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-3 p-0 pt-4">

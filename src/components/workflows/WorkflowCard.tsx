@@ -1,19 +1,29 @@
 import { ListChecks } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
 import type { WorkflowTemplateRecord } from '@/hooks/useManagerPortalData'
+import { useDeleteWorkflowTemplate } from '@/hooks/useManagerPortalData'
 import { ApplyWorkflowDialog } from './ApplyWorkflowDialog'
 
 interface WorkflowCardProps {
   template: WorkflowTemplateRecord
+  deleteMode?: boolean
 }
 
-export function WorkflowCard({ template }: WorkflowCardProps) {
+export function WorkflowCard({ template, deleteMode }: WorkflowCardProps) {
+  const deleteTemplate = useDeleteWorkflowTemplate()
+
   return (
     <Card className="flex flex-col rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
       <CardHeader className="p-0">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <ListChecks className="h-4 w-4 text-purple-400" />
-          {template.name}
+        <CardTitle className="flex items-center justify-between gap-2 text-base">
+          <span className="flex items-center gap-2">
+            <ListChecks className="h-4 w-4 text-purple-400" />
+            {template.name}
+          </span>
+          {deleteMode && (
+            <DeleteItemButton label={`o modelo "${template.name}"`} onDelete={() => deleteTemplate.mutateAsync(template.id)} />
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4 p-0 pt-4">

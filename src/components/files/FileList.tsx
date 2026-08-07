@@ -3,7 +3,9 @@ import { FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
 import type { FileItemRecord } from '@/hooks/useClientPortalData'
+import { useDeleteFile } from '@/hooks/useClientPortalData'
 import { getFileSignedUrl } from '@/lib/storage'
 import { formatDateTime } from '@/lib/format'
 import { fileCategoryLabels, getFileCategory, type FileCategory } from '@/lib/file-category'
@@ -11,13 +13,15 @@ import { FilePreviewDialog } from './FilePreviewDialog'
 
 interface FileListProps {
   files: FileItemRecord[]
+  deleteMode?: boolean
 }
 
 const CATEGORY_ORDER: FileCategory[] = ['image', 'video', 'document', 'other']
 
-export function FileList({ files }: FileListProps) {
+export function FileList({ files, deleteMode }: FileListProps) {
   const [openingId, setOpeningId] = useState<string | null>(null)
   const [previewFile, setPreviewFile] = useState<(FileItemRecord & { category: 'image' | 'video' }) | null>(null)
+  const deleteFile = useDeleteFile()
 
   async function handleOpen(file: FileItemRecord) {
     if (!file.file_url) return
@@ -67,18 +71,26 @@ export function FileList({ files }: FileListProps) {
                           {file.folder ?? 'Sem pasta'} · {formatDateTime(file.created_at)}
                         </p>
                       </div>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={openingId === file.id}
-                        onClick={() =>
-                          canPreview
-                            ? setPreviewFile({ ...file, category: group.category as 'image' | 'video' })
-                            : handleOpen(file)
-                        }
-                      >
-                        {openingId === file.id ? 'Abrindo...' : canPreview ? 'Ver' : 'Abrir'}
-                      </Button>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={openingId === file.id}
+                          onClick={() =>
+                            canPreview
+                              ? setPreviewFile({ ...file, category: group.category as 'image' | 'video' })
+                              : handleOpen(file)
+                          }
+                        >
+                          {openingId === file.id ? 'Abrindo...' : canPreview ? 'Ver' : 'Abrir'}
+                        </Button>
+                        {deleteMode && (
+                          <DeleteItemButton
+                            label={`o arquivo "${file.name}"`}
+                            onDelete={() => deleteFile.mutateAsync(file.id)}
+                          />
+                        )}
+                      </div>
                     </div>
                   )
                 })}

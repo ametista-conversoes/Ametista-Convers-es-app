@@ -79,6 +79,32 @@ export function useAllClients() {
   })
 }
 
+export function useUpdateClientStatus() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ clientId, status }: { clientId: string; status: string }) => {
+      const { error } = await supabase.from('clients').update({ status }).eq('id', clientId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-clients'] })
+    },
+  })
+}
+
+export function useDeleteClient() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (clientId: string) => {
+      const { error } = await supabase.from('clients').delete().eq('id', clientId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-clients'] })
+    },
+  })
+}
+
 export function useAllIncidents() {
   return useQuery({
     queryKey: ['manager-incidents'],
@@ -127,6 +153,19 @@ export function useResolveIncident() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-incidents'] })
       queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
+    },
+  })
+}
+
+export function useDeleteIncident() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (incidentId: string) => {
+      const { error } = await supabase.from('incidents').delete().eq('id', incidentId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-incidents'] })
     },
   })
 }
@@ -181,6 +220,19 @@ export function useResolveAlert() {
   })
 }
 
+export function useDeleteAlert() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (alertId: string) => {
+      const { error } = await supabase.from('alerts').delete().eq('id', alertId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-alerts'] })
+    },
+  })
+}
+
 export function useTimelineEvents() {
   return useQuery({
     queryKey: ['manager-timeline'],
@@ -225,6 +277,19 @@ export function useUpdateTaskStatus() {
   return useMutation({
     mutationFn: async ({ taskId, status }: { taskId: string; status: string }) => {
       const { error } = await supabase.from('tasks').update({ status }).eq('id', taskId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-tasks'] })
+    },
+  })
+}
+
+export function useDeleteManagerTask() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (taskId: string) => {
+      const { error } = await supabase.from('tasks').delete().eq('id', taskId)
       if (error) throw error
     },
     onSuccess: () => {
@@ -329,6 +394,19 @@ export function useCreateWorkflowTemplate() {
   })
 }
 
+export function useDeleteWorkflowTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (templateId: string) => {
+      const { error } = await supabase.from('workflow_templates').delete().eq('id', templateId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflow-templates'] })
+    },
+  })
+}
+
 export interface ManagerDigitalAssetRecord {
   id: string
   name: string
@@ -383,6 +461,19 @@ export function useUpdateDigitalAssetStatus() {
   return useMutation({
     mutationFn: async ({ assetId, status }: { assetId: string; status: string }) => {
       const { error } = await supabase.from('digital_assets').update({ status }).eq('id', assetId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-digital-assets'] })
+    },
+  })
+}
+
+export function useDeleteDigitalAsset() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (assetId: string) => {
+      const { error } = await supabase.from('digital_assets').delete().eq('id', assetId)
       if (error) throw error
     },
     onSuccess: () => {
@@ -464,6 +555,19 @@ export function useUpdateSmartGoalProgress() {
   })
 }
 
+export function useDeleteSmartGoal() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (goalId: string) => {
+      const { error } = await supabase.from('smart_goals').delete().eq('id', goalId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-smart-goals'] })
+    },
+  })
+}
+
 export interface ManagerOnboardingStepRecord {
   id: string
   title: string
@@ -523,6 +627,19 @@ export function useToggleManagerOnboardingStep() {
   })
 }
 
+export function useDeleteOnboardingStep() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (stepId: string) => {
+      const { error } = await supabase.from('onboarding_steps').delete().eq('id', stepId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-onboarding-steps'] })
+    },
+  })
+}
+
 const COMMENTS_ENTITY_TYPE = 'general'
 
 export interface ManagerCommentRecord {
@@ -571,6 +688,77 @@ export function useCreateManagerComment() {
     },
     onSuccess: (_data, { clientId }) => {
       queryClient.invalidateQueries({ queryKey: ['manager-comments', clientId] })
+    },
+  })
+}
+
+export interface ManagerMeetingRecord {
+  id: string
+  title: string
+  client_id: string
+  date: string | null
+  meeting_link: string | null
+  status: string
+  cancellation_reason: string | null
+  client: { name: string } | null
+}
+
+export function useAllMeetings() {
+  return useQuery({
+    queryKey: ['manager-meetings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('meetings')
+        .select('*, client:clients(name)')
+        .order('date', { ascending: true })
+      if (error) throw error
+      return data as unknown as ManagerMeetingRecord[]
+    },
+  })
+}
+
+export interface NewManagerMeetingInput {
+  title: string
+  client_id: string
+  date: string
+  meeting_link: string | null
+}
+
+export function useCreateManagerMeeting() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: NewManagerMeetingInput) => {
+      const { error } = await supabase.from('meetings').insert(input)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-meetings'] })
+    },
+  })
+}
+
+export function useCancelManagerMeeting() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ meetingId, reason }: { meetingId: string; reason: string }) => {
+      const { error } = await supabase.rpc('cancel_meeting', { meeting_id: meetingId, reason })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-meetings'] })
+    },
+  })
+}
+
+export function useDeleteManagerMeeting() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (meetingId: string) => {
+      const { error } = await supabase.from('meetings').delete().eq('id', meetingId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-meetings'] })
     },
   })
 }
