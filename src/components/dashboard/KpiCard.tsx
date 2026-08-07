@@ -45,7 +45,12 @@ export function KpiCard({ label, value, icon: Icon, description, className }: Kp
               <HelpCircle className="h-3.5 w-3.5" />
             </button>
           </PopoverTrigger>
-          <PopoverContent side="top" align="end" className="w-72 text-sm">
+          <PopoverContent
+            side="top"
+            align="end"
+            className="w-72 text-sm"
+            onCloseAutoFocus={(e) => e.preventDefault()}
+          >
             <p className="whitespace-pre-line">{description}</p>
           </PopoverContent>
         </Popover>
