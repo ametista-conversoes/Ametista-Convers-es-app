@@ -534,6 +534,27 @@ export function useOrganization() {
   })
 }
 
+export interface UpdateOrganizationInput {
+  id: string
+  name: string
+  plan: string | null
+  status: string | null
+  domain: string | null
+}
+
+export function useUpdateOrganization() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...input }: UpdateOrganizationInput) => {
+      const { error } = await supabase.from('organizations').update(input).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organization'] })
+    },
+  })
+}
+
 export interface FeatureFlagRecord {
   id: string
   key: string

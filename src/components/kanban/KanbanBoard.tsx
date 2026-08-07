@@ -63,8 +63,8 @@ export function KanbanBoard({ tasks, deleteMode }: KanbanBoardProps) {
             tasks={tasks.filter((t) => t.status === status)}
           />
         ))}
-        {deleteMode && <TrashDropZone />}
       </div>
+      {deleteMode && <TrashDropZone />}
     </DndContext>
   )
 }
