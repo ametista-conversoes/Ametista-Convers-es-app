@@ -1,4 +1,4 @@
-import { Boxes } from 'lucide-react'
+import { Boxes, ExternalLink } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -36,6 +36,24 @@ export function AssetCard({ asset }: AssetCardProps) {
           {asset.platform ? ` · ${asset.platform}` : ''}
         </p>
         <p className="text-xs text-muted-foreground/70">{asset.client?.name ?? 'Cliente'}</p>
+
+        {asset.url && (
+          <a
+            href={asset.url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 text-sm text-purple-400 hover:underline"
+          >
+            <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{asset.url}</span>
+          </a>
+        )}
+
+        {asset.code && (
+          <code className="block max-h-24 overflow-y-auto rounded-md bg-secondary/50 p-2 text-xs text-muted-foreground">
+            {asset.code}
+          </code>
+        )}
 
         <div className="mt-auto flex items-center justify-between pt-3">
           <DropdownMenu>

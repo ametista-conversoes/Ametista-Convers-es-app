@@ -1,10 +1,22 @@
 import { useState } from 'react'
+import { Info } from 'lucide-react'
 import { NewSmartGoalDialog } from '@/components/smart-goals/NewSmartGoalDialog'
 import { SmartGoalCard } from '@/components/smart-goals/SmartGoalCard'
+import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAllClients, useAllSmartGoals } from '@/hooks/useManagerPortalData'
+import { goalDeadlineStatusLabels, goalDeadlineStatusStyles } from '@/lib/status-styles'
 
 const ALL_CLIENTS = 'all'
+
+const DEADLINE_STATUS_ORDER = ['overdue', 'urgent', 'upcoming'] as const
+
+const deadlineStatusDescriptions: Record<(typeof DEADLINE_STATUS_ORDER)[number], string> = {
+  overdue: 'O prazo já passou.',
+  urgent: 'Faltam até 30 dias para o prazo.',
+  upcoming: 'Faltam até 3 meses (90 dias) para o prazo.',
+}
 
 export default function SmartGoals() {
   const { data: clients } = useAllClients()
@@ -40,6 +52,30 @@ export default function SmartGoals() {
               ))}
             </SelectContent>
           </Select>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button type="button" variant="ghost" size="icon" aria-label="Sobre os status de prazo">
+                <Info className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="bottom" align="start" className="w-80 text-sm">
+              <p className="mb-3 font-medium text-foreground">Status de prazo</p>
+              <div className="space-y-2">
+                {DEADLINE_STATUS_ORDER.map((key) => (
+                  <div key={key} className="flex items-start gap-2">
+                    <span
+                      className={`mt-0.5 shrink-0 rounded-full border px-2 py-0.5 text-xs ${goalDeadlineStatusStyles[key]}`}
+                    >
+                      {goalDeadlineStatusLabels[key]}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{deadlineStatusDescriptions[key]}</span>
+                  </div>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+
           <NewSmartGoalDialog />
         </div>
       </div>

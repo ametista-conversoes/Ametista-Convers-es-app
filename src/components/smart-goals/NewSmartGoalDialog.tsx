@@ -13,16 +13,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAllClients, useCreateSmartGoal } from '@/hooks/useManagerPortalData'
-import { smartGoalStatusLabels } from '@/lib/status-styles'
+import { smartGoalMetricLabels, smartGoalStatusLabels } from '@/lib/status-styles'
+
+const METRIC_OTHER = 'other'
 
 const newGoalSchema = z.object({
   title: z.string().min(2, 'Digite um título'),
   clientId: z.string().min(1, 'Escolha um cliente'),
   metricType: z.string().optional(),
+  metricTypeOther: z.string().optional(),
   targetValue: z
     .string()
     .min(1, 'Digite o valor alvo')
@@ -31,7 +35,7 @@ const newGoalSchema = z.object({
     .string()
     .optional()
     .refine((value) => !value || (!Number.isNaN(Number(value)) && Number(value) >= 0), 'Digite um número válido'),
-  period: z.string().optional(),
+  targetDate: z.string().optional(),
   status: z.enum(['on_track', 'at_risk', 'off_track', 'completed']),
 })
 
@@ -48,12 +52,15 @@ export function NewSmartGoalDialog() {
       title: '',
       clientId: '',
       metricType: '',
+      metricTypeOther: '',
       targetValue: '',
       currentValue: '',
-      period: '',
+      targetDate: '',
       status: 'on_track',
     },
   })
+
+  const selectedMetric = form.watch('metricType')
 
   function handleOpenChange(next: boolean) {
     setOpen(next)
@@ -62,13 +69,18 @@ export function NewSmartGoalDialog() {
 
   async function onSubmit(values: NewGoalValues) {
     try {
+      const metricType =
+        values.metricType === METRIC_OTHER
+          ? values.metricTypeOther?.trim() || null
+          : values.metricType?.trim() || null
+
       await createGoal.mutateAsync({
         title: values.title,
         client_id: values.clientId,
-        metric_type: values.metricType?.trim() ? values.metricType.trim() : null,
+        metric_type: metricType,
         target_value: Number(values.targetValue),
         current_value: values.currentValue?.trim() ? Number(values.currentValue) : 0,
-        period: values.period?.trim() ? values.period.trim() : null,
+        target_date: values.targetDate?.trim() ? values.targetDate : null,
         status: values.status,
       })
       form.reset()
@@ -137,13 +149,41 @@ export function NewSmartGoalDialog() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Métrica (opcional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex: ROAS, CPA, Leads" {...field} />
-                  </FormControl>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione uma métrica" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Object.entries(smartGoalMetricLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value={METRIC_OTHER}>Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            {selectedMetric === METRIC_OTHER && (
+              <FormField
+                control={form.control}
+                name="metricTypeOther"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Qual métrica?</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Digite o nome da métrica" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
@@ -177,12 +217,12 @@ export function NewSmartGoalDialog() {
 
             <FormField
               control={form.control}
-              name="period"
+              name="targetDate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Período (opcional)</FormLabel>
+                  <FormLabel>Prazo (opcional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ex: Q3 2026, Agosto/2026" {...field} />
+                    <DatePicker value={field.value} onChange={field.onChange} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

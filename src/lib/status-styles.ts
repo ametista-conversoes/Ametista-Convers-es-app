@@ -153,6 +153,35 @@ export const digitalAssetTypeLabels: Record<string, string> = {
   business_manager: 'Business Manager',
   ad_account: 'Conta de Anúncios',
   pixel: 'Pixel',
+  tag: 'Tag',
   domain: 'Domínio',
   other: 'Outro',
+}
+
+// Tipos de ativo cujo acesso é por código/snippet, não por link.
+export const digitalAssetCodeTypes = ['pixel', 'tag']
+
+export const goalDeadlineStatusLabels: Record<string, string> = {
+  overdue: 'Atrasada',
+  urgent: 'Urgente',
+  upcoming: 'Imediato',
+}
+
+export const goalDeadlineStatusStyles: Record<string, string> = {
+  overdue: 'border-destructive/20 bg-destructive/10 text-destructive',
+  urgent: 'border-orange-500/20 bg-orange-500/10 text-orange-400',
+  upcoming: 'border-sky-500/20 bg-sky-500/10 text-sky-400',
+}
+
+export const smartGoalMetricLabels: Record<string, string> = {
+  cpa: 'CPA',
+  roas: 'ROAS',
+  cpc: 'CPC',
+  ctr: 'CTR',
+  cpm: 'CPM',
+  leads: 'Leads',
+  conversoes: 'Conversões',
+  faturamento: 'Faturamento',
+  ticket_medio: 'Ticket Médio',
+  taxa_conversao: 'Taxa de Conversão',
 }

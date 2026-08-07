@@ -2,6 +2,7 @@ const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', cu
 const numberFormatter = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 })
 const decimalFormatter = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' })
+const fullDateFormatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 
 export function formatCurrency(value: number | null | undefined): string {
@@ -29,6 +30,11 @@ export function formatDate(value: string | null | undefined): string {
   return dateFormatter.format(new Date(value))
 }
 
+export function formatFullDate(value: string | null | undefined): string {
+  if (!value) return '—'
+  return fullDateFormatter.format(new Date(value))
+}
+
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) return '—'
   return dateTimeFormatter.format(new Date(value))
@@ -39,4 +45,23 @@ export function getTodayIsoDate(): string {
   const now = new Date()
   const offset = now.getTimezoneOffset()
   return new Date(now.getTime() - offset * 60 * 1000).toISOString().slice(0, 10)
+}
+
+/** Quão perto do prazo uma meta SMART está: atrasada (já passou), urgente
+ * (até 1 mês) ou imediato (até 3 meses). `null` se não há prazo ou a meta
+ * já foi concluída — nesses casos não faz sentido mostrar urgência. */
+export function getGoalDeadlineStatus(
+  targetDate: string | null | undefined,
+  status: string,
+): 'overdue' | 'urgent' | 'upcoming' | null {
+  if (!targetDate || status === 'completed') return null
+
+  const today = new Date(getTodayIsoDate())
+  const target = new Date(targetDate)
+  const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+  if (diffDays < 0) return 'overdue'
+  if (diffDays <= 30) return 'urgent'
+  if (diffDays <= 90) return 'upcoming'
+  return null
 }

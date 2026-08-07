@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 
 export interface ManagerClientRecord {
@@ -335,6 +336,8 @@ export interface ManagerDigitalAssetRecord {
   client_id: string
   platform: string | null
   status: string
+  url: string | null
+  code: string | null
   client: { name: string } | null
 }
 
@@ -358,6 +361,8 @@ export interface NewDigitalAssetInput {
   type: string | null
   platform: string | null
   status: string
+  url: string | null
+  code: string | null
 }
 
 export function useCreateDigitalAsset() {
@@ -393,7 +398,7 @@ export interface ManagerSmartGoalRecord {
   metric_type: string | null
   target_value: number | null
   current_value: number | null
-  period: string | null
+  target_date: string | null
   status: string
   client: { name: string } | null
 }
@@ -418,7 +423,7 @@ export interface NewSmartGoalInput {
   metric_type: string | null
   target_value: number | null
   current_value: number | null
-  period: string | null
+  target_date: string | null
   status: string
 }
 
@@ -514,6 +519,58 @@ export function useToggleManagerOnboardingStep() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-onboarding-steps'] })
+    },
+  })
+}
+
+const COMMENTS_ENTITY_TYPE = 'general'
+
+export interface ManagerCommentRecord {
+  id: string
+  title: string | null
+  content: string
+  author_id: string | null
+  author_name: string | null
+  author_role: string | null
+  created_at: string
+}
+
+export function useClientComments(clientId: string | null) {
+  return useQuery({
+    queryKey: ['manager-comments', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('comments')
+        .select('*')
+        .eq('client_id', clientId as string)
+        .eq('entity_type', COMMENTS_ENTITY_TYPE)
+        .order('created_at', { ascending: true })
+      if (error) throw error
+      return data as ManagerCommentRecord[]
+    },
+    enabled: !!clientId,
+  })
+}
+
+export function useCreateManagerComment() {
+  const { user, fullName, role } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ clientId, title, content }: { clientId: string; title: string; content: string }) => {
+      const { error } = await supabase.from('comments').insert({
+        title,
+        content,
+        client_id: clientId,
+        entity_type: COMMENTS_ENTITY_TYPE,
+        entity_id: clientId,
+        author_id: user?.id,
+        author_name: fullName,
+        author_role: role,
+      })
+      if (error) throw error
+    },
+    onSuccess: (_data, { clientId }) => {
+      queryClient.invalidateQueries({ queryKey: ['manager-comments', clientId] })
     },
   })
 }
