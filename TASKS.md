@@ -86,7 +86,10 @@
   - Ícones de dúvida dos KPIs: só uma dica fica aberta por vez em toda a tela (estado compartilhado entre os cards) — abrir uma fecha a anterior automaticamente
 
 ### Fase 5.4 — Ativos Digitais, Metas SMART e Onboarding
-- [ ] Banco de Ativos Digitais (`/assets`), Metas SMART (`/smart-goals`), Onboarding (`/onboarding`)
+- [x] Ativos Digitais (`/assets`): filtro por cliente, "Novo ativo" (nome, cliente, tipo, plataforma, status), badge de status trocável na hora (dropdown)
+- [x] Metas SMART (`/smart-goals`): filtro por cliente, "Nova meta" (título, cliente, métrica, valor alvo/atual, período, status), botão "Atualizar progresso" por meta com barra de progresso
+- [x] Onboarding (`/onboarding`): visão agrupada por cliente (um card com barra de progresso + checklist por cliente), "Nova etapa" (título, cliente, projeto opcional, categoria), reaproveita o mesmo toggle de concluído/pendente do Portal Cliente
+- [x] Testado logado como `gestor`: criar ativo e trocar status pelo badge, criar meta e atualizar progresso (barra reflete na hora), criar etapa de onboarding e marcar como concluída — tudo refletindo direto no banco; as 3 páginas usam o mesmo `RoleRoute` das demais telas do Portal Gestor, então o bloqueio para `cliente` já estava garantido (nenhum arquivo do Portal Cliente foi alterado)
 
 > **Nota sobre a ordem das próximas fases:** ao terminar a Fase 5, a intenção é seguir para as integrações externas (Google Ads, Meta Ads, Google Forms) — hoje anotadas como "Fase 8" logo abaixo. A numeração final (se essa fase vira "Fase 6" e empurra as demais, ou fica como está) será decidida quando chegarmos lá; por enquanto nenhuma fase provisória foi apagada ou renumerada.
 

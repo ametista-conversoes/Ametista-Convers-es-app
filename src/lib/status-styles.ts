@@ -134,3 +134,25 @@ export const smartGoalStatusStyles: Record<string, string> = {
   off_track: 'border-destructive/20 bg-destructive/10 text-destructive',
   completed: 'border-purple-500/20 bg-purple-500/10 text-purple-400',
 }
+
+export const digitalAssetStatusLabels: Record<string, string> = {
+  active: 'Ativo',
+  inactive: 'Inativo',
+  pending: 'Pendente',
+  revoked: 'Revogado',
+}
+
+export const digitalAssetStatusStyles: Record<string, string> = {
+  active: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+  inactive: 'border-slate-500/20 bg-slate-500/10 text-slate-400',
+  pending: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
+  revoked: 'border-destructive/20 bg-destructive/10 text-destructive',
+}
+
+export const digitalAssetTypeLabels: Record<string, string> = {
+  business_manager: 'Business Manager',
+  ad_account: 'Conta de Anúncios',
+  pixel: 'Pixel',
+  domain: 'Domínio',
+  other: 'Outro',
+}

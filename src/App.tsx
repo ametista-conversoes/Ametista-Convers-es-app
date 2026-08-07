@@ -19,10 +19,13 @@ import Tasks from '@/pages/client/Tasks'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import Settings from '@/pages/Settings'
 import Alerts from '@/pages/admin/Alerts'
+import Assets from '@/pages/admin/Assets'
 import Clients from '@/pages/admin/Clients'
 import DashboardExecutivo from '@/pages/admin/DashboardExecutivo'
 import Incidents from '@/pages/admin/Incidents'
 import Kanban from '@/pages/admin/Kanban'
+import Onboarding from '@/pages/admin/Onboarding'
+import SmartGoals from '@/pages/admin/SmartGoals'
 import Timeline from '@/pages/admin/Timeline'
 import Workflows from '@/pages/admin/Workflows'
 
@@ -51,6 +54,9 @@ const managerPagesReady: Record<string, ComponentType> = {
   '/incidents': Incidents,
   '/alerts': Alerts,
   '/timeline': Timeline,
+  '/assets': Assets,
+  '/smart-goals': SmartGoals,
+  '/onboarding': Onboarding,
 }
 
 function App() {

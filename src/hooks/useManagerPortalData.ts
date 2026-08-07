@@ -328,6 +328,196 @@ export function useCreateWorkflowTemplate() {
   })
 }
 
+export interface ManagerDigitalAssetRecord {
+  id: string
+  name: string
+  type: string | null
+  client_id: string
+  platform: string | null
+  status: string
+  client: { name: string } | null
+}
+
+export function useAllDigitalAssets() {
+  return useQuery({
+    queryKey: ['manager-digital-assets'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('digital_assets')
+        .select('*, client:clients(name)')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data as unknown as ManagerDigitalAssetRecord[]
+    },
+  })
+}
+
+export interface NewDigitalAssetInput {
+  name: string
+  client_id: string
+  type: string | null
+  platform: string | null
+  status: string
+}
+
+export function useCreateDigitalAsset() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: NewDigitalAssetInput) => {
+      const { error } = await supabase.from('digital_assets').insert(input)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-digital-assets'] })
+    },
+  })
+}
+
+export function useUpdateDigitalAssetStatus() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ assetId, status }: { assetId: string; status: string }) => {
+      const { error } = await supabase.from('digital_assets').update({ status }).eq('id', assetId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-digital-assets'] })
+    },
+  })
+}
+
+export interface ManagerSmartGoalRecord {
+  id: string
+  title: string
+  client_id: string
+  metric_type: string | null
+  target_value: number | null
+  current_value: number | null
+  period: string | null
+  status: string
+  client: { name: string } | null
+}
+
+export function useAllSmartGoals() {
+  return useQuery({
+    queryKey: ['manager-smart-goals'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('smart_goals')
+        .select('*, client:clients(name)')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data as unknown as ManagerSmartGoalRecord[]
+    },
+  })
+}
+
+export interface NewSmartGoalInput {
+  title: string
+  client_id: string
+  metric_type: string | null
+  target_value: number | null
+  current_value: number | null
+  period: string | null
+  status: string
+}
+
+export function useCreateSmartGoal() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: NewSmartGoalInput) => {
+      const { error } = await supabase.from('smart_goals').insert(input)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-smart-goals'] })
+    },
+  })
+}
+
+export function useUpdateSmartGoalProgress() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      goalId,
+      currentValue,
+      status,
+    }: {
+      goalId: string
+      currentValue: number
+      status: string
+    }) => {
+      const { error } = await supabase
+        .from('smart_goals')
+        .update({ current_value: currentValue, status })
+        .eq('id', goalId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-smart-goals'] })
+    },
+  })
+}
+
+export interface ManagerOnboardingStepRecord {
+  id: string
+  title: string
+  client_id: string
+  project_id: string | null
+  completed: boolean
+  step_order: number
+  category: string | null
+  client: { name: string } | null
+}
+
+export function useAllOnboardingSteps() {
+  return useQuery({
+    queryKey: ['manager-onboarding-steps'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('onboarding_steps')
+        .select('*, client:clients(name)')
+        .order('step_order', { ascending: true })
+      if (error) throw error
+      return data as unknown as ManagerOnboardingStepRecord[]
+    },
+  })
+}
+
+export interface NewOnboardingStepInput {
+  title: string
+  client_id: string
+  project_id: string | null
+  category: string | null
+  step_order: number
+}
+
+export function useCreateOnboardingStep() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: NewOnboardingStepInput) => {
+      const { error } = await supabase.from('onboarding_steps').insert(input)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-onboarding-steps'] })
+    },
+  })
+}
+
+export function useToggleManagerOnboardingStep() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ stepId, completed }: { stepId: string; completed: boolean }) => {
+      const { error } = await supabase.rpc('toggle_onboarding_step', { step_id: stepId, is_completed: completed })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-onboarding-steps'] })
+    },
+  })
+}
+
 export interface NewClientInput {
   name: string
   company: string | null

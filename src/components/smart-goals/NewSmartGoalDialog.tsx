@@ -1,0 +1,227 @@
+import { useState } from 'react'
+import { Plus } from 'lucide-react'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
+import { z } from 'zod'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useAllClients, useCreateSmartGoal } from '@/hooks/useManagerPortalData'
+import { smartGoalStatusLabels } from '@/lib/status-styles'
+
+const newGoalSchema = z.object({
+  title: z.string().min(2, 'Digite um título'),
+  clientId: z.string().min(1, 'Escolha um cliente'),
+  metricType: z.string().optional(),
+  targetValue: z
+    .string()
+    .min(1, 'Digite o valor alvo')
+    .refine((value) => !Number.isNaN(Number(value)) && Number(value) >= 0, 'Digite um número válido'),
+  currentValue: z
+    .string()
+    .optional()
+    .refine((value) => !value || (!Number.isNaN(Number(value)) && Number(value) >= 0), 'Digite um número válido'),
+  period: z.string().optional(),
+  status: z.enum(['on_track', 'at_risk', 'off_track', 'completed']),
+})
+
+type NewGoalValues = z.infer<typeof newGoalSchema>
+
+export function NewSmartGoalDialog() {
+  const [open, setOpen] = useState(false)
+  const { data: clients } = useAllClients()
+  const createGoal = useCreateSmartGoal()
+
+  const form = useForm<NewGoalValues>({
+    resolver: zodResolver(newGoalSchema),
+    defaultValues: {
+      title: '',
+      clientId: '',
+      metricType: '',
+      targetValue: '',
+      currentValue: '',
+      period: '',
+      status: 'on_track',
+    },
+  })
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next)
+    if (!next) form.reset()
+  }
+
+  async function onSubmit(values: NewGoalValues) {
+    try {
+      await createGoal.mutateAsync({
+        title: values.title,
+        client_id: values.clientId,
+        metric_type: values.metricType?.trim() ? values.metricType.trim() : null,
+        target_value: Number(values.targetValue),
+        current_value: values.currentValue?.trim() ? Number(values.currentValue) : 0,
+        period: values.period?.trim() ? values.period.trim() : null,
+        status: values.status,
+      })
+      form.reset()
+      setOpen(false)
+    } catch {
+      toast.error('Não foi possível criar a meta.')
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button>
+          <Plus className="h-4 w-4" />
+          Nova meta
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Nova meta SMART</DialogTitle>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Título</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: Aumentar ROAS para 4x" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="clientId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cliente</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um cliente" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {(clients ?? []).map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="metricType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Métrica (opcional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: ROAS, CPA, Leads" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="targetValue"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Valor alvo</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="any" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="currentValue"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Valor atual</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="any" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="period"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Período (opcional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: Q3 2026, Agosto/2026" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Object.entries(smartGoalStatusLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <DialogFooter>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? 'Criando...' : 'Criar meta'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  )
+}
