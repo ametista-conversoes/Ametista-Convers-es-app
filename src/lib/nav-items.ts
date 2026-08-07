@@ -51,4 +51,5 @@ export const managerNavItems: NavItem[] = [
   { title: 'Timeline', href: '/timeline', icon: History },
   { title: 'Metas SMART', href: '/smart-goals', icon: Target },
   { title: 'Onboarding', href: '/onboarding', icon: ListChecks },
+  { title: 'Comentários', href: '/client-comments', icon: MessageSquare },
 ]

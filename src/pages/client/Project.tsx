@@ -43,7 +43,9 @@ export default function Project() {
   }
 
   const projectTasks = (tasks ?? []).filter((task) => task.project_id === project.id)
-  const projectOnboardingSteps = (onboardingSteps ?? []).filter((step) => step.project_id === project.id)
+  const projectOnboardingSteps = (onboardingSteps ?? []).filter(
+    (step) => step.project_id === project.id || step.project_id === null,
+  )
 
   return (
     <div className="space-y-6">

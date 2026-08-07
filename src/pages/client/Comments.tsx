@@ -1,4 +1,5 @@
 import { CommentFeed } from '@/components/comments/CommentFeed'
+import { CommentGuidelines } from '@/components/comments/CommentGuidelines'
 import { NewCommentForm } from '@/components/comments/NewCommentForm'
 import { useAuth } from '@/contexts/AuthContext'
 import { useComments } from '@/hooks/useClientPortalData'
@@ -21,9 +22,12 @@ export default function Comments() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm text-muted-foreground">Portal Cliente</p>
-        <h1 className="text-2xl font-semibold text-foreground">Comentários</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm text-muted-foreground">Portal Cliente</p>
+          <h1 className="text-2xl font-semibold text-foreground">Comentários</h1>
+        </div>
+        <CommentGuidelines />
       </div>
 
       <NewCommentForm />

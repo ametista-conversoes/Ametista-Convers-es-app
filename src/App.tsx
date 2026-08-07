@@ -20,6 +20,7 @@ import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import Settings from '@/pages/Settings'
 import Alerts from '@/pages/admin/Alerts'
 import Assets from '@/pages/admin/Assets'
+import ClientComments from '@/pages/admin/ClientComments'
 import Clients from '@/pages/admin/Clients'
 import DashboardExecutivo from '@/pages/admin/DashboardExecutivo'
 import Incidents from '@/pages/admin/Incidents'
@@ -57,6 +58,7 @@ const managerPagesReady: Record<string, ComponentType> = {
   '/assets': Assets,
   '/smart-goals': SmartGoals,
   '/onboarding': Onboarding,
+  '/client-comments': ClientComments,
 }
 
 function App() {
