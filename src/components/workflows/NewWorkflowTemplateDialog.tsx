@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useCreateWorkflowTemplate } from '@/hooks/useManagerPortalData'
 
@@ -107,7 +108,7 @@ export function NewWorkflowTemplateDialog() {
             />
 
             <div className="space-y-3">
-              <FormLabel>Etapas</FormLabel>
+              <Label>Etapas</Label>
               {fields.map((fieldItem, index) => (
                 <div key={fieldItem.id} className="flex items-start gap-2 rounded-lg bg-secondary/50 p-3">
                   <div className="flex-1 space-y-2">
