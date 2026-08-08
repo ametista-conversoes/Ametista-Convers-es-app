@@ -2,8 +2,10 @@ import { MeetingList } from '@/components/meetings/MeetingList'
 import { NewMeetingDialog } from '@/components/meetings/NewMeetingDialog'
 import { useAuth } from '@/contexts/AuthContext'
 import { useUpcomingMeetings } from '@/hooks/useClientPortalData'
+import { useMarkNavSeen } from '@/hooks/useNavSeen'
 
 export default function Meetings() {
+  useMarkNavSeen('/meetings')
   const { clientId } = useAuth()
   const { data: meetings, isLoading } = useUpcomingMeetings()
 

@@ -3,8 +3,10 @@ import { CommentGuidelines } from '@/components/comments/CommentGuidelines'
 import { NewCommentForm } from '@/components/comments/NewCommentForm'
 import { useAuth } from '@/contexts/AuthContext'
 import { useComments } from '@/hooks/useClientPortalData'
+import { useMarkNavSeen } from '@/hooks/useNavSeen'
 
 export default function Comments() {
+  useMarkNavSeen('/comments')
   const { clientId } = useAuth()
   const { data: comments, isLoading } = useComments()
 

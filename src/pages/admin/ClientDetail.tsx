@@ -1,6 +1,6 @@
 import { useState, type ChangeEvent } from 'react'
 import { useParams } from 'react-router-dom'
-import { Building2, Calendar, CheckSquare, Mail, Phone, Target, Upload } from 'lucide-react'
+import { AlertTriangle, Building2, Calendar, CheckSquare, Mail, Phone, Target, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,8 +15,11 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import {
+  useAllAlerts,
+  useAllIncidents,
   useAllMeetings,
   useAllSmartGoals,
   useAllTasks,
@@ -24,7 +27,8 @@ import {
   useUpdateClientDetails,
   useUpdateClientStatus,
 } from '@/hooks/useManagerPortalData'
-import { formatCurrency, formatDate, formatDateTime, formatFullDate } from '@/lib/format'
+import { formatDate, formatDateTime, formatFullDate } from '@/lib/format'
+import { getClientRiskDetails } from '@/lib/client-risk'
 import { uploadClientLogo } from '@/lib/storage'
 import {
   clientStatusLabels,
@@ -32,6 +36,7 @@ import {
   getHealthScoreColor,
   meetingStatusLabels,
   meetingStatusStyles,
+  planLabels,
   smartGoalStatusLabels,
   smartGoalStatusStyles,
   taskPriorityLabels,
@@ -48,10 +53,17 @@ export default function ClientDetail() {
   const { data: tasks } = useAllTasks()
   const { data: goals } = useAllSmartGoals()
   const { data: meetings } = useAllMeetings()
+  const { data: alerts } = useAllAlerts()
+  const { data: incidents } = useAllIncidents()
   const updateStatus = useUpdateClientStatus()
   const updateDetails = useUpdateClientDetails()
 
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [name, setName] = useState<string | null>(null)
+  const [company, setCompany] = useState<string | null>(null)
+  const [email, setEmail] = useState<string | null>(null)
+  const [plan, setPlan] = useState<string | null>(null)
+  const [monthlyFee, setMonthlyFee] = useState<string | null>(null)
   const [phone, setPhone] = useState<string | null>(null)
   const [renewalDate, setRenewalDate] = useState<string | null>(null)
   const [notes, setNotes] = useState<string | null>(null)
@@ -69,6 +81,11 @@ export default function ClientDetail() {
     )
   }
 
+  const nameValue = name ?? client.name
+  const companyValue = company ?? client.company ?? ''
+  const emailValue = email ?? client.email ?? ''
+  const planValue = plan ?? client.plan ?? ''
+  const monthlyFeeValue = monthlyFee ?? (client.monthly_fee != null ? String(client.monthly_fee) : '')
   const phoneValue = phone ?? client.phone ?? ''
   const renewalDateValue = renewalDate ?? client.renewal_date ?? ''
   const notesValue = notes ?? client.internal_notes ?? ''
@@ -81,6 +98,11 @@ export default function ClientDetail() {
       const url = await uploadClientLogo(file, client.id)
       await updateDetails.mutateAsync({
         id: client.id,
+        name: client.name,
+        company: client.company,
+        email: client.email,
+        plan: client.plan,
+        monthly_fee: client.monthly_fee,
         phone: client.phone,
         logo_url: url,
         renewal_date: client.renewal_date,
@@ -100,6 +122,11 @@ export default function ClientDetail() {
     try {
       await updateDetails.mutateAsync({
         id: client.id,
+        name: nameValue.trim() ? nameValue.trim() : client.name,
+        company: companyValue.trim() ? companyValue.trim() : null,
+        email: emailValue.trim() ? emailValue.trim() : null,
+        plan: planValue.trim() ? planValue.trim() : null,
+        monthly_fee: monthlyFeeValue.trim() ? Number(monthlyFeeValue) : null,
         phone: phoneValue.trim() ? phoneValue.trim() : null,
         logo_url: client.logo_url,
         renewal_date: renewalDateValue.trim() ? renewalDateValue : null,
@@ -116,6 +143,12 @@ export default function ClientDetail() {
   const clientTasks = (tasks ?? []).filter((t) => t.client_id === client.id)
   const clientGoals = (goals ?? []).filter((g) => g.client_id === client.id)
   const clientMeetings = (meetings ?? []).filter((m) => m.client_id === client.id)
+  const riskDetails = getClientRiskDetails(client.id, {
+    incidents: incidents ?? [],
+    alerts: alerts ?? [],
+    tasks: tasks ?? [],
+    goals: goals ?? [],
+  })
 
   return (
     <div className="space-y-6">
@@ -139,9 +172,19 @@ export default function ClientDetail() {
             <input type="file" accept="image/*" className="hidden" disabled={uploadingLogo} onChange={handleLogoChange} />
           </label>
 
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-xl font-semibold text-foreground">{client.name}</h2>
-            <p className="truncate text-sm text-muted-foreground">{client.company ?? 'Sem empresa'}</p>
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <Input
+              value={nameValue}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nome do cliente"
+              className="h-9 text-base font-semibold"
+            />
+            <Input
+              value={companyValue}
+              onChange={(e) => setCompany(e.target.value)}
+              placeholder="Nome do negócio (ex: Loja Aurora)"
+              className="h-8 text-sm text-muted-foreground"
+            />
           </div>
 
           <DropdownMenu>
@@ -169,9 +212,15 @@ export default function ClientDetail() {
               <CardTitle className="text-base">Contato</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 p-0 pt-4 text-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Mail className="h-4 w-4 shrink-0" />
-                <span className="truncate text-foreground">{client.email ?? '—'}</span>
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <Input
+                  type="email"
+                  placeholder="contato@empresa.com"
+                  value={emailValue}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="h-8"
+                />
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -190,13 +239,32 @@ export default function ClientDetail() {
               <CardTitle className="text-base">Plano</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 p-0 pt-4 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Plano</span>
-                <span className="font-medium text-foreground">{client.plan ?? '—'}</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="shrink-0 text-muted-foreground">Plano</span>
+                <Select value={planValue} onValueChange={setPlan}>
+                  <SelectTrigger className="h-8 w-40">
+                    <SelectValue placeholder="Selecionar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(planLabels).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Mensalidade</span>
-                <span className="font-medium text-foreground">{formatCurrency(client.monthly_fee)}</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="shrink-0 text-muted-foreground">Mensalidade</span>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0,00"
+                  value={monthlyFeeValue}
+                  onChange={(e) => setMonthlyFee(e.target.value)}
+                  className="h-8 w-32"
+                />
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Health Score</span>
@@ -237,6 +305,36 @@ export default function ClientDetail() {
         </CardContent>
       </Card>
 
+      {/* Cliente em risco — só aparece se houver algum problema de verdade */}
+      {riskDetails.hasProblems && (
+        <Card className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 md:p-6">
+          <CardHeader className="p-0">
+            <CardTitle className="flex items-center gap-2 text-base text-destructive">
+              <AlertTriangle className="h-4 w-4" />
+              Cliente em risco
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-3 p-0 pt-4 text-sm sm:grid-cols-4">
+            <div>
+              <p className="text-lg font-semibold text-foreground">{riskDetails.overdueTasks}</p>
+              <p className="text-xs text-muted-foreground">Tarefas atrasadas</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-foreground">{riskDetails.overdueGoals}</p>
+              <p className="text-xs text-muted-foreground">Metas não concluídas no prazo</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-foreground">{riskDetails.activeAlerts}</p>
+              <p className="text-xs text-muted-foreground">Alertas não resolvidos</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-foreground">{riskDetails.activeIncidents}</p>
+              <p className="text-xs text-muted-foreground">Incidentes abertos</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tarefas, Metas, Reuniões */}
       <div className="content-grid-container">
         <div className="content-grid gap-4">
@@ -247,7 +345,7 @@ export default function ClientDetail() {
                 Tarefas
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 p-0 pt-4">
+            <CardContent className="max-h-[560px] space-y-2 overflow-y-auto p-0 pt-4 pr-1">
               {clientTasks.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma tarefa.</p>}
               {clientTasks.map((task) => (
                 <div key={task.id} className="rounded-lg bg-secondary/50 px-3 py-2">
@@ -271,7 +369,7 @@ export default function ClientDetail() {
                 Metas SMART
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 p-0 pt-4">
+            <CardContent className="max-h-[560px] space-y-3 overflow-y-auto p-0 pt-4 pr-1">
               {clientGoals.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma meta.</p>}
               {clientGoals.map((goal) => {
                 const target = goal.target_value ?? 0
@@ -303,7 +401,7 @@ export default function ClientDetail() {
                 Reuniões
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 p-0 pt-4">
+            <CardContent className="max-h-[560px] space-y-2 overflow-y-auto p-0 pt-4 pr-1">
               {clientMeetings.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma reunião.</p>}
               {clientMeetings.map((meeting) => (
                 <div key={meeting.id} className="rounded-lg bg-secondary/50 px-3 py-2">

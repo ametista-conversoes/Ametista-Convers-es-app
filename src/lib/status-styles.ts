@@ -98,6 +98,28 @@ export const clientStatusStyles: Record<string, string> = {
 export const clientProblemStatusStyle = 'border-orange-500/20 bg-orange-500/10 text-orange-400'
 export const clientProblemStatusLabel = 'Em problemas'
 
+// Planos fixos do cliente (Fase 5.5) — chave estável salva no banco,
+// rótulo em português só existe aqui no front.
+export const planLabels: Record<string, string> = {
+  validacao: 'Validação',
+  escala: 'Escala',
+  dominacao: 'Dominação',
+}
+
+export const planStyles: Record<string, string> = {
+  validacao: 'border-sky-500/20 bg-sky-500/10 text-sky-400',
+  escala: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
+  dominacao: 'border-purple-500/20 bg-purple-500/10 text-purple-400',
+}
+
+// Frequência de reuniões automáticas ligada a cada plano — ver
+// "meeting_recurrence_interval" no banco (mesmo mapeamento dos dois lados).
+export const planMeetingFrequencyLabels: Record<string, string> = {
+  validacao: 'Mensal',
+  escala: 'Quinzenal',
+  dominacao: 'Semanal',
+}
+
 export function getHealthScoreColor(score: number | null | undefined): string {
   if (score === null || score === undefined) return 'text-foreground'
   if (score < 50) return 'text-destructive'

@@ -97,6 +97,11 @@ export function useManagerClient(clientId: string | null) {
 
 export interface UpdateClientDetailsInput {
   id: string
+  name: string
+  company: string | null
+  email: string | null
+  plan: string | null
+  monthly_fee: number | null
   phone: string | null
   logo_url: string | null
   renewal_date: string | null
@@ -814,6 +819,70 @@ export function useDeleteManagerMeeting() {
   })
 }
 
+export function useCompleteManagerMeeting() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (meetingId: string) => {
+      const { error } = await supabase.rpc('complete_meeting', { meeting_id: meetingId })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-meetings'] })
+    },
+  })
+}
+
+export interface ClientMeetingRecurrenceRecord {
+  client_id: string
+  active: boolean
+}
+
+export function useClientMeetingRecurrence(clientId: string | null) {
+  return useQuery({
+    queryKey: ['manager-meeting-recurrence', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('client_meeting_recurrence')
+        .select('client_id, active')
+        .eq('client_id', clientId as string)
+        .maybeSingle()
+      if (error) throw error
+      return data as ClientMeetingRecurrenceRecord | null
+    },
+    enabled: !!clientId,
+  })
+}
+
+export function useEnrollMeetingRecurrence() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (clientId: string) => {
+      const { error } = await supabase.rpc('enroll_client_meeting_recurrence', { p_client_id: clientId })
+      if (error) throw error
+    },
+    onSuccess: (_data, clientId) => {
+      queryClient.invalidateQueries({ queryKey: ['manager-meeting-recurrence', clientId] })
+      queryClient.invalidateQueries({ queryKey: ['manager-meetings'] })
+    },
+  })
+}
+
+export function useSetMeetingRecurrenceActive() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ clientId, active }: { clientId: string; active: boolean }) => {
+      const { error } = await supabase.rpc('set_client_meeting_recurrence_active', {
+        p_client_id: clientId,
+        p_active: active,
+      })
+      if (error) throw error
+    },
+    onSuccess: (_data, { clientId }) => {
+      queryClient.invalidateQueries({ queryKey: ['manager-meeting-recurrence', clientId] })
+    },
+  })
+}
+
 export interface ManagerFileItemRecord {
   id: string
   name: string
@@ -906,6 +975,49 @@ export function useCreateManagerApproval() {
     onSuccess: (_data, { client_id }) => {
       queryClient.invalidateQueries({ queryKey: ['manager-approvals', client_id] })
     },
+  })
+}
+
+async function fetchLatestUpdatedAt(table: string): Promise<string | null> {
+  const { data, error } = await supabase.from(table).select('updated_at').order('updated_at', { ascending: false }).limit(1)
+  if (error) throw error
+  return (data?.[0] as { updated_at: string } | undefined)?.updated_at ?? null
+}
+
+function latestOf(...values: (string | null)[]): string | null {
+  const valid = values.filter((v): v is string => !!v)
+  if (valid.length === 0) return null
+  return valid.reduce((max, v) => (new Date(v) > new Date(max) ? v : max))
+}
+
+/** Última atividade por aba (chave = href do menu), usada pra acender a
+ * bolinha de notificação — comparada com "nav_last_seen" em useNavSeen.ts. */
+export function useManagerNavActivity(enabled = true) {
+  return useQuery({
+    queryKey: ['manager-nav-activity'],
+    queryFn: async () => {
+      const [comments, meetings, fileItems, approvals, alerts, incidents, tasks, smartGoals] = await Promise.all([
+        fetchLatestUpdatedAt('comments'),
+        fetchLatestUpdatedAt('meetings'),
+        fetchLatestUpdatedAt('file_items'),
+        fetchLatestUpdatedAt('approvals'),
+        fetchLatestUpdatedAt('alerts'),
+        fetchLatestUpdatedAt('incidents'),
+        fetchLatestUpdatedAt('tasks'),
+        fetchLatestUpdatedAt('smart_goals'),
+      ])
+      return {
+        '/client-comments': comments,
+        '/client-meetings': meetings,
+        '/client-files': latestOf(fileItems, approvals),
+        '/alerts': alerts,
+        '/incidents': incidents,
+        '/kanban': tasks,
+        '/smart-goals': smartGoals,
+      } as Record<string, string | null>
+    },
+    enabled,
+    refetchInterval: 60000,
   })
 }
 

@@ -54,3 +54,40 @@ export function computeClientHasProblems(clientId: string, { incidents, alerts, 
     highOrCriticalAlerts >= 1
   )
 }
+
+export interface ClientRiskDetails {
+  hasProblems: boolean
+  overdueTasks: number
+  overdueGoals: number
+  activeAlerts: number
+  activeIncidents: number
+}
+
+/** Igual a "computeClientHasProblems", mas devolve a contagem de cada sinal
+ * (não só o boolean) — usado no card "Cliente em risco" da Central de
+ * Informações, que precisa mostrar o motivo, não só o alerta. */
+export function getClientRiskDetails(clientId: string, { incidents, alerts, tasks, goals }: ClientRiskInputs): ClientRiskDetails {
+  const today = getTodayIsoDate()
+
+  const overdueGoals = goals.filter(
+    (goal) => goal.client_id === clientId && getGoalDeadlineStatus(goal.target_date, goal.status) === 'overdue',
+  ).length
+
+  const overdueTasks = tasks.filter(
+    (task) => task.client_id === clientId && task.status !== 'done' && !!task.due_date && task.due_date < today,
+  ).length
+
+  const activeAlerts = alerts.filter((alert) => alert.client_id === clientId && !alert.resolved).length
+
+  const activeIncidents = incidents.filter(
+    (incident) => incident.client_id === clientId && (incident.status === 'open' || incident.status === 'in_progress'),
+  ).length
+
+  return {
+    hasProblems: computeClientHasProblems(clientId, { incidents, alerts, tasks, goals }),
+    overdueTasks,
+    overdueGoals,
+    activeAlerts,
+    activeIncidents,
+  }
+}

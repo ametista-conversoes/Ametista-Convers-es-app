@@ -17,7 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useCreateClient } from '@/hooks/useManagerPortalData'
-import { clientStatusLabels } from '@/lib/status-styles'
+import { clientStatusLabels, planLabels } from '@/lib/status-styles'
 
 const newClientSchema = z.object({
   name: z.string().min(2, 'Digite o nome do cliente'),
@@ -148,9 +148,20 @@ export function NewClientDialog() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Plano (opcional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex: Pro, Básico" {...field} />
-                  </FormControl>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um plano" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Object.entries(planLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

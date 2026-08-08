@@ -516,6 +516,49 @@ export function useRespondToApproval() {
   })
 }
 
+async function fetchLatestUpdatedAt(table: string, clientId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from(table)
+    .select('updated_at')
+    .eq('client_id', clientId)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+  if (error) throw error
+  return (data?.[0] as { updated_at: string } | undefined)?.updated_at ?? null
+}
+
+function latestOf(...values: (string | null)[]): string | null {
+  const valid = values.filter((v): v is string => !!v)
+  if (valid.length === 0) return null
+  return valid.reduce((max, v) => (new Date(v) > new Date(max) ? v : max))
+}
+
+/** Última atividade por aba (chave = href do menu), usada pra acender a
+ * bolinha de notificação — comparada com "nav_last_seen" em useNavSeen.ts. */
+export function useNavActivity(enabled = true) {
+  const { clientId } = useAuth()
+  return useQuery({
+    queryKey: ['client-nav-activity', clientId],
+    queryFn: async () => {
+      const [comments, tasks, fileItems, approvals, meetings] = await Promise.all([
+        fetchLatestUpdatedAt('comments', clientId as string),
+        fetchLatestUpdatedAt('tasks', clientId as string),
+        fetchLatestUpdatedAt('file_items', clientId as string),
+        fetchLatestUpdatedAt('approvals', clientId as string),
+        fetchLatestUpdatedAt('meetings', clientId as string),
+      ])
+      return {
+        '/comments': comments,
+        '/tasks': tasks,
+        '/files': latestOf(fileItems, approvals),
+        '/meetings': meetings,
+      } as Record<string, string | null>
+    },
+    enabled: enabled && !!clientId,
+    refetchInterval: 60000,
+  })
+}
+
 export function useUpdateProfile() {
   const { refreshProfile } = useAuth()
   return useMutation({

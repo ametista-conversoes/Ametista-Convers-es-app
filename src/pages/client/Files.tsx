@@ -6,8 +6,10 @@ import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/contexts/AuthContext'
 import { useApprovals, useFileItems } from '@/hooks/useClientPortalData'
+import { useMarkNavSeen } from '@/hooks/useNavSeen'
 
 export default function Files() {
+  useMarkNavSeen('/files')
   const { clientId } = useAuth()
   const { data: files, isLoading: loadingFiles } = useFileItems()
   const { data: approvals, isLoading: loadingApprovals } = useApprovals()

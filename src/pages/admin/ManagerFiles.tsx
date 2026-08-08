@@ -6,8 +6,10 @@ import { NewManagerFileDialog } from '@/components/files/NewManagerFileDialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAllClients, useClientApprovals, useClientFileItems } from '@/hooks/useManagerPortalData'
+import { useMarkNavSeen } from '@/hooks/useNavSeen'
 
 export default function ManagerFiles() {
+  useMarkNavSeen('/client-files')
   const { data: clients } = useAllClients()
   const [clientId, setClientId] = useState<string>('')
   const { data: files, isLoading: loadingFiles } = useClientFileItems(clientId || null)

@@ -3,8 +3,10 @@ import { AlertList } from '@/components/alerts/AlertList'
 import { NewAlertDialog } from '@/components/alerts/NewAlertDialog'
 import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { useAllAlerts } from '@/hooks/useManagerPortalData'
+import { useMarkNavSeen } from '@/hooks/useNavSeen'
 
 export default function Alerts() {
+  useMarkNavSeen('/alerts')
   const { data: alerts, isLoading } = useAllAlerts()
   const [deleteMode, setDeleteMode] = useState(false)
 

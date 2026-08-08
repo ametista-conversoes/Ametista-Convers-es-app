@@ -16,6 +16,7 @@ import {
   clientStatusLabels,
   clientStatusStyles,
   getHealthScoreColor,
+  planLabels,
 } from '@/lib/status-styles'
 import { cn } from '@/lib/utils'
 
@@ -77,7 +78,7 @@ export function ClientCard({ client, hasProblems }: ClientCardProps) {
         <p className="truncate text-muted-foreground">{client.company ?? 'Sem empresa'}</p>
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Plano</span>
-          <span className="font-medium text-foreground">{client.plan ?? '—'}</span>
+          <span className="font-medium text-foreground">{client.plan ? (planLabels[client.plan] ?? client.plan) : '—'}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Mensalidade</span>

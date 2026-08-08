@@ -11,7 +11,7 @@ import { useClient, usePerformanceSnapshots, useProjects } from '@/hooks/useClie
 import { formatCurrency, formatMultiplier, formatPercent } from '@/lib/format'
 import { kpiDescriptions } from '@/lib/kpi-descriptions'
 import { aggregateProjectKpis, averageCtr, buildTrendSeries, groupByChannel } from '@/lib/metrics'
-import { clientStatusLabels, clientStatusStyles } from '@/lib/status-styles'
+import { clientStatusLabels, clientStatusStyles, planLabels } from '@/lib/status-styles'
 
 export default function Reports() {
   const { clientId } = useAuth()
@@ -133,7 +133,9 @@ export default function Reports() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Plano</span>
-                <span className="font-medium text-foreground">{client?.plan ?? '—'}</span>
+                <span className="font-medium text-foreground">
+                  {client?.plan ? (planLabels[client.plan] ?? client.plan) : '—'}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Mensalidade</span>

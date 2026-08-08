@@ -4,8 +4,10 @@ import { CommentGuidelines } from '@/components/comments/CommentGuidelines'
 import { NewManagerCommentForm } from '@/components/comments/NewManagerCommentForm'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAllClients, useClientComments } from '@/hooks/useManagerPortalData'
+import { useMarkNavSeen } from '@/hooks/useNavSeen'
 
 export default function ClientComments() {
+  useMarkNavSeen('/client-comments')
   const { data: clients } = useAllClients()
   const [clientId, setClientId] = useState<string>('')
   const { data: comments, isLoading } = useClientComments(clientId || null)

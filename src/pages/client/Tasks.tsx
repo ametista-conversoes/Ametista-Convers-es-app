@@ -6,12 +6,14 @@ import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/contexts/AuthContext'
 import { useDeleteTask, useSetTaskStatus, useTasks } from '@/hooks/useClientPortalData'
+import { useMarkNavSeen } from '@/hooks/useNavSeen'
 import { taskStatusLabels } from '@/lib/status-styles'
 
 const FILTERS = ['todos', 'backlog', 'todo', 'in_progress', 'review', 'done'] as const
 type Filter = (typeof FILTERS)[number]
 
 export default function Tasks() {
+  useMarkNavSeen('/tasks')
   const { clientId } = useAuth()
   const { data: tasks, isLoading } = useTasks()
   const setTaskStatus = useSetTaskStatus()

@@ -1,9 +1,11 @@
-import { Calendar } from 'lucide-react'
+import { Calendar, CheckCircle2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
 import type { ManagerMeetingRecord } from '@/hooks/useManagerPortalData'
-import { useCancelManagerMeeting, useDeleteManagerMeeting } from '@/hooks/useManagerPortalData'
+import { useCancelManagerMeeting, useCompleteManagerMeeting, useDeleteManagerMeeting } from '@/hooks/useManagerPortalData'
 import { formatDateTime } from '@/lib/format'
 import { meetingStatusLabels, meetingStatusStyles } from '@/lib/status-styles'
 import { CancelMeetingDialog } from './CancelMeetingDialog'
@@ -15,6 +17,16 @@ interface ManagerMeetingListProps {
 export function ManagerMeetingList({ meetings }: ManagerMeetingListProps) {
   const cancelMeeting = useCancelManagerMeeting()
   const deleteMeeting = useDeleteManagerMeeting()
+  const completeMeeting = useCompleteManagerMeeting()
+
+  async function handleComplete(meetingId: string) {
+    try {
+      await completeMeeting.mutateAsync(meetingId)
+      toast.success('Reunião concluída.')
+    } catch {
+      toast.error('Não foi possível concluir a reunião.')
+    }
+  }
 
   return (
     <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
@@ -52,10 +64,21 @@ export function ManagerMeetingList({ meetings }: ManagerMeetingListProps) {
                 {meetingStatusLabels[meeting.status] ?? meeting.status}
               </Badge>
               {meeting.status === 'scheduled' && (
-                <CancelMeetingDialog
-                  meetingTitle={meeting.title}
-                  onCancel={(reason) => cancelMeeting.mutateAsync({ meetingId: meeting.id, reason })}
-                />
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleComplete(meeting.id)}
+                    disabled={completeMeeting.isPending}
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Concluir
+                  </Button>
+                  <CancelMeetingDialog
+                    meetingTitle={meeting.title}
+                    onCancel={(reason) => cancelMeeting.mutateAsync({ meetingId: meeting.id, reason })}
+                  />
+                </>
               )}
               {meeting.status === 'cancelled' && (
                 <DeleteItemButton

@@ -4,10 +4,12 @@ import { NewKanbanTaskDialog } from '@/components/kanban/NewKanbanTaskDialog'
 import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAllClients, useAllTasks } from '@/hooks/useManagerPortalData'
+import { useMarkNavSeen } from '@/hooks/useNavSeen'
 
 const ALL_CLIENTS = 'all'
 
 export default function Kanban() {
+  useMarkNavSeen('/kanban')
   const { data: clients } = useAllClients()
   const { data: tasks, isLoading } = useAllTasks()
   const [clientFilter, setClientFilter] = useState(ALL_CLIENTS)

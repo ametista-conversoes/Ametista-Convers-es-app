@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { ManagerMeetingList } from '@/components/meetings/ManagerMeetingList'
+import { MeetingRecurrenceDialog } from '@/components/meetings/MeetingRecurrenceDialog'
 import { NewManagerMeetingDialog } from '@/components/meetings/NewManagerMeetingDialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAllClients, useAllMeetings } from '@/hooks/useManagerPortalData'
+import { useMarkNavSeen } from '@/hooks/useNavSeen'
 
 const ALL_CLIENTS = 'all'
 
 export default function ManagerMeetings() {
+  useMarkNavSeen('/client-meetings')
   const { data: clients } = useAllClients()
   const { data: meetings, isLoading } = useAllMeetings()
   const [clientFilter, setClientFilter] = useState(ALL_CLIENTS)
@@ -40,6 +43,7 @@ export default function ManagerMeetings() {
               ))}
             </SelectContent>
           </Select>
+          <MeetingRecurrenceDialog />
           <NewManagerMeetingDialog />
         </div>
       </div>

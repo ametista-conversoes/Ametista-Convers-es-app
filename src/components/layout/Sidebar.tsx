@@ -1,6 +1,9 @@
 import { NavLink } from 'react-router-dom'
 import { Gem } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useNavActivity } from '@/hooks/useClientPortalData'
+import { useManagerNavActivity } from '@/hooks/useManagerPortalData'
+import { computeUnseenNavHrefs, useNavLastSeen } from '@/hooks/useNavSeen'
 import { clientNavItems, managerNavItems, type NavItem } from '@/lib/nav-items'
 import { cn } from '@/lib/utils'
 
@@ -12,7 +15,17 @@ function navLinkClassName({ isActive }: { isActive: boolean }) {
   )
 }
 
-function NavSection({ label, items, onNavigate }: { label: string; items: NavItem[]; onNavigate?: () => void }) {
+function NavSection({
+  label,
+  items,
+  onNavigate,
+  unseenHrefs,
+}: {
+  label: string
+  items: NavItem[]
+  onNavigate?: () => void
+  unseenHrefs: Set<string>
+}) {
   return (
     <div className="space-y-1">
       <p className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
@@ -28,6 +41,9 @@ function NavSection({ label, items, onNavigate }: { label: string; items: NavIte
         >
           <item.icon className="h-4 w-4 shrink-0" />
           {item.title}
+          {unseenHrefs.has(item.href) && (
+            <span className="ml-auto h-2 w-2 shrink-0 rounded-full bg-purple-500" aria-label="Novidade" />
+          )}
         </NavLink>
       ))}
     </div>
@@ -43,6 +59,14 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { role } = useAuth()
   const showClientSection = role === 'cliente' || role === 'admin'
   const showManagerSection = role === 'gestor' || role === 'admin'
+
+  const { data: lastSeen } = useNavLastSeen()
+  const { data: clientActivity } = useNavActivity(showClientSection)
+  const { data: managerActivity } = useManagerNavActivity(showManagerSection)
+  const unseenHrefs = new Set([
+    ...computeUnseenNavHrefs(clientActivity, lastSeen),
+    ...computeUnseenNavHrefs(managerActivity, lastSeen),
+  ])
 
   // "Configurações" fica fora das seções de cada portal e sempre aparece,
   // porque a tela é compartilhada pelos 3 papéis (com abas diferentes).
@@ -60,10 +84,15 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <nav className="flex flex-1 flex-col justify-between overflow-y-auto px-3 pb-6">
         <div className="space-y-6">
           {showClientSection && (
-            <NavSection label="Portal Cliente" items={clientItems} onNavigate={onNavigate} />
+            <NavSection label="Portal Cliente" items={clientItems} onNavigate={onNavigate} unseenHrefs={unseenHrefs} />
           )}
           {showManagerSection && (
-            <NavSection label="Portal Gestor" items={managerNavItems} onNavigate={onNavigate} />
+            <NavSection
+              label="Portal Gestor"
+              items={managerNavItems}
+              onNavigate={onNavigate}
+              unseenHrefs={unseenHrefs}
+            />
           )}
         </div>
         {settingsItem && (

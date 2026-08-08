@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClient } from '@/hooks/useClientPortalData'
 import { formatCurrency } from '@/lib/format'
-import { clientStatusLabels, clientStatusStyles } from '@/lib/status-styles'
+import { clientStatusLabels, clientStatusStyles, planLabels } from '@/lib/status-styles'
 
 export function ClientSettingsTab() {
   const { clientId } = useAuth()
@@ -48,7 +48,7 @@ export function ClientSettingsTab() {
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Plano</span>
-          <span className="font-medium text-foreground">{client.plan ?? '—'}</span>
+          <span className="font-medium text-foreground">{client.plan ? (planLabels[client.plan] ?? client.plan) : '—'}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Mensalidade</span>

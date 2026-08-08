@@ -4,8 +4,10 @@ import { NewIncidentDialog } from '@/components/incidents/NewIncidentDialog'
 import { SeverityCounts } from '@/components/incidents/SeverityCounts'
 import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { useAllIncidents } from '@/hooks/useManagerPortalData'
+import { useMarkNavSeen } from '@/hooks/useNavSeen'
 
 export default function Incidents() {
+  useMarkNavSeen('/incidents')
   const { data: incidents, isLoading } = useAllIncidents()
   const [deleteMode, setDeleteMode] = useState(false)
 

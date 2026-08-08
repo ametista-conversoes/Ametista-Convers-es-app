@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAllClients, useAllSmartGoals } from '@/hooks/useManagerPortalData'
+import { useMarkNavSeen } from '@/hooks/useNavSeen'
 import { goalDeadlineStatusLabels, goalDeadlineStatusStyles } from '@/lib/status-styles'
 
 const ALL_CLIENTS = 'all'
@@ -20,6 +21,7 @@ const deadlineStatusDescriptions: Record<(typeof DEADLINE_STATUS_ORDER)[number],
 }
 
 export default function SmartGoals() {
+  useMarkNavSeen('/smart-goals')
   const { data: clients } = useAllClients()
   const { data: goals, isLoading } = useAllSmartGoals()
   const [clientFilter, setClientFilter] = useState(ALL_CLIENTS)
