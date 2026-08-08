@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { Search } from 'lucide-react'
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
 import { NewKanbanTaskDialog } from '@/components/kanban/NewKanbanTaskDialog'
 import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAllClients, useAllTasks } from '@/hooks/useManagerPortalData'
 import { useMarkNavSeen } from '@/hooks/useNavSeen'
@@ -14,12 +16,16 @@ export default function Kanban() {
   const { data: tasks, isLoading } = useAllTasks()
   const [clientFilter, setClientFilter] = useState(ALL_CLIENTS)
   const [deleteMode, setDeleteMode] = useState(false)
+  const [search, setSearch] = useState('')
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Carregando...</p>
   }
 
-  const filteredTasks = (tasks ?? []).filter((task) => clientFilter === ALL_CLIENTS || task.client_id === clientFilter)
+  const term = search.trim().toLowerCase()
+  const filteredTasks = (tasks ?? [])
+    .filter((task) => clientFilter === ALL_CLIENTS || task.client_id === clientFilter)
+    .filter((task) => !term || task.title.toLowerCase().includes(term))
 
   return (
     <div className="space-y-6">
@@ -32,6 +38,15 @@ export default function Kanban() {
           <DeleteModeToggle active={deleteMode} onToggle={() => setDeleteMode((v) => !v)} />
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar tarefa..."
+              className="w-48 pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
           <Select value={clientFilter} onValueChange={setClientFilter}>
             <SelectTrigger className="w-48">
               <SelectValue />

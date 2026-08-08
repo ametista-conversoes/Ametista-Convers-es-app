@@ -1,5 +1,7 @@
-import { Boxes, ExternalLink } from 'lucide-react'
+import { Boxes, ExternalLink, Pencil } from 'lucide-react'
+import { AssetFormDialog } from '@/components/assets/AssetFormDialog'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   DropdownMenu,
@@ -31,9 +33,19 @@ export function AssetCard({ asset, deleteMode }: AssetCardProps) {
             <Boxes className="h-4 w-4 shrink-0 text-purple-400" />
             <span className="truncate">{asset.name}</span>
           </span>
-          {deleteMode && (
-            <DeleteItemButton label={`o ativo "${asset.name}"`} onDelete={() => deleteAsset.mutateAsync(asset.id)} />
-          )}
+          <span className="flex shrink-0 items-center gap-1">
+            <AssetFormDialog
+              asset={asset}
+              trigger={
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              }
+            />
+            {deleteMode && (
+              <DeleteItemButton label={`o ativo "${asset.name}"`} onDelete={() => deleteAsset.mutateAsync(asset.id)} />
+            )}
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-2 p-0 pt-4">

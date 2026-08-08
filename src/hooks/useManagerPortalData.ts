@@ -512,6 +512,19 @@ export function useCreateDigitalAsset() {
   })
 }
 
+export function useUpdateDigitalAsset() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...input }: NewDigitalAssetInput & { id: string }) => {
+      const { error } = await supabase.from('digital_assets').update(input).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-digital-assets'] })
+    },
+  })
+}
+
 export function useUpdateDigitalAssetStatus() {
   const queryClient = useQueryClient()
   return useMutation({

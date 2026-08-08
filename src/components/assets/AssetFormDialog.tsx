@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -17,10 +16,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { useAllClients, useCreateDigitalAsset } from '@/hooks/useManagerPortalData'
+import type { ManagerDigitalAssetRecord } from '@/hooks/useManagerPortalData'
+import { useAllClients, useCreateDigitalAsset, useUpdateDigitalAsset } from '@/hooks/useManagerPortalData'
 import { digitalAssetCodeTypes, digitalAssetStatusLabels, digitalAssetTypeLabels } from '@/lib/status-styles'
 
-const newAssetSchema = z.object({
+const assetFormSchema = z.object({
   name: z.string().min(2, 'Digite um nome'),
   clientId: z.string().min(1, 'Escolha um cliente'),
   type: z.string().optional(),
@@ -33,16 +33,30 @@ const newAssetSchema = z.object({
   status: z.enum(['active', 'inactive', 'pending', 'revoked']),
 })
 
-type NewAssetValues = z.infer<typeof newAssetSchema>
+type AssetFormValues = z.infer<typeof assetFormSchema>
 
-export function NewAssetDialog() {
+const EMPTY_VALUES: AssetFormValues = { name: '', clientId: '', type: '', platform: '', url: '', code: '', status: 'active' }
+
+interface AssetFormDialogProps {
+  trigger: ReactNode
+  asset?: ManagerDigitalAssetRecord
+}
+
+/** Diálogo de criar OU editar um ativo digital — sem `asset` cria um
+ * novo; com `asset`, edita o existente. Mesmo padrão do
+ * `WorkflowTemplateFormDialog.tsx` (reset no `handleOpenChange` ao
+ * abrir, não ao fechar, pra funcionar bem com o diálogo reaberto em
+ * modos diferentes). */
+export function AssetFormDialog({ trigger, asset }: AssetFormDialogProps) {
   const [open, setOpen] = useState(false)
   const { data: clients } = useAllClients()
   const createAsset = useCreateDigitalAsset()
+  const updateAsset = useUpdateDigitalAsset()
+  const isEdit = !!asset
 
-  const form = useForm<NewAssetValues>({
-    resolver: zodResolver(newAssetSchema),
-    defaultValues: { name: '', clientId: '', type: '', platform: '', url: '', code: '', status: 'active' },
+  const form = useForm<AssetFormValues>({
+    resolver: zodResolver(assetFormSchema),
+    defaultValues: EMPTY_VALUES,
   })
 
   const selectedType = form.watch('type')
@@ -50,38 +64,53 @@ export function NewAssetDialog() {
 
   function handleOpenChange(next: boolean) {
     setOpen(next)
-    if (!next) form.reset()
+    if (next) {
+      form.reset(
+        asset
+          ? {
+              name: asset.name,
+              clientId: asset.client_id,
+              type: asset.type ?? '',
+              platform: asset.platform ?? '',
+              url: asset.url ?? '',
+              code: asset.code ?? '',
+              status: asset.status as AssetFormValues['status'],
+            }
+          : EMPTY_VALUES,
+      )
+    }
   }
 
-  async function onSubmit(values: NewAssetValues) {
+  async function onSubmit(values: AssetFormValues) {
+    const input = {
+      name: values.name,
+      client_id: values.clientId,
+      type: values.type?.trim() ? values.type : null,
+      platform: values.platform?.trim() ? values.platform.trim() : null,
+      url: !isCodeType && values.url?.trim() ? values.url.trim() : null,
+      code: isCodeType && values.code?.trim() ? values.code.trim() : null,
+      status: values.status,
+    }
     try {
-      await createAsset.mutateAsync({
-        name: values.name,
-        client_id: values.clientId,
-        type: values.type?.trim() ? values.type : null,
-        platform: values.platform?.trim() ? values.platform.trim() : null,
-        url: !isCodeType && values.url?.trim() ? values.url.trim() : null,
-        code: isCodeType && values.code?.trim() ? values.code.trim() : null,
-        status: values.status,
-      })
-      form.reset()
+      if (asset) {
+        await updateAsset.mutateAsync({ id: asset.id, ...input })
+        toast.success('Ativo atualizado.')
+      } else {
+        await createAsset.mutateAsync(input)
+        toast.success('Ativo criado.')
+      }
       setOpen(false)
     } catch {
-      toast.error('Não foi possível criar o ativo.')
+      toast.error(isEdit ? 'Não foi possível atualizar o ativo.' : 'Não foi possível criar o ativo.')
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4" />
-          Novo ativo
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Novo ativo digital</DialogTitle>
+          <DialogTitle>{isEdit ? 'Editar ativo digital' : 'Novo ativo digital'}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -220,7 +249,7 @@ export function NewAssetDialog() {
 
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Criando...' : 'Criar ativo'}
+                {form.formState.isSubmitting ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Criar ativo'}
               </Button>
             </DialogFooter>
           </form>
