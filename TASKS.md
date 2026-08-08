@@ -103,6 +103,7 @@
 - [x] Mais dois ajustes (pedidos pelo usuário):
   - Corrigido bug real: a zona de lixeira do Kanban ficava dentro da mesma fileira rolável das 5 colunas, então em telas comuns ela ficava fora da área visível — parecia "lento"/exigir várias tentativas porque o card sempre era solto antes de rolar até ela. Agora é uma faixa larga abaixo do quadro, sempre visível, sem precisar rolar
   - Aba Agência (Configurações) virou editável — o próprio código já tinha um aviso "isso chega no Portal do Gestor (Fase 5)" desde a Fase 4, nunca implementado; agora `admin`/`gestor` editam nome, plano, status e domínio da agência (a política do banco já liberava os dois papéis, só faltava o formulário)
+- [x] Ajuste fino na lixeira do Kanban: a exclusão dependia de acertar exatamente a faixa fina da lixeira no instante de soltar o card (`onDragEnd`) — agora apaga assim que o card **entra** na área da lixeira durante o arrasto (`onDragOver`), sem precisar soltar o botão do mouse
 
 > **Nota sobre a ordem das próximas fases:** ao terminar a Fase 5, a intenção é seguir para as integrações externas (Google Ads, Meta Ads, Google Forms) — hoje anotadas como "Fase 8" logo abaixo. A numeração final (se essa fase vira "Fase 6" e empurra as demais, ou fica como está) será decidida quando chegarmos lá; por enquanto nenhuma fase provisória foi apagada ou renumerada.
 
