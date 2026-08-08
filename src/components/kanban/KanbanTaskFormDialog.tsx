@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -17,35 +16,48 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useAllClients, useAllProjects, useCreateManagerTask } from '@/hooks/useManagerPortalData'
+import type { ManagerTaskRecord } from '@/hooks/useManagerPortalData'
+import { useAllClients, useAllProjects, useCreateManagerTask, useUpdateManagerTask } from '@/hooks/useManagerPortalData'
 import { getTodayIsoDate } from '@/lib/format'
 import { taskPriorityLabels } from '@/lib/status-styles'
 
 const TODAY = getTodayIsoDate()
 
-const newTaskSchema = z.object({
+const taskFormSchema = z.object({
   title: z.string().min(2, 'Digite um título'),
   clientId: z.string().min(1, 'Escolha um cliente'),
   projectId: z.string().optional(),
   category: z.string().optional(),
-  due_date: z
-    .string()
-    .optional()
-    .refine((value) => !value || value >= TODAY, { message: 'O prazo não pode ser uma data passada' }),
+  due_date: z.string().optional(),
   priority: z.enum(['low', 'medium', 'high', 'urgent']),
 })
 
-type NewTaskValues = z.infer<typeof newTaskSchema>
+type TaskFormValues = z.infer<typeof taskFormSchema>
 
-export function NewKanbanTaskDialog() {
+const EMPTY_VALUES: TaskFormValues = { title: '', clientId: '', projectId: '', category: '', due_date: '', priority: 'medium' }
+
+interface KanbanTaskFormDialogProps {
+  trigger: ReactNode
+  task?: ManagerTaskRecord
+}
+
+/** Diálogo de criar OU editar uma tarefa do Kanban — sem `task` cria uma
+ * nova; com `task`, edita a existente. Mesmo padrão do
+ * `AssetFormDialog.tsx`/`WorkflowTemplateFormDialog.tsx` (reset no
+ * `handleOpenChange` ao abrir). O prazo só é obrigatoriamente "não
+ * passado" ao criar — editando, a tarefa pode já estar atrasada e isso
+ * é um estado válido que não deve travar o resto da edição. */
+export function KanbanTaskFormDialog({ trigger, task }: KanbanTaskFormDialogProps) {
   const [open, setOpen] = useState(false)
   const { data: clients } = useAllClients()
   const { data: projects } = useAllProjects()
   const createTask = useCreateManagerTask()
+  const updateTask = useUpdateManagerTask()
+  const isEdit = !!task
 
-  const form = useForm<NewTaskValues>({
-    resolver: zodResolver(newTaskSchema),
-    defaultValues: { title: '', clientId: '', projectId: '', category: '', due_date: '', priority: 'medium' },
+  const form = useForm<TaskFormValues>({
+    resolver: zodResolver(taskFormSchema),
+    defaultValues: EMPTY_VALUES,
   })
 
   const selectedClientId = form.watch('clientId')
@@ -53,37 +65,51 @@ export function NewKanbanTaskDialog() {
 
   function handleOpenChange(next: boolean) {
     setOpen(next)
-    if (!next) form.reset()
+    if (next) {
+      form.reset(
+        task
+          ? {
+              title: task.title,
+              clientId: task.client_id,
+              projectId: task.project_id ?? '',
+              category: task.category ?? '',
+              due_date: task.due_date ?? '',
+              priority: task.priority as TaskFormValues['priority'],
+            }
+          : EMPTY_VALUES,
+      )
+    }
   }
 
-  async function onSubmit(values: NewTaskValues) {
+  async function onSubmit(values: TaskFormValues) {
+    const input = {
+      title: values.title,
+      client_id: values.clientId,
+      project_id: values.projectId?.trim() ? values.projectId : null,
+      category: values.category?.trim() ? values.category.trim() : null,
+      due_date: values.due_date?.trim() ? values.due_date : null,
+      priority: values.priority,
+    }
     try {
-      await createTask.mutateAsync({
-        title: values.title,
-        client_id: values.clientId,
-        project_id: values.projectId?.trim() ? values.projectId : null,
-        category: values.category?.trim() ? values.category.trim() : null,
-        due_date: values.due_date?.trim() ? values.due_date : null,
-        priority: values.priority,
-      })
-      form.reset()
+      if (task) {
+        await updateTask.mutateAsync({ id: task.id, ...input })
+        toast.success('Tarefa atualizada.')
+      } else {
+        await createTask.mutateAsync(input)
+        toast.success('Tarefa criada.')
+      }
       setOpen(false)
     } catch {
-      toast.error('Não foi possível criar a tarefa.')
+      toast.error(isEdit ? 'Não foi possível atualizar a tarefa.' : 'Não foi possível criar a tarefa.')
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4" />
-          Nova tarefa
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nova tarefa</DialogTitle>
+          <DialogTitle>{isEdit ? 'Editar tarefa' : 'Nova tarefa'}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -178,7 +204,7 @@ export function NewKanbanTaskDialog() {
                 <FormItem>
                   <FormLabel>Prazo (opcional)</FormLabel>
                   <FormControl>
-                    <DatePicker value={field.value} onChange={field.onChange} minDate={TODAY} />
+                    <DatePicker value={field.value} onChange={field.onChange} minDate={isEdit ? undefined : TODAY} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -212,7 +238,7 @@ export function NewKanbanTaskDialog() {
 
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Criando...' : 'Criar tarefa'}
+                {form.formState.isSubmitting ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Criar tarefa'}
               </Button>
             </DialogFooter>
           </form>

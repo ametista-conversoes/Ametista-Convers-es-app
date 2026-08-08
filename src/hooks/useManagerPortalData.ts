@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
+import { severityRank } from '@/lib/status-styles'
 import { supabase } from '@/lib/supabase'
 
 export interface ManagerClientRecord {
@@ -157,7 +158,11 @@ export function useAllIncidents() {
         .select('*, client:clients(name)')
         .order('created_at', { ascending: false })
       if (error) throw error
-      return data as unknown as ManagerIncidentRecord[]
+      // Mais severo primeiro; sort é estável, então quem tem a mesma
+      // severidade mantém a ordem por data mais recente já vinda do banco.
+      return (data as unknown as ManagerIncidentRecord[]).sort(
+        (a, b) => severityRank[b.severity] - severityRank[a.severity],
+      )
     },
   })
 }
@@ -222,7 +227,10 @@ export function useAllAlerts() {
         .select('*, client:clients(name)')
         .order('created_at', { ascending: false })
       if (error) throw error
-      return data as unknown as ManagerAlertRecord[]
+      // Mais severo primeiro (mesmo critério de useAllIncidents).
+      return (data as unknown as ManagerAlertRecord[]).sort(
+        (a, b) => severityRank[b.severity] - severityRank[a.severity],
+      )
     },
   })
 }
@@ -308,6 +316,7 @@ export function useAllTasks() {
       const { data, error } = await supabase
         .from('tasks')
         .select('id, title, client_id, project_id, status, priority, category, due_date, client:clients(name)')
+        .order('due_date', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false })
       if (error) throw error
       return data as unknown as ManagerTaskRecord[]
@@ -355,6 +364,19 @@ export function useCreateManagerTask() {
   return useMutation({
     mutationFn: async (input: NewManagerTaskInput) => {
       const { error } = await supabase.from('tasks').insert(input)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-tasks'] })
+    },
+  })
+}
+
+export function useUpdateManagerTask() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...input }: NewManagerTaskInput & { id: string }) => {
+      const { error } = await supabase.from('tasks').update(input).eq('id', id)
       if (error) throw error
     },
     onSuccess: () => {
@@ -570,6 +592,7 @@ export function useAllSmartGoals() {
       const { data, error } = await supabase
         .from('smart_goals')
         .select('*, client:clients(name)')
+        .order('target_date', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false })
       if (error) throw error
       return data as unknown as ManagerSmartGoalRecord[]

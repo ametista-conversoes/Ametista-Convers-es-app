@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Search } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
-import { NewKanbanTaskDialog } from '@/components/kanban/NewKanbanTaskDialog'
+import { KanbanTaskFormDialog } from '@/components/kanban/KanbanTaskFormDialog'
 import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAllClients, useAllTasks } from '@/hooks/useManagerPortalData'
@@ -60,7 +61,14 @@ export default function Kanban() {
               ))}
             </SelectContent>
           </Select>
-          <NewKanbanTaskDialog />
+          <KanbanTaskFormDialog
+            trigger={
+              <Button>
+                <Plus className="h-4 w-4" />
+                Nova tarefa
+              </Button>
+            }
+          />
         </div>
       </div>
 

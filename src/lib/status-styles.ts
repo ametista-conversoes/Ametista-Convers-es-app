@@ -65,6 +65,15 @@ export const severityStyles: Record<string, string> = {
   critical: 'border-destructive/20 bg-destructive/10 text-destructive',
 }
 
+// Usado pra ordenar incidentes/alertas com os mais severos primeiro
+// (número maior = mais severo).
+export const severityRank: Record<string, number> = {
+  low: 0,
+  medium: 1,
+  high: 2,
+  critical: 3,
+}
+
 export const roleLabels: Record<string, string> = {
   admin: 'Admin',
   gestor: 'Gestor',
