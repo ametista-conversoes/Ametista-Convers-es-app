@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { ApprovalRecord } from '@/hooks/useClientPortalData'
 import { useRespondToApproval } from '@/hooks/useClientPortalData'
 import { formatDateTime } from '@/lib/format'
+import { getFileSignedUrl } from '@/lib/storage'
 import { reviewStatusLabels, reviewStatusStyles } from '@/lib/status-styles'
 import { ApprovalFeedbackDialog } from './ApprovalFeedbackDialog'
 
@@ -17,6 +18,20 @@ interface ApprovalListProps {
 export function ApprovalList({ approvals }: ApprovalListProps) {
   const respondToApproval = useRespondToApproval()
   const [dialogFor, setDialogFor] = useState<{ approval: ApprovalRecord; status: 'rejected' | 'revision_requested' } | null>(null)
+  const [openingId, setOpeningId] = useState<string | null>(null)
+
+  async function handleOpenFile(approval: ApprovalRecord) {
+    if (!approval.file_url) return
+    setOpeningId(approval.id)
+    try {
+      const url = approval.file_url.startsWith('http') ? approval.file_url : await getFileSignedUrl(approval.file_url)
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } catch {
+      toast.error('Não foi possível abrir o arquivo.')
+    } finally {
+      setOpeningId(null)
+    }
+  }
 
   async function handleApprove(approval: ApprovalRecord) {
     try {
@@ -61,14 +76,14 @@ export function ApprovalList({ approvals }: ApprovalListProps) {
               </div>
               <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(approval.created_at)}</p>
               {approval.file_url && (
-                <a
-                  href={approval.file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  disabled={openingId === approval.id}
+                  onClick={() => handleOpenFile(approval)}
                   className="mt-1 inline-block text-xs text-purple-400 hover:underline"
                 >
-                  Ver arquivo
-                </a>
+                  {openingId === approval.id ? 'Abrindo...' : 'Ver arquivo'}
+                </button>
               )}
               {approval.feedback && (
                 <p className="mt-2 text-xs text-muted-foreground">Feedback: {approval.feedback}</p>

@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { Plus } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { WorkflowCard } from '@/components/workflows/WorkflowCard'
-import { NewWorkflowTemplateDialog } from '@/components/workflows/NewWorkflowTemplateDialog'
+import { WorkflowTemplateFormDialog } from '@/components/workflows/WorkflowTemplateFormDialog'
 import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
+import { Button } from '@/components/ui/button'
 import { useWorkflowTemplates } from '@/hooks/useManagerPortalData'
 
 export default function Workflows() {
@@ -20,7 +22,16 @@ export default function Workflows() {
           </div>
           {role === 'admin' && <DeleteModeToggle active={deleteMode} onToggle={() => setDeleteMode((v) => !v)} />}
         </div>
-        {role === 'admin' && <NewWorkflowTemplateDialog />}
+        {role === 'admin' && (
+          <WorkflowTemplateFormDialog
+            trigger={
+              <Button>
+                <Plus className="h-4 w-4" />
+                Novo modelo
+              </Button>
+            }
+          />
+        )}
       </div>
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando modelos...</p>}
@@ -31,7 +42,12 @@ export default function Workflows() {
       <div className="content-grid-container">
         <div className="content-grid gap-4">
           {(templates ?? []).map((template) => (
-            <WorkflowCard key={template.id} template={template} deleteMode={role === 'admin' && deleteMode} />
+            <WorkflowCard
+              key={template.id}
+              template={template}
+              deleteMode={role === 'admin' && deleteMode}
+              canEdit={role === 'admin'}
+            />
           ))}
         </div>
       </div>

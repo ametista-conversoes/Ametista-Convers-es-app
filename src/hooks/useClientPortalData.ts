@@ -15,7 +15,16 @@ export interface ClientRecord {
   health_financial: number | null
   health_delivery: number | null
   health_relationship: number | null
+  phone: string | null
+  logo_url: string | null
+  renewal_date: string | null
 }
+
+// Colunas explícitas (sem "*"): "internal_notes" é uma observação
+// interna da agência e nunca deve trafegar pra sessão do próprio
+// cliente, mesmo que nada exiba isso na tela dele hoje.
+const CLIENT_SAFE_COLUMNS =
+  'id, name, company, email, status, plan, monthly_fee, health_score, health_performance, health_financial, health_delivery, health_relationship, phone, logo_url, renewal_date'
 
 export interface ProjectRecord {
   id: string
@@ -129,7 +138,11 @@ export function useClient() {
   return useQuery({
     queryKey: ['client', clientId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('clients').select('*').eq('id', clientId as string).single()
+      const { data, error } = await supabase
+        .from('clients')
+        .select(CLIENT_SAFE_COLUMNS)
+        .eq('id', clientId as string)
+        .single()
       if (error) throw error
       return data as ClientRecord
     },
@@ -495,6 +508,10 @@ export function useRespondToApproval() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['approvals', clientId] })
+      // Aprovar cria a entrada em "file_items" na hora (ver função
+      // "respond_to_approval" no banco) — invalida também Arquivos pra
+      // ela aparecer lá sem precisar recarregar a página.
+      queryClient.invalidateQueries({ queryKey: ['file-items', clientId] })
     },
   })
 }

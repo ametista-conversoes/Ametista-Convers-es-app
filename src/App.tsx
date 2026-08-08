@@ -21,10 +21,12 @@ import Settings from '@/pages/Settings'
 import Alerts from '@/pages/admin/Alerts'
 import Assets from '@/pages/admin/Assets'
 import ClientComments from '@/pages/admin/ClientComments'
+import ClientDetail from '@/pages/admin/ClientDetail'
 import Clients from '@/pages/admin/Clients'
 import DashboardExecutivo from '@/pages/admin/DashboardExecutivo'
 import Incidents from '@/pages/admin/Incidents'
 import Kanban from '@/pages/admin/Kanban'
+import ManagerFiles from '@/pages/admin/ManagerFiles'
 import ManagerMeetings from '@/pages/admin/ManagerMeetings'
 import Onboarding from '@/pages/admin/Onboarding'
 import SmartGoals from '@/pages/admin/SmartGoals'
@@ -61,6 +63,7 @@ const managerPagesReady: Record<string, ComponentType> = {
   '/onboarding': Onboarding,
   '/client-comments': ClientComments,
   '/client-meetings': ManagerMeetings,
+  '/client-files': ManagerFiles,
 }
 
 function App() {
@@ -97,6 +100,8 @@ function App() {
             })}
             {/* "/status" mostra o mesmo conteúdo de "/incidents" (sem item próprio no menu) */}
             <Route path="/status" element={<Incidents />} />
+            {/* Central de Informações do Cliente — acessada clicando num card em "/clients" */}
+            <Route path="/clients/:id" element={<ClientDetail />} />
           </Route>
         </Route>
       </Route>

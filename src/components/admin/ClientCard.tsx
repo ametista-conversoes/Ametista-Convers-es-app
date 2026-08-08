@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -37,11 +38,13 @@ const CHANGEABLE_STATUSES = ['active', 'onboarding', 'paused', 'at_risk', 'churn
 
 export function ClientCard({ client, hasProblems }: ClientCardProps) {
   const updateStatus = useUpdateClientStatus()
+  const navigate = useNavigate()
 
   return (
     <Card
+      onClick={() => navigate(`/clients/${client.id}`)}
       className={cn(
-        'rounded-xl border border-l-4 border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6',
+        'cursor-pointer rounded-xl border border-l-4 border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6',
         statusBorderColor[client.status] ?? 'border-l-slate-500',
       )}
     >
@@ -51,12 +54,12 @@ export function ClientCard({ client, hasProblems }: ClientCardProps) {
           <div className="flex flex-wrap items-center justify-end gap-1.5">
             {hasProblems && <Badge className={clientProblemStatusStyle}>{clientProblemStatusLabel}</Badge>}
             <DropdownMenu>
-              <DropdownMenuTrigger asChild disabled={updateStatus.isPending}>
+              <DropdownMenuTrigger asChild disabled={updateStatus.isPending} onClick={(e) => e.stopPropagation()}>
                 <Badge className={`cursor-pointer ${clientStatusStyles[client.status]}`}>
                   {clientStatusLabels[client.status] ?? client.status}
                 </Badge>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                 {CHANGEABLE_STATUSES.map((status) => (
                   <DropdownMenuItem
                     key={status}

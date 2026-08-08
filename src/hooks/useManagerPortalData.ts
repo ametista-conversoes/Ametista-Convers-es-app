@@ -11,6 +11,10 @@ export interface ManagerClientRecord {
   plan: string | null
   monthly_fee: number | null
   health_score: number | null
+  phone: string | null
+  logo_url: string | null
+  renewal_date: string | null
+  internal_notes: string | null
 }
 
 export interface ManagerIncidentRecord {
@@ -75,6 +79,40 @@ export function useAllClients() {
       const { data, error } = await supabase.from('clients').select('*').order('name', { ascending: true })
       if (error) throw error
       return data as ManagerClientRecord[]
+    },
+  })
+}
+
+export function useManagerClient(clientId: string | null) {
+  return useQuery({
+    queryKey: ['manager-client', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('clients').select('*').eq('id', clientId as string).single()
+      if (error) throw error
+      return data as ManagerClientRecord
+    },
+    enabled: !!clientId,
+  })
+}
+
+export interface UpdateClientDetailsInput {
+  id: string
+  phone: string | null
+  logo_url: string | null
+  renewal_date: string | null
+  internal_notes: string | null
+}
+
+export function useUpdateClientDetails() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...input }: UpdateClientDetailsInput) => {
+      const { error } = await supabase.from('clients').update(input).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['manager-clients'] })
+      queryClient.invalidateQueries({ queryKey: ['manager-client', id] })
     },
   })
 }
@@ -399,6 +437,19 @@ export function useDeleteWorkflowTemplate() {
   return useMutation({
     mutationFn: async (templateId: string) => {
       const { error } = await supabase.from('workflow_templates').delete().eq('id', templateId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflow-templates'] })
+    },
+  })
+}
+
+export function useUpdateWorkflowTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...input }: NewWorkflowTemplateInput & { id: string }) => {
+      const { error } = await supabase.from('workflow_templates').update(input).eq('id', id)
       if (error) throw error
     },
     onSuccess: () => {
@@ -759,6 +810,101 @@ export function useDeleteManagerMeeting() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-meetings'] })
+    },
+  })
+}
+
+export interface ManagerFileItemRecord {
+  id: string
+  name: string
+  client_id: string
+  folder: string | null
+  file_url: string | null
+  file_type: string | null
+  status: string
+  created_at: string
+}
+
+export function useClientFileItems(clientId: string | null) {
+  return useQuery({
+    queryKey: ['manager-file-items', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('file_items')
+        .select('*')
+        .eq('client_id', clientId as string)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data as ManagerFileItemRecord[]
+    },
+    enabled: !!clientId,
+  })
+}
+
+export interface NewManagerFileItemInput {
+  name: string
+  client_id: string
+  folder: string | null
+  file_url: string
+  file_type: string | null
+}
+
+export function useCreateManagerFileItem() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: NewManagerFileItemInput) => {
+      const { error } = await supabase.from('file_items').insert(input)
+      if (error) throw error
+    },
+    onSuccess: (_data, { client_id }) => {
+      queryClient.invalidateQueries({ queryKey: ['manager-file-items', client_id] })
+    },
+  })
+}
+
+export interface ManagerApprovalRecord {
+  id: string
+  title: string
+  client_id: string
+  file_url: string | null
+  file_type: string | null
+  status: string
+  feedback: string | null
+  created_at: string
+}
+
+export function useClientApprovals(clientId: string | null) {
+  return useQuery({
+    queryKey: ['manager-approvals', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('approvals')
+        .select('*')
+        .eq('client_id', clientId as string)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data as ManagerApprovalRecord[]
+    },
+    enabled: !!clientId,
+  })
+}
+
+export interface NewManagerApprovalInput {
+  title: string
+  client_id: string
+  file_url: string
+  file_type: string | null
+}
+
+export function useCreateManagerApproval() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: NewManagerApprovalInput) => {
+      const { error } = await supabase.from('approvals').insert(input)
+      if (error) throw error
+    },
+    onSuccess: (_data, { client_id }) => {
+      queryClient.invalidateQueries({ queryKey: ['manager-approvals', client_id] })
     },
   })
 }

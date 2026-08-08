@@ -1,16 +1,19 @@
-import { ListChecks } from 'lucide-react'
+import { ListChecks, Pencil } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
 import type { WorkflowTemplateRecord } from '@/hooks/useManagerPortalData'
 import { useDeleteWorkflowTemplate } from '@/hooks/useManagerPortalData'
 import { ApplyWorkflowDialog } from './ApplyWorkflowDialog'
+import { WorkflowTemplateFormDialog } from './WorkflowTemplateFormDialog'
 
 interface WorkflowCardProps {
   template: WorkflowTemplateRecord
   deleteMode?: boolean
+  canEdit?: boolean
 }
 
-export function WorkflowCard({ template, deleteMode }: WorkflowCardProps) {
+export function WorkflowCard({ template, deleteMode, canEdit }: WorkflowCardProps) {
   const deleteTemplate = useDeleteWorkflowTemplate()
 
   return (
@@ -21,9 +24,24 @@ export function WorkflowCard({ template, deleteMode }: WorkflowCardProps) {
             <ListChecks className="h-4 w-4 text-purple-400" />
             {template.name}
           </span>
-          {deleteMode && (
-            <DeleteItemButton label={`o modelo "${template.name}"`} onDelete={() => deleteTemplate.mutateAsync(template.id)} />
-          )}
+          <span className="flex items-center gap-1">
+            {canEdit && (
+              <WorkflowTemplateFormDialog
+                template={template}
+                trigger={
+                  <Button type="button" variant="ghost" size="icon" aria-label={`Editar ${template.name}`}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                }
+              />
+            )}
+            {deleteMode && (
+              <DeleteItemButton
+                label={`o modelo "${template.name}"`}
+                onDelete={() => deleteTemplate.mutateAsync(template.id)}
+              />
+            )}
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4 p-0 pt-4">
