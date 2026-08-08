@@ -7,9 +7,10 @@ interface KanbanColumnProps {
   id: string
   title: string
   tasks: ManagerTaskRecord[]
+  deleteMode?: boolean
 }
 
-export function KanbanColumn({ id, title, tasks }: KanbanColumnProps) {
+export function KanbanColumn({ id, title, tasks, deleteMode }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id })
 
   return (
@@ -31,7 +32,7 @@ export function KanbanColumn({ id, title, tasks }: KanbanColumnProps) {
           </p>
         )}
         {tasks.map((task) => (
-          <KanbanCard key={task.id} task={task} />
+          <KanbanCard key={task.id} task={task} deleteMode={deleteMode} />
         ))}
       </div>
     </div>
