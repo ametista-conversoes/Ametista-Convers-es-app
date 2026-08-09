@@ -129,15 +129,34 @@
 - [x] **Tarefas do Kanban editáveis**: cada cartão ganhou um botão de editar (lápis, sempre visível) que abre o mesmo formulário de criação já preenchido — antes só dava pra arrastar entre colunas ou apagar
 - [x] Testado ao vivo como `gestor`: criei incidentes/alertas com severidades diferentes e confirmei os mais críticos no topo; criei tarefas com prazos diferentes (uma atrasada) e confirmei a ordem por prazo e o card atrasado acinzentado; editei uma tarefa do Kanban (título/categoria), recarreguei e a mudança persistiu; confirmei que arrastar um card entre colunas continua funcionando normalmente depois de adicionar o botão de editar
 
-> **Nota sobre a ordem das próximas fases:** ao terminar a Fase 5, a intenção é seguir para as integrações externas (Google Ads, Meta Ads, Google Forms) — hoje anotadas como "Fase 8" logo abaixo. A numeração final (se essa fase vira "Fase 6" e empurra as demais, ou fica como está) será decidida quando chegarmos lá; por enquanto nenhuma fase provisória foi apagada ou renumerada.
+> **Consolidação de numeração (feita ao iniciar a Fase 6, pedida pelo `Prompt- Fase 6`):** a antiga "Fase 8" (Integrações externas de dados) tratava do mesmo assunto deste documento, então foi incorporada aqui embaixo e deixou de existir como fase separada. A antiga Fase 6 (Cassie/IA) e a antiga Fase 7 (testes/publicação) foram unidas numa Fase 7 só, exatamente como o documento pediu ("ao terminar a Fase 6.4 ... seguir para a Fase 7 (C.A.S.S.I.E. e testes finais)").
 
-## Fase 6 — Recursos avançados / IA (provisório, detalhar quando chegar a vez)
+## Fase 6 — Integrações com Google Ads, Meta Ads e Google Forms (detalhada no documento `Prompt- Fase 6`)
+
+### Fase 6.1 — Fundação do backend de integrações
+- [ ] Backend de integrações (Edge Function do Supabase ou serviço Node dedicado)
+- [ ] Armazenamento seguro de tokens (criptografado — nunca em texto puro no banco)
+- [ ] Entidade `MetricSnapshot` (histórico de métricas: project_id, channel, date, spend, clicks, impressions, conversions) — avaliar se estende a `performance_snapshots` já existente (Fase 3) em vez de duplicar, já que a Fase 8 original pedia alimentar as tabelas que o app já lê, sem recriar telas
+- [ ] Estrutura genérica de OAuth (rota que inicia a conexão + rota de callback), reaproveitável por cada integração específica
+
+### Fase 6.2 — Conexão com Google (Ads e Forms)
+- [ ] Fluxo completo de OAuth com o Google (botão "Conectar" → login/consentimento → callback → troca do código por tokens)
+- [ ] Conexão com a Google Ads API — investimento, cliques, impressões, conversões
+- [ ] Conexão com a Google Forms API (mesmo login do Google, permissão extra)
+- [ ] Definir e implementar o que uma resposta de formulário gera no sistema (ex: novo Client/Lead, ou Task de "novo contato")
+
+### Fase 6.3 — Conexão com Meta Ads
+- [ ] Fluxo completo de OAuth com o Meta (botão "Conectar" → login/consentimento → callback → troca do código por tokens)
+- [ ] Conexão com a Meta Marketing API e busca de métricas de campanha
+- [ ] Nota: contas de anúncio de clientes de terceiros só funcionam de verdade depois da aprovação de Business Verification do Meta — até lá, testável com a própria conta da agência
+
+### Fase 6.4 — Sincronização agendada e página de Integrações
+- [ ] Job agendado (ex: a cada 6 horas) pra renovar tokens e buscar métricas atualizadas de todas as conexões ativas
+- [ ] Página "Integrações" no Portal Gestor: status da conexão por Ativo Digital, última sincronização, botão "Sincronizar agora"
+- [ ] Confirmar que não existe mais nenhuma "Fase 8" separada — tudo consolidado nesta Fase 6
+
+## Fase 7 — C.A.S.S.I.E. (IA) e testes finais (provisório, detalhar quando chegar a vez)
 - [ ] Funcionalidades da assistente Cassie (IA) e automações que dependerem dela
-
-## Fase 7 — Acabamento, testes e publicação (provisório, detalhar quando chegar a vez)
 - [ ] Testes automatizados (Vitest + Playwright)
 - [ ] Revisão geral de responsividade e acessibilidade
 - [ ] Preparar o app para publicação (deploy)
-
-## Fase 8 — Integrações externas de dados (provisório, detalhar quando chegar a vez)
-- [ ] Conectar dados reais de plataformas externas (Google Ads, Meta Ads, Google Forms, etc.) via Supabase Edge Functions, alimentando as mesmas tabelas que o app já lê hoje (sem precisar recriar as telas)
