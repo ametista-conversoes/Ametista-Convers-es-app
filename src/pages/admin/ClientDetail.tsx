@@ -1,7 +1,8 @@
 import { useState, type ChangeEvent } from 'react'
 import { useParams } from 'react-router-dom'
-import { AlertTriangle, Building2, Calendar, CheckSquare, Mail, Phone, Target, Upload } from 'lucide-react'
+import { AlertTriangle, Building2, Calendar, CheckSquare, FolderKanban, Mail, Phone, Target, Upload } from 'lucide-react'
 import { toast } from 'sonner'
+import { NewProjectDialog } from '@/components/admin/NewProjectDialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,6 +22,7 @@ import {
   useAllAlerts,
   useAllIncidents,
   useAllMeetings,
+  useAllProjects,
   useAllSmartGoals,
   useAllTasks,
   useManagerClient,
@@ -37,6 +39,8 @@ import {
   meetingStatusLabels,
   meetingStatusStyles,
   planLabels,
+  projectStatusLabels,
+  projectStatusStyles,
   smartGoalStatusLabels,
   smartGoalStatusStyles,
   taskPriorityLabels,
@@ -50,6 +54,7 @@ const CHANGEABLE_STATUSES = ['active', 'onboarding', 'paused', 'at_risk', 'churn
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>()
   const { data: client, isLoading } = useManagerClient(id ?? null)
+  const { data: projects } = useAllProjects()
   const { data: tasks } = useAllTasks()
   const { data: goals } = useAllSmartGoals()
   const { data: meetings } = useAllMeetings()
@@ -140,6 +145,7 @@ export default function ClientDetail() {
     }
   }
 
+  const clientProjects = (projects ?? []).filter((p) => p.client_id === client.id)
   const clientTasks = (tasks ?? []).filter((t) => t.client_id === client.id)
   const clientGoals = (goals ?? []).filter((g) => g.client_id === client.id)
   const clientMeetings = (meetings ?? []).filter((m) => m.client_id === client.id)
@@ -334,6 +340,34 @@ export default function ClientDetail() {
           </CardContent>
         </Card>
       )}
+
+      {/* Projetos */}
+      <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
+        <CardHeader className="flex flex-row items-center justify-between gap-2 p-0">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FolderKanban className="h-4 w-4 text-purple-400" />
+            Projetos
+          </CardTitle>
+          <NewProjectDialog clientId={client.id} />
+        </CardHeader>
+        <CardContent className="space-y-2 p-0 pt-4">
+          {clientProjects.length === 0 && <p className="text-sm text-muted-foreground">Nenhum projeto ainda.</p>}
+          {clientProjects.map((project) => (
+            <div key={project.id} className="rounded-lg bg-secondary/50 px-3 py-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-medium text-foreground">{project.title}</p>
+                <Badge className={projectStatusStyles[project.status]}>
+                  {projectStatusLabels[project.status] ?? project.status}
+                </Badge>
+              </div>
+              {project.objective && <p className="mt-1 text-xs text-muted-foreground">Objetivo: {project.objective}</p>}
+              {project.description && (
+                <p className="mt-1 text-xs text-muted-foreground/70">{project.description}</p>
+              )}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
       {/* Tarefas, Metas, Reuniões */}
       <div className="content-grid-container">

@@ -59,6 +59,8 @@ export interface ManagerProjectRecord {
   client_id: string
   status: string
   spend: number | null
+  objective: string | null
+  description: string | null
 }
 
 export interface ManagerTaskRecord {
@@ -302,9 +304,31 @@ export function useAllProjects() {
   return useQuery({
     queryKey: ['manager-projects'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('projects').select('id, title, client_id, status, spend')
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, title, client_id, status, spend, objective, description')
       if (error) throw error
       return data as ManagerProjectRecord[]
+    },
+  })
+}
+
+export interface NewProjectInput {
+  title: string
+  client_id: string
+  objective: string | null
+  description: string | null
+}
+
+export function useCreateProject() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: NewProjectInput) => {
+      const { error } = await supabase.from('projects').insert(input)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-projects'] })
     },
   })
 }
