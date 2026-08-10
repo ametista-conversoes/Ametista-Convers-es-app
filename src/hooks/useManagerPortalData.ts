@@ -511,6 +511,32 @@ export function useAllDigitalAssets() {
   })
 }
 
+export interface DigitalAssetConnectionRecord {
+  id: string
+  digital_asset_id: string
+  provider: string
+  status: string
+  project_id: string | null
+  external_account_id: string | null
+  last_synced_at: string | null
+}
+
+/** Conexões de integração (Fase 6.1/6.2) — quem escreve aqui é sempre
+ * a Edge Function "integrations" (service role); o app só lê, pra
+ * mostrar o status "Conectado"/"Desconectado" no card do Ativo Digital. */
+export function useDigitalAssetConnections() {
+  return useQuery({
+    queryKey: ['digital-asset-connections'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('digital_asset_connections')
+        .select('id, digital_asset_id, provider, status, project_id, external_account_id, last_synced_at')
+      if (error) throw error
+      return data as DigitalAssetConnectionRecord[]
+    },
+  })
+}
+
 export interface NewDigitalAssetInput {
   name: string
   client_id: string

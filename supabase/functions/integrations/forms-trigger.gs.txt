@@ -1,0 +1,49 @@
+// Ametista Conversões — gatilho do Google Forms (Fase 6.2)
+//
+// Este arquivo NÃO faz parte do app (é só ".txt" de propósito, pra não
+// entrar em nenhum build) — é o script que você cola no Google Apps
+// Script de CADA formulário que quiser conectar.
+//
+// Como instalar (repita pra cada formulário conectado):
+// 1. Abra o formulário no Google Forms.
+// 2. Menu de três pontinhos (⋮) no canto superior direito > "Editor de
+//    script" (ou acesse script.google.com e abra o projeto vinculado).
+// 3. Apague o conteúdo padrão e cole este arquivo inteiro.
+// 4. Troque EDGE_FUNCTION_URL e WEBHOOK_SECRET abaixo pelos valores
+//    reais (a URL da função "integrations" publicada, e o mesmo valor
+//    que você colocou no segredo FORMS_WEBHOOK_SECRET da função).
+// 5. No menu lateral do editor, clique no ícone de relógio
+//    ("Acionadores" / "Triggers") > "+ Adicionar acionador".
+// 6. Configure: função a executar = "onFormSubmitTrigger", evento =
+//    "Do formulário" > "Ao enviar formulário". Salve — o Google vai
+//    pedir autorização na primeira vez, é normal.
+// 7. Envie uma resposta de teste no formulário pra conferir que chegou
+//    um Alerta novo no Portal Gestor.
+
+var EDGE_FUNCTION_URL = 'https://SEU-PROJETO.supabase.co/functions/v1/integrations/forms-webhook'
+var WEBHOOK_SECRET = 'COLE_AQUI_O_MESMO_VALOR_DO_SEGREDO_FORMS_WEBHOOK_SECRET'
+
+function onFormSubmitTrigger(e) {
+  var form = FormApp.getActiveForm()
+  var formResponse = e.response
+  var answers = {}
+
+  formResponse.getItemResponses().forEach(function (itemResponse) {
+    answers[itemResponse.getItem().getTitle()] = itemResponse.getResponse()
+  })
+
+  var payload = {
+    formId: form.getId(),
+    responseId: formResponse.getId(),
+    submittedAt: formResponse.getTimestamp().toISOString(),
+    answers: answers,
+  }
+
+  UrlFetchApp.fetch(EDGE_FUNCTION_URL, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { 'X-Webhook-Secret': WEBHOOK_SECRET },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true,
+  })
+}

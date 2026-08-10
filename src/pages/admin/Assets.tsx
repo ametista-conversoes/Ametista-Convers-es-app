@@ -6,13 +6,14 @@ import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useAllClients, useAllDigitalAssets } from '@/hooks/useManagerPortalData'
+import { useAllClients, useAllDigitalAssets, useDigitalAssetConnections } from '@/hooks/useManagerPortalData'
 
 const ALL_CLIENTS = 'all'
 
 export default function Assets() {
   const { data: clients } = useAllClients()
   const { data: assets, isLoading } = useAllDigitalAssets()
+  const { data: connections } = useDigitalAssetConnections()
   const [clientFilter, setClientFilter] = useState(ALL_CLIENTS)
   const [deleteMode, setDeleteMode] = useState(false)
   const [search, setSearch] = useState('')
@@ -79,7 +80,7 @@ export default function Assets() {
       <div className="content-grid-container">
         <div className="content-grid gap-4">
           {filteredAssets.map((asset) => (
-            <AssetCard key={asset.id} asset={asset} deleteMode={deleteMode} />
+            <AssetCard key={asset.id} asset={asset} deleteMode={deleteMode} connections={connections} />
           ))}
         </div>
       </div>

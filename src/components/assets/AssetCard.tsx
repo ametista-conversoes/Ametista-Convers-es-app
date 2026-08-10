@@ -1,4 +1,7 @@
-import { Boxes, ExternalLink, Pencil } from 'lucide-react'
+import { useState } from 'react'
+import { Boxes, ExternalLink, Pencil, Plug, RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
+import { ConnectIntegrationDialog } from '@/components/assets/ConnectIntegrationDialog'
 import { AssetFormDialog } from '@/components/assets/AssetFormDialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,20 +13,55 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
-import type { ManagerDigitalAssetRecord } from '@/hooks/useManagerPortalData'
+import type { DigitalAssetConnectionRecord, ManagerDigitalAssetRecord } from '@/hooks/useManagerPortalData'
 import { useDeleteDigitalAsset, useUpdateDigitalAssetStatus } from '@/hooks/useManagerPortalData'
+import { syncIntegration } from '@/lib/integrations'
 import { digitalAssetStatusLabels, digitalAssetStatusStyles, digitalAssetTypeLabels } from '@/lib/status-styles'
 
 interface AssetCardProps {
   asset: ManagerDigitalAssetRecord
   deleteMode?: boolean
+  connections?: DigitalAssetConnectionRecord[]
 }
 
 const CHANGEABLE_STATUSES = ['active', 'inactive', 'pending', 'revoked']
 
-export function AssetCard({ asset, deleteMode }: AssetCardProps) {
+const CONNECTION_PROVIDER_LABELS: Record<string, string> = {
+  google_ads: 'Google Ads',
+  google_forms: 'Google Forms',
+  meta_ads: 'Meta Ads',
+}
+
+const CONNECTION_STATUS_LABELS: Record<string, string> = {
+  disconnected: 'Desconectado',
+  connected: 'Conectado',
+  error: 'Erro na conexão',
+}
+
+const CONNECTION_STATUS_STYLES: Record<string, string> = {
+  disconnected: 'border-slate-500/20 bg-slate-500/10 text-slate-400',
+  connected: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+  error: 'border-destructive/20 bg-destructive/10 text-destructive',
+}
+
+export function AssetCard({ asset, deleteMode, connections }: AssetCardProps) {
   const updateStatus = useUpdateDigitalAssetStatus()
   const deleteAsset = useDeleteDigitalAsset()
+  const [syncingId, setSyncingId] = useState<string | null>(null)
+
+  const assetConnections = (connections ?? []).filter((c) => c.digital_asset_id === asset.id)
+
+  async function handleSync(connectionId: string) {
+    setSyncingId(connectionId)
+    try {
+      const result = await syncIntegration(connectionId)
+      toast.success(`Sincronizado — ${result.syncedDays} dia(s) de métricas atualizados.`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Não foi possível sincronizar.')
+    } finally {
+      setSyncingId(null)
+    }
+  }
 
   return (
     <Card className="flex flex-col rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
@@ -72,6 +110,42 @@ export function AssetCard({ asset, deleteMode }: AssetCardProps) {
             {asset.code}
           </code>
         )}
+
+        <div className="space-y-1.5">
+          {assetConnections.map((connection) => (
+            <div key={connection.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="flex items-center gap-1.5">
+                <Plug className="h-3 w-3 shrink-0 text-muted-foreground" />
+                <span className="text-muted-foreground">{CONNECTION_PROVIDER_LABELS[connection.provider] ?? connection.provider}</span>
+                <Badge className={CONNECTION_STATUS_STYLES[connection.status]}>
+                  {CONNECTION_STATUS_LABELS[connection.status] ?? connection.status}
+                </Badge>
+              </span>
+              {connection.status === 'connected' && connection.provider === 'google_ads' && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-muted-foreground hover:text-foreground"
+                  disabled={syncingId === connection.id}
+                  onClick={() => handleSync(connection.id)}
+                >
+                  <RefreshCw className={`h-3 w-3 ${syncingId === connection.id ? 'animate-spin' : ''}`} />
+                  Sincronizar agora
+                </Button>
+              )}
+            </div>
+          ))}
+          <ConnectIntegrationDialog
+            asset={asset}
+            trigger={
+              <Button type="button" variant="outline" size="sm" className="h-7 w-full text-xs">
+                <Plug className="h-3.5 w-3.5" />
+                Conectar integração
+              </Button>
+            }
+          />
+        </div>
 
         <div className="mt-auto flex items-center justify-between pt-3">
           <DropdownMenu>
