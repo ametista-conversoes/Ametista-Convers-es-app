@@ -16,7 +16,14 @@ import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
 import type { DigitalAssetConnectionRecord, ManagerDigitalAssetRecord } from '@/hooks/useManagerPortalData'
 import { useDeleteDigitalAsset, useUpdateDigitalAssetStatus } from '@/hooks/useManagerPortalData'
 import { syncIntegration } from '@/lib/integrations'
-import { digitalAssetStatusLabels, digitalAssetStatusStyles, digitalAssetTypeLabels } from '@/lib/status-styles'
+import {
+  connectionProviderLabels,
+  connectionStatusLabels,
+  connectionStatusStyles,
+  digitalAssetStatusLabels,
+  digitalAssetStatusStyles,
+  digitalAssetTypeLabels,
+} from '@/lib/status-styles'
 
 interface AssetCardProps {
   asset: ManagerDigitalAssetRecord
@@ -25,24 +32,6 @@ interface AssetCardProps {
 }
 
 const CHANGEABLE_STATUSES = ['active', 'inactive', 'pending', 'revoked']
-
-const CONNECTION_PROVIDER_LABELS: Record<string, string> = {
-  google_ads: 'Google Ads',
-  google_forms: 'Google Forms',
-  meta_ads: 'Meta Ads',
-}
-
-const CONNECTION_STATUS_LABELS: Record<string, string> = {
-  disconnected: 'Desconectado',
-  connected: 'Conectado',
-  error: 'Erro na conexão',
-}
-
-const CONNECTION_STATUS_STYLES: Record<string, string> = {
-  disconnected: 'border-slate-500/20 bg-slate-500/10 text-slate-400',
-  connected: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
-  error: 'border-destructive/20 bg-destructive/10 text-destructive',
-}
 
 export function AssetCard({ asset, deleteMode, connections }: AssetCardProps) {
   const updateStatus = useUpdateDigitalAssetStatus()
@@ -116,9 +105,9 @@ export function AssetCard({ asset, deleteMode, connections }: AssetCardProps) {
             <div key={connection.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="flex items-center gap-1.5">
                 <Plug className="h-3 w-3 shrink-0 text-muted-foreground" />
-                <span className="text-muted-foreground">{CONNECTION_PROVIDER_LABELS[connection.provider] ?? connection.provider}</span>
-                <Badge className={CONNECTION_STATUS_STYLES[connection.status]}>
-                  {CONNECTION_STATUS_LABELS[connection.status] ?? connection.status}
+                <span className="text-muted-foreground">{connectionProviderLabels[connection.provider] ?? connection.provider}</span>
+                <Badge className={connectionStatusStyles[connection.status]}>
+                  {connectionStatusLabels[connection.status] ?? connection.status}
                 </Badge>
               </span>
               {connection.status === 'connected' &&

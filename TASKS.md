@@ -159,9 +159,10 @@
 - [ ] **Pendente**: conexão de verdade com uma conta real do Meta (você ainda não tem o app em developers.facebook.com) — assim que tiver, é só cadastrar `META_APP_ID`/`META_APP_SECRET` e testar. Nota do próprio documento: contas de anúncio de clientes de terceiros só funcionam de verdade depois da aprovação de Business Verification do Meta — até lá, testável só com a própria conta da agência
 
 ### Fase 6.4 — Sincronização agendada e página de Integrações
-- [ ] Job agendado (ex: a cada 6 horas) pra renovar tokens e buscar métricas atualizadas de todas as conexões ativas
-- [ ] Página "Integrações" no Portal Gestor: status da conexão por Ativo Digital, última sincronização, botão "Sincronizar agora"
-- [ ] Confirmar que não existe mais nenhuma "Fase 8" separada — tudo consolidado nesta Fase 6
+- [x] Job agendado: `migration-019-fase64-cron.sql` habilita `pg_cron`/`pg_net` e agenda uma chamada a cada 6 horas pra rota nova `/sync-all` da Edge Function `integrations` — ela busca todas as conexões `connected` de Google Ads/Meta Ads e sincroniza uma a uma (a renovação de token já acontece sozinha dentro da sincronização, reaproveitando `getValidAccessToken`); autenticada por um segredo próprio (`CRON_SECRET`), mesmo padrão do webhook do Google Forms — como o cron roda de dentro do banco, sem login de usuário por trás, precisa desse segredo em vez de JWT
+- [x] Página "Integrações" (`/integrations`, novo item no menu do Portal Gestor): lista todas as conexões (de todos os Ativos Digitais), com provedor, ativo, cliente, projeto, status e última sincronização, com filtro por cliente/busca e botão "Sincronizar agora" pra Google Ads/Meta Ads — reaproveita os mesmos hooks e a mesma função de sincronização já usados no card de Ativo Digital
+- [x] Confirmar que não existe mais nenhuma "Fase 8" separada — tudo consolidado nesta Fase 6 (feito no início da Fase 6, ver nota acima)
+- [ ] Pendente: rodar `migration-019-fase64-cron.sql` (com o segredo já preenchido), configurar o segredo `CRON_SECRET` na Edge Function e confirmar no SQL Editor (`select * from cron.job;`) que o job `sync-integrations` ficou agendado — depende só de você rodar/configurar, não de credenciais reais
 
 ## Fase 7 — C.A.S.S.I.E. (IA) e testes finais (provisório, detalhar quando chegar a vez)
 - [ ] Funcionalidades da assistente Cassie (IA) e automações que dependerem dela

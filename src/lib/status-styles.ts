@@ -230,3 +230,23 @@ export const smartGoalMetricLabels: Record<string, string> = {
   ticket_medio: 'Ticket Médio',
   taxa_conversao: 'Taxa de Conversão',
 }
+
+// Conexões de integração (Fase 6.1-6.4) — usados no card de Ativo
+// Digital e na página "Integrações".
+export const connectionProviderLabels: Record<string, string> = {
+  google_ads: 'Google Ads',
+  google_forms: 'Google Forms',
+  meta_ads: 'Meta Ads',
+}
+
+export const connectionStatusLabels: Record<string, string> = {
+  disconnected: 'Desconectado',
+  connected: 'Conectado',
+  error: 'Erro na conexão',
+}
+
+export const connectionStatusStyles: Record<string, string> = {
+  disconnected: 'border-slate-500/20 bg-slate-500/10 text-slate-400',
+  connected: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+  error: 'border-destructive/20 bg-destructive/10 text-destructive',
+}

@@ -25,6 +25,7 @@ import ClientDetail from '@/pages/admin/ClientDetail'
 import Clients from '@/pages/admin/Clients'
 import DashboardExecutivo from '@/pages/admin/DashboardExecutivo'
 import Incidents from '@/pages/admin/Incidents'
+import Integrations from '@/pages/admin/Integrations'
 import Kanban from '@/pages/admin/Kanban'
 import ManagerFiles from '@/pages/admin/ManagerFiles'
 import ManagerMeetings from '@/pages/admin/ManagerMeetings'
@@ -59,6 +60,7 @@ const managerPagesReady: Record<string, ComponentType> = {
   '/alerts': Alerts,
   '/timeline': Timeline,
   '/assets': Assets,
+  '/integrations': Integrations,
   '/smart-goals': SmartGoals,
   '/onboarding': Onboarding,
   '/client-comments': ClientComments,

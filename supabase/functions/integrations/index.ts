@@ -22,6 +22,9 @@
 //   FORMS_WEBHOOK_SECRET         — inventado por você, usado também no
 //                                   script do Apps Script (ver
 //                                   forms-trigger.gs.txt)
+//   CRON_SECRET                  — inventado por você, usado também na
+//                                   migração migration-019-fase64-cron.sql
+//                                   (job agendado que chama /sync-all)
 //   FRONTEND_URL                 — ex: http://localhost:5173 (sem
 //                                   barra no final)
 //
@@ -30,7 +33,9 @@
 //   GET  .../integrations/connect?provider=google_forms&digital_asset_id=...&form_id=...
 //   GET  .../integrations/connect?provider=meta_ads&digital_asset_id=...&project_id=...
 //   GET  .../integrations/callback?state=...&code=...          (aberta pelo Google/Meta)
-//   POST .../integrations/sync            { connection_id }
+//   POST .../integrations/sync            { connection_id }     (botão "Sincronizar agora")
+//   POST .../integrations/sync-all        {}                    (cabeçalho X-Cron-Secret,
+//                                          chamada pelo job agendado — Fase 6.4)
 //   POST .../integrations/forms-webhook   { formId, responseId, submittedAt, answers }
 //                                          (cabeçalho X-Webhook-Secret)
 
@@ -439,36 +444,30 @@ async function getValidAccessToken(supabase: SupabaseClient, connectionId: strin
   return refreshBody.access_token as string
 }
 
-async function handleSync(req: Request) {
-  const auth = await requireAdminOrGestor(req)
-  if (auth instanceof Response) return auth
+type SyncableConnection = {
+  id: string
+  provider: Provider
+  project_id: string | null
+  external_account_id: string | null
+  digital_assets: { client_id: string } | { client_id: string }[]
+}
 
-  let body: { connection_id?: string }
-  try {
-    body = await req.json()
-  } catch {
-    return jsonResponse({ error: 'Corpo inválido' }, 400)
-  }
-  if (!body.connection_id) return jsonResponse({ error: 'connection_id é obrigatório' }, 400)
+type SyncResult = { ok: true; syncedDays: number } | { ok: false; error: string }
 
-  const supabase = getServiceClient()
-
-  const { data: connection, error: connectionError } = await supabase
-    .from('digital_asset_connections')
-    .select('id, provider, project_id, external_account_id, digital_assets(client_id)')
-    .eq('id', body.connection_id)
-    .maybeSingle()
-  if (connectionError) return jsonResponse({ error: connectionError.message }, 500)
-  if (!connection) return jsonResponse({ error: 'Conexão não encontrada' }, 404)
+/** Núcleo da sincronização de UMA conexão (Google Ads ou Meta Ads) —
+ * nunca lança erro, sempre devolve um resultado. Reaproveitado pela
+ * rota /sync (um clique, autenticada por login) e por /sync-all
+ * (rodada pelo cron a cada poucas horas, ver handleSyncAll). */
+async function syncConnection(supabase: SupabaseClient, connection: SyncableConnection): Promise<SyncResult> {
   if (connection.provider !== 'google_ads' && connection.provider !== 'meta_ads') {
-    return jsonResponse({ error: 'Sincronização só implementada pra Google Ads e Meta Ads' }, 400)
+    return { ok: false, error: 'Sincronização só implementada pra Google Ads e Meta Ads' }
   }
   if (!connection.project_id || !connection.external_account_id) {
-    return jsonResponse({ error: 'Conexão incompleta (falta projeto ou conta de anúncios)' }, 400)
+    return { ok: false, error: 'Conexão incompleta (falta projeto ou conta de anúncios)' }
   }
 
   const accessToken = await getValidAccessToken(supabase, connection.id, connection.provider)
-  if (!accessToken) return jsonResponse({ error: 'Não foi possível obter um token de acesso válido' }, 500)
+  if (!accessToken) return { ok: false, error: 'Não foi possível obter um token de acesso válido' }
 
   const byDate = new Map<string, { spend: number; clicks: number; impressions: number; conversions: number }>()
 
@@ -493,7 +492,7 @@ async function handleSync(req: Request) {
     )
     const searchBody = await searchRes.json()
     if (!searchRes.ok) {
-      return jsonResponse({ error: searchBody.error?.message ?? 'Erro ao consultar a Google Ads API' }, 502)
+      return { ok: false, error: searchBody.error?.message ?? 'Erro ao consultar a Google Ads API' }
     }
 
     for (const row of (searchBody.results ?? []) as Array<Record<string, Record<string, unknown>>>) {
@@ -522,7 +521,7 @@ async function handleSync(req: Request) {
     const insightsRes = await fetch(insightsUrl.toString())
     const insightsBody = await insightsRes.json()
     if (!insightsRes.ok) {
-      return jsonResponse({ error: insightsBody.error?.message ?? 'Erro ao consultar a Meta Marketing API' }, 502)
+      return { ok: false, error: insightsBody.error?.message ?? 'Erro ao consultar a Meta Marketing API' }
     }
 
     for (const row of (insightsBody.data ?? []) as Array<Record<string, unknown>>) {
@@ -555,12 +554,72 @@ async function handleSync(req: Request) {
     const { error: upsertError } = await supabase
       .from('performance_snapshots')
       .upsert(rows, { onConflict: 'project_id,snapshot_date' })
-    if (upsertError) return jsonResponse({ error: upsertError.message }, 500)
+    if (upsertError) return { ok: false, error: upsertError.message }
   }
 
   await supabase.from('digital_asset_connections').update({ last_synced_at: new Date().toISOString() }).eq('id', connection.id)
 
-  return jsonResponse({ ok: true, syncedDays: rows.length })
+  return { ok: true, syncedDays: rows.length }
+}
+
+async function handleSync(req: Request) {
+  const auth = await requireAdminOrGestor(req)
+  if (auth instanceof Response) return auth
+
+  let body: { connection_id?: string }
+  try {
+    body = await req.json()
+  } catch {
+    return jsonResponse({ error: 'Corpo inválido' }, 400)
+  }
+  if (!body.connection_id) return jsonResponse({ error: 'connection_id é obrigatório' }, 400)
+
+  const supabase = getServiceClient()
+
+  const { data: connection, error: connectionError } = await supabase
+    .from('digital_asset_connections')
+    .select('id, provider, project_id, external_account_id, digital_assets(client_id)')
+    .eq('id', body.connection_id)
+    .maybeSingle()
+  if (connectionError) return jsonResponse({ error: connectionError.message }, 500)
+  if (!connection) return jsonResponse({ error: 'Conexão não encontrada' }, 404)
+
+  const result = await syncConnection(supabase, connection as SyncableConnection)
+  if (!result.ok) return jsonResponse({ error: result.error }, 502)
+  return jsonResponse({ ok: true, syncedDays: result.syncedDays })
+}
+
+/** Chamada pelo job agendado (pg_cron + pg_net, ver
+ * migration-019-fase64-cron.sql) a cada poucas horas — não tem login
+ * de usuário por trás (roda sozinha, de dentro do Postgres), então se
+ * autentica com um segredo compartilhado, mesmo padrão já usado em
+ * /forms-webhook. Sincroniza todas as conexões "connected" de Google
+ * Ads/Meta Ads, uma de cada vez, sem deixar uma falha derrubar as
+ * outras (cada uma tenta renovar o token sozinha dentro de
+ * syncConnection, via getValidAccessToken). */
+async function handleSyncAll(req: Request) {
+  const secret = req.headers.get('X-Cron-Secret') ?? ''
+  const expectedSecret = Deno.env.get('CRON_SECRET') ?? ''
+  if (!expectedSecret || secret !== expectedSecret) {
+    return jsonResponse({ error: 'Não autorizado' }, 401)
+  }
+
+  const supabase = getServiceClient()
+
+  const { data: connections, error: connectionsError } = await supabase
+    .from('digital_asset_connections')
+    .select('id, provider, project_id, external_account_id, digital_assets(client_id)')
+    .eq('status', 'connected')
+    .in('provider', ['google_ads', 'meta_ads'])
+  if (connectionsError) return jsonResponse({ error: connectionsError.message }, 500)
+
+  const results: Array<{ connectionId: string } & SyncResult> = []
+  for (const connection of (connections ?? []) as SyncableConnection[]) {
+    const result = await syncConnection(supabase, connection)
+    results.push({ connectionId: connection.id, ...result })
+  }
+
+  return jsonResponse({ ok: true, results })
 }
 
 async function handleFormsWebhook(req: Request) {
@@ -627,9 +686,10 @@ Deno.serve(async (req) => {
   try {
     if (req.method === 'GET' && url.pathname.endsWith('/connect')) return await handleConnect(req, url)
     if (req.method === 'GET' && url.pathname.endsWith('/callback')) return await handleCallback(url)
+    if (req.method === 'POST' && url.pathname.endsWith('/sync-all')) return await handleSyncAll(req)
     if (req.method === 'POST' && url.pathname.endsWith('/sync')) return await handleSync(req)
     if (req.method === 'POST' && url.pathname.endsWith('/forms-webhook')) return await handleFormsWebhook(req)
-    return jsonResponse({ error: 'Rota não encontrada. Use /connect, /callback, /sync ou /forms-webhook.' }, 404)
+    return jsonResponse({ error: 'Rota não encontrada. Use /connect, /callback, /sync, /sync-all ou /forms-webhook.' }, 404)
   } catch (err) {
     return jsonResponse({ error: err instanceof Error ? err.message : 'Erro inesperado' }, 500)
   }
