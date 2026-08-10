@@ -152,9 +152,11 @@
 - [x] **Outro bug real encontrado e corrigido ao testar** (com o usuário clicando de verdade em "Conectar" sem credencial configurada ainda): `/connect` mandava a pessoa pro Google mesmo com o segredo `GOOGLE_OAUTH_CLIENT_ID` vazio — o Google recusava com um erro genérico ("Missing required parameter: client_id"), sem nem mostrar a tela de login, o que parecia um erro sem explicação. Agora `/connect` verifica isso antes de mandar pra qualquer lugar e devolve um aviso claro dentro do próprio app ("as credenciais do Google ainda não foram configuradas") — confirmado pelo usuário que já funciona como esperado
 
 ### Fase 6.3 — Conexão com Meta Ads
-- [ ] Fluxo completo de OAuth com o Meta (botão "Conectar" → login/consentimento → callback → troca do código por tokens)
-- [ ] Conexão com a Meta Marketing API e busca de métricas de campanha
-- [ ] Nota: contas de anúncio de clientes de terceiros só funcionam de verdade depois da aprovação de Business Verification do Meta — até lá, testável com a própria conta da agência
+- [x] Fluxo completo de OAuth com o Meta: Meta Ads virou uma opção no mesmo diálogo "Conectar integração" (escopo `ads_read` — só leitura, sem gerenciar campanha); `/connect` monta a URL de autorização do Meta, `/callback` troca o código pelo token
+- [x] Particularidade do Meta implementada: a troca de token é `GET` (não `POST` como o Google), e não existe "refresh token" separado — o token de curta duração é trocado por um de longa duração (60 dias) logo ao conectar, e renovado reexecutando essa mesma troca antes de vencer (`getValidAccessToken` agora sabe o provedor da conexão e usa a lógica certa pra cada um)
+- [x] Conexão com a Meta Marketing API: `/callback` descobre a conta de anúncios acessível (`/me/adaccounts`); `/sync` passou a aceitar `meta_ads` além de `google_ads`, buscando investimento/cliques/impressões/conversões via Insights (`date_preset=last_30d&time_increment=1`) — "conversões" no Meta vem dentro de um campo `actions` (lista de ações), somado como aproximação por enquanto
+- [x] Testado ao vivo tudo que dava pra testar sem credenciais reais do Meta: `/connect` pede o projeto certo, valida que `META_APP_ID` precisa estar configurado (mesmo aviso claro implementado pro Google), e o diálogo mostra "Meta Ads" como opção com o campo de projeto aparecendo certinho
+- [ ] **Pendente**: conexão de verdade com uma conta real do Meta (você ainda não tem o app em developers.facebook.com) — assim que tiver, é só cadastrar `META_APP_ID`/`META_APP_SECRET` e testar. Nota do próprio documento: contas de anúncio de clientes de terceiros só funcionam de verdade depois da aprovação de Business Verification do Meta — até lá, testável só com a própria conta da agência
 
 ### Fase 6.4 — Sincronização agendada e página de Integrações
 - [ ] Job agendado (ex: a cada 6 horas) pra renovar tokens e buscar métricas atualizadas de todas as conexões ativas

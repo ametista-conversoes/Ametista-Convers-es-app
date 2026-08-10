@@ -15,7 +15,7 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 export interface ConnectIntegrationParams {
-  provider: 'google_ads' | 'google_forms'
+  provider: 'google_ads' | 'google_forms' | 'meta_ads'
   digitalAssetId: string
   projectId?: string
   formId?: string

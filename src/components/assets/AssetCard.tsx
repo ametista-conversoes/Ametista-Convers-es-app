@@ -121,7 +121,8 @@ export function AssetCard({ asset, deleteMode, connections }: AssetCardProps) {
                   {CONNECTION_STATUS_LABELS[connection.status] ?? connection.status}
                 </Badge>
               </span>
-              {connection.status === 'connected' && connection.provider === 'google_ads' && (
+              {connection.status === 'connected' &&
+                (connection.provider === 'google_ads' || connection.provider === 'meta_ads') && (
                 <Button
                   type="button"
                   variant="ghost"

@@ -16,30 +16,34 @@ import type { ManagerDigitalAssetRecord } from '@/hooks/useManagerPortalData'
 import { useAllProjects } from '@/hooks/useManagerPortalData'
 import { connectIntegration } from '@/lib/integrations'
 
-const PROVIDER_LABELS: Record<'google_ads' | 'google_forms', string> = {
+const PROVIDER_LABELS: Record<'google_ads' | 'google_forms' | 'meta_ads', string> = {
   google_ads: 'Google Ads',
   google_forms: 'Google Forms',
+  meta_ads: 'Meta Ads',
 }
+
+type IntegrationProvider = keyof typeof PROVIDER_LABELS
 
 interface ConnectIntegrationDialogProps {
   trigger: ReactNode
   asset: ManagerDigitalAssetRecord
 }
 
-/** Diálogo pra ligar um Ativo Digital a uma integração real (Fase 6.2
- * — só Google por enquanto, Meta Ads chega na 6.3). Ao confirmar, o
- * navegador é mandado pra tela de login/consentimento do Google;
+/** Diálogo pra ligar um Ativo Digital a uma integração real (Google
+ * Ads/Forms — Fase 6.2 — e Meta Ads — Fase 6.3). Ao confirmar, o
+ * navegador é mandado pra tela de login/consentimento do provedor;
  * quem termina a conexão é a Edge Function "integrations" (rota
  * /callback), não esta tela. */
 export function ConnectIntegrationDialog({ trigger, asset }: ConnectIntegrationDialogProps) {
   const [open, setOpen] = useState(false)
-  const [provider, setProvider] = useState<'google_ads' | 'google_forms'>('google_ads')
+  const [provider, setProvider] = useState<IntegrationProvider>('google_ads')
   const [projectId, setProjectId] = useState('')
   const [formId, setFormId] = useState('')
   const [connecting, setConnecting] = useState(false)
 
   const { data: projects } = useAllProjects()
   const clientProjects = (projects ?? []).filter((p) => p.client_id === asset.client_id)
+  const needsProject = provider === 'google_ads' || provider === 'meta_ads'
 
   function handleOpenChange(next: boolean) {
     setOpen(next)
@@ -51,7 +55,7 @@ export function ConnectIntegrationDialog({ trigger, asset }: ConnectIntegrationD
   }
 
   async function handleConnect() {
-    if (provider === 'google_ads' && !projectId) {
+    if (needsProject && !projectId) {
       toast.error('Escolha o projeto que vai receber as métricas.')
       return
     }
@@ -65,7 +69,7 @@ export function ConnectIntegrationDialog({ trigger, asset }: ConnectIntegrationD
       const authorizationUrl = await connectIntegration({
         provider,
         digitalAssetId: asset.id,
-        projectId: provider === 'google_ads' ? projectId : undefined,
+        projectId: needsProject ? projectId : undefined,
         formId: provider === 'google_forms' ? formId.trim() : undefined,
       })
       window.location.href = authorizationUrl
@@ -85,7 +89,7 @@ export function ConnectIntegrationDialog({ trigger, asset }: ConnectIntegrationD
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Provedor</Label>
-            <Select value={provider} onValueChange={(v) => setProvider(v as 'google_ads' | 'google_forms')}>
+            <Select value={provider} onValueChange={(v) => setProvider(v as IntegrationProvider)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -99,7 +103,7 @@ export function ConnectIntegrationDialog({ trigger, asset }: ConnectIntegrationD
             </Select>
           </div>
 
-          {provider === 'google_ads' && (
+          {needsProject && (
             <div className="space-y-2">
               <Label>Projeto que vai receber as métricas</Label>
               <Select value={projectId} onValueChange={setProjectId}>
@@ -132,7 +136,7 @@ export function ConnectIntegrationDialog({ trigger, asset }: ConnectIntegrationD
           )}
 
           <p className="text-xs text-muted-foreground">
-            Você vai ser levado pra tela de login do Google pra autorizar o acesso.
+            Você vai ser levado pra tela de login {provider === 'meta_ads' ? 'do Meta' : 'do Google'} pra autorizar o acesso.
           </p>
         </div>
         <DialogFooter>

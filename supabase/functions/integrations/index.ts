@@ -1,10 +1,11 @@
-// Ametista Conversões — Fase 6.2: conexão real com Google (Ads e Forms).
+// Ametista Conversões — Fase 6.1-6.3: backend de integrações (Google
+// Ads, Google Forms, Meta Ads).
 //
 // Como usar: cole este arquivo inteiro no painel do Supabase, em
 // Edge Functions > "integrations" > editar código > Deploy. Essa
 // função recebe chamadas de fora do Supabase (o navegador da pessoa
-// durante o login do Google, e o gatilho do Google Forms), então a
-// verificação automática de JWT precisa estar DESLIGADA nas
+// durante o login do Google/Meta, e o gatilho do Google Forms), então
+// a verificação automática de JWT precisa estar DESLIGADA nas
 // configurações da função — a autenticação é feita na mão dentro do
 // código, rota por rota (ver `requireAdminOrGestor`, o parâmetro
 // `state` do OAuth, e o segredo `X-Webhook-Secret`).
@@ -16,6 +17,8 @@
 //   GOOGLE_OAUTH_CLIENT_ID       — do Google Cloud Console
 //   GOOGLE_OAUTH_CLIENT_SECRET   — do Google Cloud Console
 //   GOOGLE_ADS_DEVELOPER_TOKEN   — do Google Ads Manager Account
+//   META_APP_ID                  — do app em developers.facebook.com
+//   META_APP_SECRET              — do app em developers.facebook.com
 //   FORMS_WEBHOOK_SECRET         — inventado por você, usado também no
 //                                   script do Apps Script (ver
 //                                   forms-trigger.gs.txt)
@@ -25,7 +28,8 @@
 // Rotas (identificadas pelo final do path da requisição):
 //   GET  .../integrations/connect?provider=google_ads&digital_asset_id=...&project_id=...
 //   GET  .../integrations/connect?provider=google_forms&digital_asset_id=...&form_id=...
-//   GET  .../integrations/callback?state=...&code=...          (aberta pelo Google)
+//   GET  .../integrations/connect?provider=meta_ads&digital_asset_id=...&project_id=...
+//   GET  .../integrations/callback?state=...&code=...          (aberta pelo Google/Meta)
 //   POST .../integrations/sync            { connection_id }
 //   POST .../integrations/forms-webhook   { formId, responseId, submittedAt, answers }
 //                                          (cabeçalho X-Webhook-Secret)
@@ -43,6 +47,11 @@ const GOOGLE_SCOPES: Record<'google_ads' | 'google_forms', string> = {
   google_ads: 'https://www.googleapis.com/auth/adwords',
   google_forms: 'https://www.googleapis.com/auth/forms.body.readonly https://www.googleapis.com/auth/forms.responses.readonly',
 }
+
+const META_GRAPH_API_VERSION = 'v19.0' // conferir se ainda é suportada quando for testar de verdade
+const META_AUTHORIZE_URL = `https://www.facebook.com/${META_GRAPH_API_VERSION}/dialog/oauth`
+const META_TOKEN_URL = `https://graph.facebook.com/${META_GRAPH_API_VERSION}/oauth/access_token`
+const META_SCOPE = 'ads_read' // só leitura de métricas — nada de gerenciar campanha
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -124,9 +133,6 @@ async function handleConnect(req: Request, url: URL) {
   if (!isProvider(provider)) {
     return jsonResponse({ error: `Provedor inválido. Use um de: ${PROVIDERS.join(', ')}` }, 400)
   }
-  if (provider === 'meta_ads') {
-    return jsonResponse({ error: 'Meta Ads ainda não está disponível (chega na Fase 6.3).' }, 400)
-  }
   if (!digitalAssetId) {
     return jsonResponse({ error: 'digital_asset_id é obrigatório' }, 400)
   }
@@ -134,7 +140,7 @@ async function handleConnect(req: Request, url: URL) {
   const projectId = url.searchParams.get('project_id')
   const formIdInput = url.searchParams.get('form_id')
 
-  if (provider === 'google_ads' && !projectId) {
+  if ((provider === 'google_ads' || provider === 'meta_ads') && !projectId) {
     return jsonResponse({ error: 'Escolha o projeto que vai receber as métricas' }, 400)
   }
   if (provider === 'google_forms' && !formIdInput) {
@@ -142,11 +148,17 @@ async function handleConnect(req: Request, url: URL) {
   }
 
   // Falha aqui dentro, com uma mensagem clara, em vez de mandar a
-  // pessoa pro Google com um link quebrado (o Google recusa um
+  // pessoa pro Google/Meta com um link quebrado (os dois recusam um
   // "client_id" vazio com um erro genérico, sem nem mostrar login).
-  if (!Deno.env.get('GOOGLE_OAUTH_CLIENT_ID')) {
+  if (provider !== 'meta_ads' && !Deno.env.get('GOOGLE_OAUTH_CLIENT_ID')) {
     return jsonResponse(
       { error: 'As credenciais do Google ainda não foram configuradas nesta função (falta o segredo GOOGLE_OAUTH_CLIENT_ID).' },
+      400,
+    )
+  }
+  if (provider === 'meta_ads' && !Deno.env.get('META_APP_ID')) {
+    return jsonResponse(
+      { error: 'As credenciais do Meta ainda não foram configuradas nesta função (falta o segredo META_APP_ID).' },
       400,
     )
   }
@@ -162,7 +174,7 @@ async function handleConnect(req: Request, url: URL) {
   if (!asset) return jsonResponse({ error: 'Ativo digital não encontrado' }, 404)
 
   const upsertPayload: Record<string, unknown> = { digital_asset_id: digitalAssetId, provider, status: 'disconnected' }
-  if (provider === 'google_ads') upsertPayload.project_id = projectId
+  if (provider === 'google_ads' || provider === 'meta_ads') upsertPayload.project_id = projectId
   if (provider === 'google_forms') upsertPayload.external_account_id = extractFormId(formIdInput as string)
 
   const { data: connection, error: connectionError } = await supabase
@@ -178,14 +190,24 @@ async function handleConnect(req: Request, url: URL) {
   // interno, não o público.
   const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1${url.pathname.replace(/\/connect$/, '/callback')}`
 
-  const authorizationUrl = new URL(GOOGLE_AUTHORIZE_URL)
-  authorizationUrl.searchParams.set('client_id', Deno.env.get('GOOGLE_OAUTH_CLIENT_ID') ?? '')
-  authorizationUrl.searchParams.set('redirect_uri', redirectUri)
-  authorizationUrl.searchParams.set('response_type', 'code')
-  authorizationUrl.searchParams.set('access_type', 'offline')
-  authorizationUrl.searchParams.set('prompt', 'consent')
-  authorizationUrl.searchParams.set('scope', GOOGLE_SCOPES[provider])
-  authorizationUrl.searchParams.set('state', connection.id)
+  let authorizationUrl: URL
+  if (provider === 'meta_ads') {
+    authorizationUrl = new URL(META_AUTHORIZE_URL)
+    authorizationUrl.searchParams.set('client_id', Deno.env.get('META_APP_ID') ?? '')
+    authorizationUrl.searchParams.set('redirect_uri', redirectUri)
+    authorizationUrl.searchParams.set('response_type', 'code')
+    authorizationUrl.searchParams.set('scope', META_SCOPE)
+    authorizationUrl.searchParams.set('state', connection.id)
+  } else {
+    authorizationUrl = new URL(GOOGLE_AUTHORIZE_URL)
+    authorizationUrl.searchParams.set('client_id', Deno.env.get('GOOGLE_OAUTH_CLIENT_ID') ?? '')
+    authorizationUrl.searchParams.set('redirect_uri', redirectUri)
+    authorizationUrl.searchParams.set('response_type', 'code')
+    authorizationUrl.searchParams.set('access_type', 'offline')
+    authorizationUrl.searchParams.set('prompt', 'consent')
+    authorizationUrl.searchParams.set('scope', GOOGLE_SCOPES[provider])
+    authorizationUrl.searchParams.set('state', connection.id)
+  }
 
   return jsonResponse({ authorizationUrl: authorizationUrl.toString(), connectionId: connection.id })
 }
@@ -212,30 +234,72 @@ async function handleCallback(url: URL) {
     return callbackLandingPage(false, `Conexão cancelada ou recusada${oauthError ? `: ${oauthError}` : ''}.`)
   }
 
-  const clientId = Deno.env.get('GOOGLE_OAUTH_CLIENT_ID') ?? ''
-  const clientSecret = Deno.env.get('GOOGLE_OAUTH_CLIENT_SECRET') ?? ''
   const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1${url.pathname}`
 
-  const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      code,
-      grant_type: 'authorization_code',
-      redirect_uri: redirectUri,
-    }),
-  })
-  const tokenBody = await tokenRes.json()
-  if (!tokenRes.ok) {
-    await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connection.id)
-    return callbackLandingPage(false, `Não foi possível conectar: ${tokenBody.error_description ?? tokenBody.error ?? 'erro desconhecido'}.`)
-  }
+  let accessToken: string
+  let refreshToken: string | undefined
+  let expiresIn: number
 
-  const accessToken = tokenBody.access_token as string
-  const refreshToken = tokenBody.refresh_token as string | undefined
-  const expiresIn = (tokenBody.expires_in as number | undefined) ?? 3600
+  if (connection.provider === 'meta_ads') {
+    // Meta: a troca é GET com parâmetros na URL (não POST), e o token
+    // de curta duração (~1-2h) precisa ser trocado por um de longa
+    // duração (60 dias) logo em seguida — não existe "refresh_token"
+    // separado como no Google; renovar significa reexecutar essa
+    // mesma troca antes do token vencer (ver `getValidAccessToken`).
+    const shortTokenUrl = new URL(META_TOKEN_URL)
+    shortTokenUrl.searchParams.set('client_id', Deno.env.get('META_APP_ID') ?? '')
+    shortTokenUrl.searchParams.set('client_secret', Deno.env.get('META_APP_SECRET') ?? '')
+    shortTokenUrl.searchParams.set('redirect_uri', redirectUri)
+    shortTokenUrl.searchParams.set('code', code)
+
+    const shortTokenRes = await fetch(shortTokenUrl.toString())
+    const shortTokenBody = await shortTokenRes.json()
+    if (!shortTokenRes.ok) {
+      await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connection.id)
+      return callbackLandingPage(false, `Não foi possível conectar: ${shortTokenBody.error?.message ?? 'erro desconhecido'}.`)
+    }
+
+    const longTokenUrl = new URL(META_TOKEN_URL)
+    longTokenUrl.searchParams.set('grant_type', 'fb_exchange_token')
+    longTokenUrl.searchParams.set('client_id', Deno.env.get('META_APP_ID') ?? '')
+    longTokenUrl.searchParams.set('client_secret', Deno.env.get('META_APP_SECRET') ?? '')
+    longTokenUrl.searchParams.set('fb_exchange_token', shortTokenBody.access_token)
+
+    const longTokenRes = await fetch(longTokenUrl.toString())
+    const longTokenBody = await longTokenRes.json()
+    if (!longTokenRes.ok) {
+      await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connection.id)
+      return callbackLandingPage(
+        false,
+        `Não foi possível trocar pelo token de longa duração: ${longTokenBody.error?.message ?? 'erro desconhecido'}.`,
+      )
+    }
+
+    accessToken = longTokenBody.access_token as string
+    refreshToken = undefined
+    expiresIn = (longTokenBody.expires_in as number | undefined) ?? 5_184_000 // ~60 dias, padrão do Meta
+  } else {
+    const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: Deno.env.get('GOOGLE_OAUTH_CLIENT_ID') ?? '',
+        client_secret: Deno.env.get('GOOGLE_OAUTH_CLIENT_SECRET') ?? '',
+        code,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri,
+      }),
+    })
+    const tokenBody = await tokenRes.json()
+    if (!tokenRes.ok) {
+      await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connection.id)
+      return callbackLandingPage(false, `Não foi possível conectar: ${tokenBody.error_description ?? tokenBody.error ?? 'erro desconhecido'}.`)
+    }
+
+    accessToken = tokenBody.access_token as string
+    refreshToken = tokenBody.refresh_token as string | undefined
+    expiresIn = (tokenBody.expires_in as number | undefined) ?? 3600
+  }
 
   const { data: accessSecretId, error: accessSecretError } = await supabase.rpc('store_oauth_secret', { secret: accessToken })
   if (accessSecretError) {
@@ -255,9 +319,9 @@ async function handleCallback(url: URL) {
 
   await supabase.from('oauth_tokens').upsert(tokenUpsert, { onConflict: 'connection_id' })
 
-  // Pra Google Ads, descobre qual conta de anúncios essa conta do
-  // Google enxerga, e já grava — não derruba a conexão se isso falhar
-  // (dá pra tentar de novo na primeira sincronização).
+  // Descobre qual conta de anúncios essa conta do Google/Meta enxerga,
+  // e já grava — não derruba a conexão se isso falhar (dá pra tentar
+  // de novo na primeira sincronização).
   if (connection.provider === 'google_ads') {
     try {
       const customersRes = await fetch(
@@ -278,6 +342,19 @@ async function handleCallback(url: URL) {
     } catch {
       // segue sem quebrar a conexão — ver comentário acima
     }
+  } else if (connection.provider === 'meta_ads') {
+    try {
+      const adAccountsRes = await fetch(
+        `https://graph.facebook.com/${META_GRAPH_API_VERSION}/me/adaccounts?fields=id,name&access_token=${encodeURIComponent(accessToken)}`,
+      )
+      const adAccountsBody = await adAccountsRes.json()
+      const firstAccountId = adAccountsBody.data?.[0]?.id as string | undefined
+      if (firstAccountId) {
+        await supabase.from('digital_asset_connections').update({ external_account_id: firstAccountId }).eq('id', connection.id)
+      }
+    } catch {
+      // segue sem quebrar a conexão — ver comentário acima
+    }
   }
 
   await supabase.from('digital_asset_connections').update({ status: 'connected' }).eq('id', connection.id)
@@ -285,7 +362,7 @@ async function handleCallback(url: URL) {
   return callbackLandingPage(true, 'Conectado! Redirecionando...')
 }
 
-async function getValidAccessToken(supabase: SupabaseClient, connectionId: string): Promise<string | null> {
+async function getValidAccessToken(supabase: SupabaseClient, connectionId: string, provider: Provider): Promise<string | null> {
   const { data: tokenRow } = await supabase
     .from('oauth_tokens')
     .select('access_token_secret_id, refresh_token_secret_id, expires_at')
@@ -298,6 +375,39 @@ async function getValidAccessToken(supabase: SupabaseClient, connectionId: strin
   if (!isExpiringSoon) {
     const { data: accessToken } = await supabase.rpc('read_oauth_secret', { secret_id: tokenRow.access_token_secret_id })
     return (accessToken as string | null) ?? null
+  }
+
+  if (provider === 'meta_ads') {
+    // Sem "refresh_token" separado — renova reexecutando a troca por
+    // um token de longa duração novo, usando o token atual (que
+    // ainda precisa estar válido; se já venceu de vez, não tem como
+    // renovar e a conexão precisa ser refeita — marca "error").
+    const { data: currentToken } = await supabase.rpc('read_oauth_secret', { secret_id: tokenRow.access_token_secret_id })
+    if (!currentToken) return null
+
+    const longTokenUrl = new URL(META_TOKEN_URL)
+    longTokenUrl.searchParams.set('grant_type', 'fb_exchange_token')
+    longTokenUrl.searchParams.set('client_id', Deno.env.get('META_APP_ID') ?? '')
+    longTokenUrl.searchParams.set('client_secret', Deno.env.get('META_APP_SECRET') ?? '')
+    longTokenUrl.searchParams.set('fb_exchange_token', currentToken as string)
+
+    const longTokenRes = await fetch(longTokenUrl.toString())
+    const longTokenBody = await longTokenRes.json()
+    if (!longTokenRes.ok) {
+      await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connectionId)
+      return null
+    }
+
+    const { data: newAccessSecretId } = await supabase.rpc('store_oauth_secret', { secret: longTokenBody.access_token })
+    await supabase
+      .from('oauth_tokens')
+      .update({
+        access_token_secret_id: newAccessSecretId,
+        expires_at: new Date(Date.now() + (longTokenBody.expires_in ?? 5_184_000) * 1000).toISOString(),
+      })
+      .eq('connection_id', connectionId)
+
+    return longTokenBody.access_token as string
   }
 
   if (!tokenRow.refresh_token_secret_id) return null
@@ -350,49 +460,83 @@ async function handleSync(req: Request) {
     .maybeSingle()
   if (connectionError) return jsonResponse({ error: connectionError.message }, 500)
   if (!connection) return jsonResponse({ error: 'Conexão não encontrada' }, 404)
-  if (connection.provider !== 'google_ads') {
-    return jsonResponse({ error: 'Sincronização só implementada pra Google Ads nesta sub-fase (6.2)' }, 400)
+  if (connection.provider !== 'google_ads' && connection.provider !== 'meta_ads') {
+    return jsonResponse({ error: 'Sincronização só implementada pra Google Ads e Meta Ads' }, 400)
   }
   if (!connection.project_id || !connection.external_account_id) {
     return jsonResponse({ error: 'Conexão incompleta (falta projeto ou conta de anúncios)' }, 400)
   }
 
-  const accessToken = await getValidAccessToken(supabase, connection.id)
+  const accessToken = await getValidAccessToken(supabase, connection.id, connection.provider)
   if (!accessToken) return jsonResponse({ error: 'Não foi possível obter um token de acesso válido' }, 500)
 
-  const gaqlQuery = `
-    SELECT segments.date, metrics.cost_micros, metrics.clicks, metrics.impressions, metrics.conversions
-    FROM campaign
-    WHERE segments.date DURING LAST_30_DAYS
-  `
-
-  const searchRes = await fetch(
-    `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${connection.external_account_id}/googleAds:search`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'developer-token': Deno.env.get('GOOGLE_ADS_DEVELOPER_TOKEN') ?? '',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ query: gaqlQuery }),
-    },
-  )
-  const searchBody = await searchRes.json()
-  if (!searchRes.ok) {
-    return jsonResponse({ error: searchBody.error?.message ?? 'Erro ao consultar a Google Ads API' }, 502)
-  }
-
   const byDate = new Map<string, { spend: number; clicks: number; impressions: number; conversions: number }>()
-  for (const row of (searchBody.results ?? []) as Array<Record<string, Record<string, unknown>>>) {
-    const date = row.segments?.date as string | undefined
-    if (!date) continue
-    const acc = byDate.get(date) ?? { spend: 0, clicks: 0, impressions: 0, conversions: 0 }
-    acc.spend += Number(row.metrics?.costMicros ?? 0) / 1_000_000
-    acc.clicks += Number(row.metrics?.clicks ?? 0)
-    acc.impressions += Number(row.metrics?.impressions ?? 0)
-    acc.conversions += Number(row.metrics?.conversions ?? 0)
-    byDate.set(date, acc)
+
+  if (connection.provider === 'google_ads') {
+    const gaqlQuery = `
+      SELECT segments.date, metrics.cost_micros, metrics.clicks, metrics.impressions, metrics.conversions
+      FROM campaign
+      WHERE segments.date DURING LAST_30_DAYS
+    `
+
+    const searchRes = await fetch(
+      `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${connection.external_account_id}/googleAds:search`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'developer-token': Deno.env.get('GOOGLE_ADS_DEVELOPER_TOKEN') ?? '',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: gaqlQuery }),
+      },
+    )
+    const searchBody = await searchRes.json()
+    if (!searchRes.ok) {
+      return jsonResponse({ error: searchBody.error?.message ?? 'Erro ao consultar a Google Ads API' }, 502)
+    }
+
+    for (const row of (searchBody.results ?? []) as Array<Record<string, Record<string, unknown>>>) {
+      const date = row.segments?.date as string | undefined
+      if (!date) continue
+      const acc = byDate.get(date) ?? { spend: 0, clicks: 0, impressions: 0, conversions: 0 }
+      acc.spend += Number(row.metrics?.costMicros ?? 0) / 1_000_000
+      acc.clicks += Number(row.metrics?.clicks ?? 0)
+      acc.impressions += Number(row.metrics?.impressions ?? 0)
+      acc.conversions += Number(row.metrics?.conversions ?? 0)
+      byDate.set(date, acc)
+    }
+  } else {
+    // meta_ads — Insights da Graph API, já quebrado por dia
+    // (time_increment=1). "conversions" não existe como número único
+    // no Meta — vem dentro de "actions" (lista de tipo de ação +
+    // valor); somo todos os valores como uma aproximação razoável de
+    // conversões, não uma contagem exata de um tipo específico
+    // (refinável depois, se precisar discriminar por tipo de ação).
+    const insightsUrl = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/${connection.external_account_id}/insights`)
+    insightsUrl.searchParams.set('fields', 'spend,clicks,impressions,actions')
+    insightsUrl.searchParams.set('date_preset', 'last_30d')
+    insightsUrl.searchParams.set('time_increment', '1')
+    insightsUrl.searchParams.set('access_token', accessToken)
+
+    const insightsRes = await fetch(insightsUrl.toString())
+    const insightsBody = await insightsRes.json()
+    if (!insightsRes.ok) {
+      return jsonResponse({ error: insightsBody.error?.message ?? 'Erro ao consultar a Meta Marketing API' }, 502)
+    }
+
+    for (const row of (insightsBody.data ?? []) as Array<Record<string, unknown>>) {
+      const date = row.date_start as string | undefined
+      if (!date) continue
+      const actions = (row.actions ?? []) as Array<{ value?: string }>
+      const conversions = actions.reduce((sum, a) => sum + Number(a.value ?? 0), 0)
+      const acc = byDate.get(date) ?? { spend: 0, clicks: 0, impressions: 0, conversions: 0 }
+      acc.spend += Number(row.spend ?? 0)
+      acc.clicks += Number(row.clicks ?? 0)
+      acc.impressions += Number(row.impressions ?? 0)
+      acc.conversions += conversions
+      byDate.set(date, acc)
+    }
   }
 
   const clientId = (connection.digital_assets as unknown as { client_id: string }).client_id
@@ -404,7 +548,7 @@ async function handleSync(req: Request) {
     clicks: m.clicks,
     impressions: m.impressions,
     conversions: m.conversions,
-    channel: 'google_ads',
+    channel: connection.provider,
   }))
 
   if (rows.length > 0) {
