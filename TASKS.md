@@ -134,10 +134,11 @@
 ## Fase 6 — Integrações com Google Ads, Meta Ads e Google Forms (detalhada no documento `Prompt- Fase 6`)
 
 ### Fase 6.1 — Fundação do backend de integrações
-- [ ] Backend de integrações (Edge Function do Supabase ou serviço Node dedicado)
-- [ ] Armazenamento seguro de tokens (criptografado — nunca em texto puro no banco)
-- [ ] Entidade `MetricSnapshot` (histórico de métricas: project_id, channel, date, spend, clicks, impressions, conversions) — avaliar se estende a `performance_snapshots` já existente (Fase 3) em vez de duplicar, já que a Fase 8 original pedia alimentar as tabelas que o app já lê, sem recriar telas
-- [ ] Estrutura genérica de OAuth (rota que inicia a conexão + rota de callback), reaproveitável por cada integração específica
+- [x] Backend de integrações: Edge Function `integrations` (`supabase/functions/integrations/index.ts`), publicada colando o código no painel do Supabase — mesmo fluxo zero-instalação já usado pra toda migração
+- [x] Armazenamento seguro de tokens: em vez de guardar o valor criptografado direto numa coluna (tentativa inicial com `pgsodium` na mão esbarrou em "permission denied" nas funções de baixo nível), o token vai pro **Supabase Vault** — `oauth_tokens` guarda só o `id` (uuid) do segredo no Vault, nunca o valor; confirmado no Table Editor que a coluna mostra um uuid, não o token em texto
+- [x] `performance_snapshots` estendida com `channel`, `clicks`, `impressions`, `conversions` (em vez de criar a `MetricSnapshot` do documento como tabela nova — decisão confirmada com o usuário) — Performance/Relatórios continuam lendo da mesma tabela de sempre
+- [x] Estrutura genérica de OAuth: rotas `/connect` (gera a URL de autorização, reaproveitando a linha de conexão existente se já houver) e `/callback` (grava o token e marca a conexão como "connected"), reaproveitáveis por qualquer provedor — tabela nova `digital_asset_connections` (uma linha por Ativo Digital conectado a um provedor, só leitura pra admin/gestor)
+- [x] Testado ao vivo via chamadas HTTP direto na função publicada: `/connect` devolve a URL de autorização e cria a conexão (`disconnected`); `/callback` grava o token no Vault e muda o status pra `connected`, confirmado direto no banco; corrigidos dois bugs reais no caminho — a URL de callback vinha fixa no código apontando pro nome errado da função (agora se monta sozinha a partir do path da requisição + `SUPABASE_URL`), e a criptografia via `pgsodium` direto não tinha permissão (trocada pelo Vault)
 
 ### Fase 6.2 — Conexão com Google (Ads e Forms)
 - [ ] Fluxo completo de OAuth com o Google (botão "Conectar" → login/consentimento → callback → troca do código por tokens)
