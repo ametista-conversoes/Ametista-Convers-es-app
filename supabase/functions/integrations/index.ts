@@ -141,6 +141,16 @@ async function handleConnect(req: Request, url: URL) {
     return jsonResponse({ error: 'Informe o id ou o link do formulário' }, 400)
   }
 
+  // Falha aqui dentro, com uma mensagem clara, em vez de mandar a
+  // pessoa pro Google com um link quebrado (o Google recusa um
+  // "client_id" vazio com um erro genérico, sem nem mostrar login).
+  if (!Deno.env.get('GOOGLE_OAUTH_CLIENT_ID')) {
+    return jsonResponse(
+      { error: 'As credenciais do Google ainda não foram configuradas nesta função (falta o segredo GOOGLE_OAUTH_CLIENT_ID).' },
+      400,
+    )
+  }
+
   const supabase = getServiceClient()
 
   const { data: asset, error: assetError } = await supabase
@@ -162,7 +172,6 @@ async function handleConnect(req: Request, url: URL) {
     .single()
   if (connectionError) return jsonResponse({ error: connectionError.message }, 500)
 
-  const clientId = Deno.env.get('GOOGLE_OAUTH_CLIENT_ID') ?? ''
   // Monta a URL de callback a partir do caminho da própria requisição
   // (troca só o final "/connect" por "/callback") combinado com
   // SUPABASE_URL — o "origin" visto de dentro da função é um endereço
@@ -170,16 +179,13 @@ async function handleConnect(req: Request, url: URL) {
   const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1${url.pathname.replace(/\/connect$/, '/callback')}`
 
   const authorizationUrl = new URL(GOOGLE_AUTHORIZE_URL)
-  authorizationUrl.searchParams.set('client_id', clientId)
+  authorizationUrl.searchParams.set('client_id', Deno.env.get('GOOGLE_OAUTH_CLIENT_ID') ?? '')
   authorizationUrl.searchParams.set('redirect_uri', redirectUri)
   authorizationUrl.searchParams.set('response_type', 'code')
   authorizationUrl.searchParams.set('access_type', 'offline')
   authorizationUrl.searchParams.set('prompt', 'consent')
   authorizationUrl.searchParams.set('scope', GOOGLE_SCOPES[provider])
   authorizationUrl.searchParams.set('state', connection.id)
-  if (!clientId) {
-    authorizationUrl.searchParams.set('client_id_pendente', 'configure o segredo GOOGLE_OAUTH_CLIENT_ID')
-  }
 
   return jsonResponse({ authorizationUrl: authorizationUrl.toString(), connectionId: connection.id })
 }
