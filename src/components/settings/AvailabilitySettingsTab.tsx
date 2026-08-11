@@ -73,7 +73,7 @@ export function AvailabilitySettingsTab() {
                             type="button"
                             onClick={() => handleToggle(day.value, slot)}
                             className={cn(
-                              'h-5 w-full rounded border transition-colors',
+                              'mx-auto h-5 w-5 rounded border transition-colors',
                               blocked
                                 ? 'border-destructive/30 bg-destructive/20 hover:bg-destructive/30'
                                 : 'border-[#1A2540] bg-secondary/40 hover:border-purple-600/30',
