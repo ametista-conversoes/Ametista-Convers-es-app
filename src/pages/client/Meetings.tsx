@@ -1,5 +1,5 @@
+import { EmergencyMeetingDialog } from '@/components/meetings/EmergencyMeetingDialog'
 import { MeetingList } from '@/components/meetings/MeetingList'
-import { NewMeetingDialog } from '@/components/meetings/NewMeetingDialog'
 import { useAuth } from '@/contexts/AuthContext'
 import { useUpcomingMeetings } from '@/hooks/useClientPortalData'
 import { useMarkNavSeen } from '@/hooks/useNavSeen'
@@ -28,7 +28,7 @@ export default function Meetings() {
           <p className="text-sm text-muted-foreground">Portal Cliente</p>
           <h1 className="text-2xl font-semibold text-foreground">Reuniões</h1>
         </div>
-        <NewMeetingDialog />
+        <EmergencyMeetingDialog />
       </div>
 
       <MeetingList meetings={meetings ?? []} />

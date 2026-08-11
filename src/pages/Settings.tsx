@@ -1,4 +1,5 @@
 import { AgencySettingsTab } from '@/components/settings/AgencySettingsTab'
+import { AvailabilitySettingsTab } from '@/components/settings/AvailabilitySettingsTab'
 import { ClientSettingsTab } from '@/components/settings/ClientSettingsTab'
 import { GlobalSettingsTab } from '@/components/settings/GlobalSettingsTab'
 import { UserSettingsTab } from '@/components/settings/UserSettingsTab'
@@ -23,6 +24,7 @@ export default function Settings() {
         <TabsList>
           {showGlobal && <TabsTrigger value="global">Globais</TabsTrigger>}
           {showAgency && <TabsTrigger value="agency">Agência</TabsTrigger>}
+          {showAgency && <TabsTrigger value="availability">Disponibilidade</TabsTrigger>}
           <TabsTrigger value="client">Cliente</TabsTrigger>
           <TabsTrigger value="user">Usuário</TabsTrigger>
         </TabsList>
@@ -36,6 +38,12 @@ export default function Settings() {
         {showAgency && (
           <TabsContent value="agency">
             <AgencySettingsTab />
+          </TabsContent>
+        )}
+
+        {showAgency && (
+          <TabsContent value="availability">
+            <AvailabilitySettingsTab />
           </TabsContent>
         )}
 

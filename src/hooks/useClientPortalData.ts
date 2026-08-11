@@ -62,6 +62,8 @@ export interface MeetingRecord {
   meeting_link: string | null
   status: string
   cancellation_reason: string | null
+  is_emergency: boolean
+  created_at: string
 }
 
 export interface SmartGoalRecord {
@@ -381,6 +383,26 @@ export function useCreateMeeting() {
   return useMutation({
     mutationFn: async (input: NewMeetingInput) => {
       const { error } = await supabase.from('meetings').insert({ ...input, client_id: clientId })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meetings', clientId] })
+    },
+  })
+}
+
+/** Pedido de reunião de emergência (Fase 6.5.1) — toda a validação
+ * (plano Dominação, 1x/mês, fora dos horários bloqueados) mora na
+ * função `request_emergency_meeting` do banco, não aqui. */
+export function useRequestEmergencyMeeting() {
+  const { clientId } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ date, meetingLink }: { date: string; meetingLink: string | null }) => {
+      const { error } = await supabase.rpc('request_emergency_meeting', {
+        p_date: date,
+        p_meeting_link: meetingLink,
+      })
       if (error) throw error
     },
     onSuccess: () => {

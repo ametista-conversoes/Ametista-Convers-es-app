@@ -164,6 +164,20 @@
 - [x] Confirmar que não existe mais nenhuma "Fase 8" separada — tudo consolidado nesta Fase 6 (feito no início da Fase 6, ver nota acima)
 - [ ] Pendente: rodar `migration-019-fase64-cron.sql` (com o segredo já preenchido), configurar o segredo `CRON_SECRET` na Edge Function e confirmar no SQL Editor (`select * from cron.job;`) que o job `sync-integrations` ficou agendado — depende só de você rodar/configurar, não de credenciais reais
 
+## Fase 6.5 — ajustes pedidos após a Fase 6 (uma sub-fase de cada vez)
+
+### Fase 6.5.1 — Disponibilidade do gestor + reunião de emergência (plano Dominação)
+- [x] Nova tabela `manager_availability_blocks` (`migration-020-fase65-disponibilidade-reuniao-emergencia.sql`) e aba "Disponibilidade" em Configurações (admin/gestor): grade semanal de horários (mesma lista de 30 em 30 min já usada em Reuniões) onde dá pra marcar indisponibilidade clicando na célula
+- [x] Botão "Agendar reunião" do cliente virou "Reunião de emergência" (renomeado o componente pra refletir isso) — agora restrito ao plano Dominação, 1x por mês, e os horários bloqueados nas Configurações do gestor somem da lista; toda a validação (plano, limite mensal, horário bloqueado) mora numa função do banco (`request_emergency_meeting`), não só na tela, então não dá pra burlar
+- [x] Isso é separado do sistema de reuniões recorrentes automáticas (Fase 5.5) — esse continua funcionando exatamente igual
+- [ ] Pendente: rodar `migration-020-fase65-disponibilidade-reuniao-emergencia.sql` no SQL Editor — só depois disso a aba "Disponibilidade" carrega de verdade e o pedido de reunião de emergência funciona (testado tudo que dava pra testar sem isso: telas carregam, botão aparece desabilitado certinho pra cliente fora do plano Dominação)
+
+### Fase 6.5.2 — Workflows para clientes + prazos por espaçamento de tempo (pendente, detalhar quando chegar a vez)
+### Fase 6.5.3 — Nova aba "Tarefas do Cliente" no Portal Gestor (pendente, detalhar quando chegar a vez)
+### Fase 6.5.4 — Restringir edição dos dados da agência ao admin (pendente, detalhar quando chegar a vez)
+### Fase 6.5.5 — Comentários do cliente em duas colunas (pendente, detalhar quando chegar a vez)
+### Fase 6.5.6 — Mesclar Incidentes e Alertas numa aba só (pendente, detalhar quando chegar a vez)
+
 ## Fase 7 — C.A.S.S.I.E. (IA) e testes finais (provisório, detalhar quando chegar a vez)
 - [ ] Funcionalidades da assistente Cassie (IA) e automações que dependerem dela
 - [ ] Testes automatizados (Vitest + Playwright)
