@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 
 export interface AvailabilityBlockRecord {
@@ -41,6 +42,13 @@ export function useToggleAvailabilityBlock() {
       }
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-availability-blocks'] })
+    },
+    onError: () => {
+      // A grade dispara vários toggles seguidos durante um arrasto
+      // (ver AvailabilitySettingsTab.tsx), sem aguardar cada um — por
+      // isso o aviso de erro mora aqui, não em quem chama.
+      toast.error('Não foi possível salvar uma das mudanças de disponibilidade.')
       queryClient.invalidateQueries({ queryKey: ['manager-availability-blocks'] })
     },
   })

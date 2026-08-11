@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { CalendarClock } from 'lucide-react'
 import { TIME_SLOTS } from '@/components/meetings/TimeSlotSelect'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,23 +15,65 @@ const WEEKDAYS = [
   { value: 0, label: 'Domingo' },
 ]
 
+function slotKey(weekday: number, timeSlot: string) {
+  return `${weekday}-${timeSlot}`
+}
+
 /** Grade semanal de disponibilidade (Fase 6.5.1) — os horários
  * marcados como indisponíveis aqui bloqueiam o cliente Dominação de
  * escolhê-los ao pedir uma reunião de emergência (ver
- * request_emergency_meeting no banco e EmergencyMeetingDialog.tsx). */
+ * request_emergency_meeting no banco e EmergencyMeetingDialog.tsx).
+ *
+ * Dá pra clicar numa célula só ou clicar e arrastar (segurando o
+ * botão esquerdo) pra pintar várias de uma vez — o primeiro clique
+ * decide o "sentido" do arrasto (bloquear ou liberar) e as próximas
+ * células que o mouse passar por cima seguem o mesmo sentido. As
+ * mudanças da sessão de arrasto ficam guardadas localmente
+ * (`pendingOverrides`) pra refletir na hora, sem esperar cada
+ * confirmação do servidor enquanto o mouse ainda está se movendo.
+ */
 export function AvailabilitySettingsTab() {
   const { data: blocks, isLoading } = useAvailabilityBlocks()
   const toggleBlock = useToggleAvailabilityBlock()
 
-  const blockedSet = new Set((blocks ?? []).map((b) => `${b.weekday}-${b.time_slot}`))
+  const [pendingOverrides, setPendingOverrides] = useState<Map<string, boolean>>(new Map())
+  const dragTargetRef = useRef<boolean | null>(null)
+
+  const blockedSet = new Set((blocks ?? []).map((b) => slotKey(b.weekday, b.time_slot)))
 
   function isBlocked(weekday: number, timeSlot: string) {
-    return blockedSet.has(`${weekday}-${timeSlot}`)
+    const key = slotKey(weekday, timeSlot)
+    return pendingOverrides.has(key) ? (pendingOverrides.get(key) as boolean) : blockedSet.has(key)
   }
 
-  function handleToggle(weekday: number, timeSlot: string) {
-    toggleBlock.mutate({ weekday, timeSlot, blocked: !isBlocked(weekday, timeSlot) })
+  function paint(weekday: number, timeSlot: string, blocked: boolean) {
+    setPendingOverrides((prev) => new Map(prev).set(slotKey(weekday, timeSlot), blocked))
+    toggleBlock.mutate({ weekday, timeSlot, blocked })
   }
+
+  function handleMouseDown(weekday: number, timeSlot: string) {
+    const target = !isBlocked(weekday, timeSlot)
+    dragTargetRef.current = target
+    paint(weekday, timeSlot, target)
+  }
+
+  function handleMouseEnter(weekday: number, timeSlot: string) {
+    const target = dragTargetRef.current
+    if (target === null) return
+    if (isBlocked(weekday, timeSlot) !== target) {
+      paint(weekday, timeSlot, target)
+    }
+  }
+
+  useEffect(() => {
+    function handleMouseUp() {
+      if (dragTargetRef.current === null) return
+      dragTargetRef.current = null
+      setPendingOverrides(new Map())
+    }
+    window.addEventListener('mouseup', handleMouseUp)
+    return () => window.removeEventListener('mouseup', handleMouseUp)
+  }, [])
 
   return (
     <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
@@ -42,15 +85,15 @@ export function AvailabilitySettingsTab() {
       </CardHeader>
       <CardContent className="space-y-3 p-0 pt-4">
         <p className="text-sm text-muted-foreground">
-          Clique nos horários em que você não está disponível. Eles ficam bloqueados pra clientes do plano Dominação
-          na hora de pedir uma reunião de emergência.
+          Clique num horário em que você não está disponível, ou clique e arraste pra marcar vários de uma vez. Eles
+          ficam bloqueados pra clientes do plano Dominação na hora de pedir uma reunião de emergência.
         </p>
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Carregando...</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] border-collapse text-xs">
+            <table className="w-full min-w-[640px] select-none border-collapse text-xs">
               <thead>
                 <tr>
                   <th className="p-1 text-left font-normal text-muted-foreground">Horário</th>
@@ -71,9 +114,13 @@ export function AvailabilitySettingsTab() {
                         <td key={day.value} className="p-1 text-center">
                           <button
                             type="button"
-                            onClick={() => handleToggle(day.value, slot)}
+                            onMouseDown={(e) => {
+                              e.preventDefault()
+                              handleMouseDown(day.value, slot)
+                            }}
+                            onMouseEnter={() => handleMouseEnter(day.value, slot)}
                             className={cn(
-                              'mx-auto h-5 w-5 rounded border transition-colors',
+                              'h-5 w-full rounded border transition-colors',
                               blocked
                                 ? 'border-destructive/30 bg-destructive/20 hover:bg-destructive/30'
                                 : 'border-[#1A2540] bg-secondary/40 hover:border-purple-600/30',
