@@ -63,7 +63,8 @@ export function ApplyWorkflowDialog({ template }: ApplyWorkflowDialogProps) {
         <DialogHeader>
           <DialogTitle>Aplicar "{template.name}"</DialogTitle>
           <DialogDescription>
-            Cria {template.steps.length} tarefas em Backlog, uma para cada etapa do modelo, no projeto escolhido.
+            Cria {template.steps.length} tarefas em Backlog, uma para cada etapa do modelo, no projeto escolhido — o
+            prazo de cada uma (quando o modelo tiver) já nasce calculado a partir de hoje.
           </DialogDescription>
         </DialogHeader>
 

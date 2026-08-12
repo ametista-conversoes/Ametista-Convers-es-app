@@ -2,19 +2,19 @@ import { ListChecks, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
-import type { WorkflowTemplateRecord } from '@/hooks/useManagerPortalData'
-import { useDeleteWorkflowTemplate } from '@/hooks/useManagerPortalData'
-import { ApplyWorkflowDialog } from './ApplyWorkflowDialog'
-import { WorkflowTemplateFormDialog } from './WorkflowTemplateFormDialog'
+import type { ClientWorkflowTemplateRecord } from '@/hooks/useManagerPortalData'
+import { useDeleteClientWorkflowTemplate } from '@/hooks/useManagerPortalData'
+import { ApplyClientWorkflowDialog } from './ApplyClientWorkflowDialog'
+import { ClientWorkflowTemplateFormDialog } from './ClientWorkflowTemplateFormDialog'
 
-interface WorkflowCardProps {
-  template: WorkflowTemplateRecord
+interface ClientWorkflowCardProps {
+  template: ClientWorkflowTemplateRecord
   deleteMode?: boolean
   canEdit?: boolean
 }
 
-export function WorkflowCard({ template, deleteMode, canEdit }: WorkflowCardProps) {
-  const deleteTemplate = useDeleteWorkflowTemplate()
+export function ClientWorkflowCard({ template, deleteMode, canEdit }: ClientWorkflowCardProps) {
+  const deleteTemplate = useDeleteClientWorkflowTemplate()
 
   return (
     <Card className="flex flex-col rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
@@ -26,7 +26,7 @@ export function WorkflowCard({ template, deleteMode, canEdit }: WorkflowCardProp
           </span>
           <span className="flex items-center gap-1">
             {canEdit && (
-              <WorkflowTemplateFormDialog
+              <ClientWorkflowTemplateFormDialog
                 template={template}
                 trigger={
                   <Button type="button" variant="ghost" size="icon" aria-label={`Editar ${template.name}`}>
@@ -56,7 +56,7 @@ export function WorkflowCard({ template, deleteMode, canEdit }: WorkflowCardProp
           ))}
         </ul>
         <div className="mt-auto pt-2">
-          <ApplyWorkflowDialog template={template} />
+          <ApplyClientWorkflowDialog template={template} />
         </div>
       </CardContent>
     </Card>

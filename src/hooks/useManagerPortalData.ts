@@ -441,6 +441,10 @@ export function useApplyWorkflow() {
 export interface WorkflowTemplateStep {
   title: string
   category: string
+  /** Prazo em dias — quando aplicado, a tarefa nasce com due_date =
+   * hoje + esse número (calculado no banco, ver apply_workflow /
+   * apply_client_workflow). Sem valor, a tarefa não ganha prazo. */
+  due_days?: number | null
 }
 
 export interface WorkflowTemplateRecord {
@@ -505,6 +509,92 @@ export function useUpdateWorkflowTemplate() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflow-templates'] })
+    },
+  })
+}
+
+// Workflows do Cliente (Fase 6.5.2) — mesmo modelo de workflow_templates,
+// mas aplicado direto a um ou mais clientes (sem projeto), via
+// apply_client_workflow.
+export interface ClientWorkflowTemplateRecord {
+  id: string
+  name: string
+  description: string | null
+  steps: WorkflowTemplateStep[]
+}
+
+export function useClientWorkflowTemplates() {
+  return useQuery({
+    queryKey: ['client-workflow-templates'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('client_workflow_templates')
+        .select('id, name, description, steps')
+        .order('name', { ascending: true })
+      if (error) throw error
+      return data as unknown as ClientWorkflowTemplateRecord[]
+    },
+  })
+}
+
+export interface NewClientWorkflowTemplateInput {
+  name: string
+  description: string | null
+  steps: WorkflowTemplateStep[]
+}
+
+export function useCreateClientWorkflowTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: NewClientWorkflowTemplateInput) => {
+      const { error } = await supabase.from('client_workflow_templates').insert(input)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['client-workflow-templates'] })
+    },
+  })
+}
+
+export function useUpdateClientWorkflowTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...input }: NewClientWorkflowTemplateInput & { id: string }) => {
+      const { error } = await supabase.from('client_workflow_templates').update(input).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['client-workflow-templates'] })
+    },
+  })
+}
+
+export function useDeleteClientWorkflowTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (templateId: string) => {
+      const { error } = await supabase.from('client_workflow_templates').delete().eq('id', templateId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['client-workflow-templates'] })
+    },
+  })
+}
+
+export function useApplyClientWorkflow() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ clientIds, templateId }: { clientIds: string[]; templateId: string }) => {
+      const { error } = await supabase.rpc('apply_client_workflow', {
+        p_client_ids: clientIds,
+        p_template_id: templateId,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
     },
   })
 }

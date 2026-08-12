@@ -172,7 +172,11 @@
 - [x] Isso é separado do sistema de reuniões recorrentes automáticas (Fase 5.5) — esse continua funcionando exatamente igual
 - [ ] Pendente: rodar `migration-020-fase65-disponibilidade-reuniao-emergencia.sql` no SQL Editor — só depois disso a aba "Disponibilidade" carrega de verdade e o pedido de reunião de emergência funciona (testado tudo que dava pra testar sem isso: telas carregam, botão aparece desabilitado certinho pra cliente fora do plano Dominação)
 
-### Fase 6.5.2 — Workflows para clientes + prazos por espaçamento de tempo (pendente, detalhar quando chegar a vez)
+### Fase 6.5.2 — Workflows para clientes + prazos por espaçamento de tempo
+- [x] `apply_workflow` (já existia desde a Fase 5) passa a aceitar um `due_days` opcional em cada etapa do modelo — ao aplicar, o prazo da tarefa é calculado sozinho (hoje + os dias, no fuso da agência), sem precisar digitar prazo manual em nenhuma tarefa
+- [x] Nova aba "Workflows do Cliente" dentro da página Workflows (mesma página, duas abas — "Operacional" e "Workflows do Cliente"): nova tabela `client_workflow_templates` e função `apply_client_workflow`, que aplica um modelo a um ou mais clientes escolhidos de uma vez (sem passar por projeto) — as tarefas nascem com o `client_id` certo e já aparecem na aba "Tarefas" de cada cliente
+- [x] Mesma regra de acesso das duas abas: admin cria/edita/apaga modelos; admin e gestor conseguem ver e aplicar (testado com os dois papéis)
+- [ ] Pendente: rodar `migration-021-fase652-workflows-cliente-prazos.sql` — só depois disso a aba "Workflows do Cliente" carrega de verdade e o cálculo de prazo passa a valer (testado tudo que dava pra testar sem isso: os dois formulários com o campo de prazo, permissões por papel, aba Operacional continuando igual)
 ### Fase 6.5.3 — Nova aba "Tarefas do Cliente" no Portal Gestor (pendente, detalhar quando chegar a vez)
 ### Fase 6.5.4 — Restringir edição dos dados da agência ao admin (pendente, detalhar quando chegar a vez)
 ### Fase 6.5.5 — Comentários do cliente em duas colunas (pendente, detalhar quando chegar a vez)

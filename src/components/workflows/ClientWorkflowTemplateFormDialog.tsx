@@ -20,8 +20,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import type { WorkflowTemplateRecord } from '@/hooks/useManagerPortalData'
-import { useCreateWorkflowTemplate, useUpdateWorkflowTemplate } from '@/hooks/useManagerPortalData'
+import type { ClientWorkflowTemplateRecord } from '@/hooks/useManagerPortalData'
+import { useCreateClientWorkflowTemplate, useUpdateClientWorkflowTemplate } from '@/hooks/useManagerPortalData'
 
 const templateFormSchema = z.object({
   name: z.string().min(2, 'Digite um nome'),
@@ -31,8 +31,6 @@ const templateFormSchema = z.object({
       z.object({
         title: z.string().min(1, 'Digite o título da etapa'),
         category: z.string().min(1, 'Digite a categoria'),
-        // Texto, não número, pra aceitar vazio (etapa sem prazo) sem
-        // luta com o tipo — convertido pra número (ou null) no submit.
         due_days: z
           .string()
           .optional()
@@ -92,7 +90,7 @@ function SortableStepRow({ id, index, control, onRemove, disableRemove }: Sortab
           render={({ field }) => (
             <FormItem>
               <FormControl>
-                <Input placeholder="Categoria (ex: Técnico, Planejamento)" {...field} />
+                <Input placeholder="Categoria (ex: Onboarding, Financeiro)" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -125,20 +123,20 @@ function SortableStepRow({ id, index, control, onRemove, disableRemove }: Sortab
   )
 }
 
-interface WorkflowTemplateFormDialogProps {
+interface ClientWorkflowTemplateFormDialogProps {
   trigger: ReactNode
-  template?: WorkflowTemplateRecord
+  template?: ClientWorkflowTemplateRecord
 }
 
-/** Diálogo de criar OU editar um modelo de workflow — sem `template`
- * cria um novo; com `template`, edita o existente (admin-only, a
- * política do banco já garante isso). As etapas podem ser reordenadas
- * arrastando (`@dnd-kit/sortable`), usando o `move()` que o próprio
- * `useFieldArray` do react-hook-form já oferece. */
-export function WorkflowTemplateFormDialog({ trigger, template }: WorkflowTemplateFormDialogProps) {
+/** Diálogo de criar OU editar um modelo de "Workflows do Cliente"
+ * (Fase 6.5.2) — mesmo padrão de `WorkflowTemplateFormDialog.tsx`
+ * (etapas arrastáveis com prazo em dias), só que os modelos daqui são
+ * aplicados direto a clientes (ver `ApplyClientWorkflowDialog.tsx`),
+ * sem passar por um projeto. Admin-only, a política do banco garante. */
+export function ClientWorkflowTemplateFormDialog({ trigger, template }: ClientWorkflowTemplateFormDialogProps) {
   const [open, setOpen] = useState(false)
-  const createTemplate = useCreateWorkflowTemplate()
-  const updateTemplate = useUpdateWorkflowTemplate()
+  const createTemplate = useCreateClientWorkflowTemplate()
+  const updateTemplate = useUpdateClientWorkflowTemplate()
   const isEdit = !!template
 
   const form = useForm<TemplateFormValues>({
@@ -190,10 +188,10 @@ export function WorkflowTemplateFormDialog({ trigger, template }: WorkflowTempla
     try {
       if (template) {
         await updateTemplate.mutateAsync({ id: template.id, ...input })
-        toast.success('Modelo de workflow atualizado.')
+        toast.success('Modelo de workflow do cliente atualizado.')
       } else {
         await createTemplate.mutateAsync(input)
-        toast.success('Modelo de workflow criado.')
+        toast.success('Modelo de workflow do cliente criado.')
       }
       setOpen(false)
     } catch {
@@ -206,7 +204,7 @@ export function WorkflowTemplateFormDialog({ trigger, template }: WorkflowTempla
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Editar modelo de workflow' : 'Novo modelo de workflow'}</DialogTitle>
+          <DialogTitle>{isEdit ? 'Editar modelo de workflow do cliente' : 'Novo modelo de workflow do cliente'}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -217,7 +215,7 @@ export function WorkflowTemplateFormDialog({ trigger, template }: WorkflowTempla
                 <FormItem>
                   <FormLabel>Nome</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ex: Renovação de contrato" {...field} />
+                    <Input placeholder="Ex: Checklist de onboarding" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
