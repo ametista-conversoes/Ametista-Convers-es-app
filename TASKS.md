@@ -182,7 +182,10 @@
 - [x] Nova aba `/client-tasks` no menu do Portal Gestor: filtro por cliente (ou "Todos"), busca por título, botão "Nova tarefa" e lista de tarefas — tudo reaproveitando hooks e o formulário que já existiam (`useAllTasks`, `useCreateManagerTask`/`useUpdateManagerTask`/`useDeleteManagerTask`/`useUpdateTaskStatus`, `KanbanTaskFormDialog`), sem nenhuma migração nova
 - [x] Cada linha de tarefa mostra prioridade, status (clicável, com menu pra trocar), prazo, e fica acinzentada quando atrasada — mesma regra visual que o Kanban já usa (`opacity-60 grayscale-[0.5]` quando o prazo passou e a tarefa não está concluída)
 - [x] Testado ao vivo: criar, editar, trocar status e filtrar por cliente — tudo refletindo na mesma tabela que o Kanban usa (é a mesma tarefa, só outra tela pra ver/mexer)
-### Fase 6.5.4 — Restringir edição dos dados da agência ao admin (pendente, detalhar quando chegar a vez)
+### Fase 6.5.4 — Restringir edição dos dados da agência ao admin
+- [x] Aba "Agência" em Configurações: gestor continua vendo os dados, mas o formulário fica todo desabilitado (sem botão "Salvar"), com um aviso explicando por quê — testado ao vivo com os dois papéis
+- [x] RLS reforçada em `organizations` (`migration-022-fase654-agencia-admin.sql`): admin cria/edita, gestor só lê — mesma dupla de políticas já usada em `workflow_templates`, então mesmo que alguém tente editar direto sem passar pela tela, o banco recusa
+- [ ] Pendente: rodar `migration-022-fase654-agencia-admin.sql` — a tela já bloqueia a edição pro gestor independente disso, mas a proteção no banco só vale depois de rodar
 ### Fase 6.5.5 — Comentários do cliente em duas colunas (pendente, detalhar quando chegar a vez)
 ### Fase 6.5.6 — Mesclar Incidentes e Alertas numa aba só (pendente, detalhar quando chegar a vez)
 

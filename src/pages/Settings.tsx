@@ -37,7 +37,7 @@ export default function Settings() {
 
         {showAgency && (
           <TabsContent value="agency">
-            <AgencySettingsTab />
+            <AgencySettingsTab canEdit={role === 'admin'} />
           </TabsContent>
         )}
 

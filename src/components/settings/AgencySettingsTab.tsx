@@ -18,7 +18,14 @@ const agencySettingsSchema = z.object({
 
 type AgencySettingsValues = z.infer<typeof agencySettingsSchema>
 
-export function AgencySettingsTab() {
+interface AgencySettingsTabProps {
+  /** Fase 6.5.4 — só admin edita; gestor continua vendo os dados,
+   * mas com o formulário todo desabilitado (mesma regra já usada em
+   * Workflows: gestor vê, só não edita). */
+  canEdit: boolean
+}
+
+export function AgencySettingsTab({ canEdit }: AgencySettingsTabProps) {
   const { data: organization, isLoading } = useOrganization()
   const updateOrganization = useUpdateOrganization()
 
@@ -70,7 +77,12 @@ export function AgencySettingsTab() {
           Dados da agência
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-0 pt-4">
+      <CardContent className="space-y-4 p-0 pt-4">
+        {!canEdit && (
+          <p className="text-xs text-muted-foreground">
+            Só o admin pode editar os dados da agência — você pode conferir os valores atuais aqui.
+          </p>
+        )}
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
@@ -80,7 +92,7 @@ export function AgencySettingsTab() {
                 <FormItem>
                   <FormLabel>Nome</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} disabled={!canEdit} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -94,7 +106,7 @@ export function AgencySettingsTab() {
                 <FormItem>
                   <FormLabel>Plano (opcional)</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} disabled={!canEdit} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -108,7 +120,7 @@ export function AgencySettingsTab() {
                 <FormItem>
                   <FormLabel>Status (opcional)</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} disabled={!canEdit} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -122,16 +134,18 @@ export function AgencySettingsTab() {
                 <FormItem>
                   <FormLabel>Domínio (opcional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="exemplo.com" {...field} />
+                    <Input placeholder="exemplo.com" {...field} disabled={!canEdit} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? 'Salvando...' : 'Salvar'}
-            </Button>
+            {canEdit && (
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? 'Salvando...' : 'Salvar'}
+              </Button>
+            )}
           </form>
         </Form>
       </CardContent>
