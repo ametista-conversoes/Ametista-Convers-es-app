@@ -186,7 +186,9 @@
 - [x] Aba "Agência" em Configurações: gestor continua vendo os dados, mas o formulário fica todo desabilitado (sem botão "Salvar"), com um aviso explicando por quê — testado ao vivo com os dois papéis
 - [x] RLS reforçada em `organizations` (`migration-022-fase654-agencia-admin.sql`): admin cria/edita, gestor só lê — mesma dupla de políticas já usada em `workflow_templates`, então mesmo que alguém tente editar direto sem passar pela tela, o banco recusa
 - [ ] Pendente: rodar `migration-022-fase654-agencia-admin.sql` — a tela já bloqueia a edição pro gestor independente disso, mas a proteção no banco só vale depois de rodar
-### Fase 6.5.5 — Comentários do cliente em duas colunas (pendente, detalhar quando chegar a vez)
+### Fase 6.5.5 — Comentários do cliente em duas colunas
+- [x] Portal Cliente > Comentários agora usa o mesmo `ChatThread` (duas colunas, tipo WhatsApp — mensagem própria de um lado, da agência do outro) que o Portal Gestor já usava — os dois lados tinham exatamente o mesmo formato de dado, então foi só trocar o componente de exibição; `CommentFeed.tsx` (formato antigo, em lista única) ficou sem uso em nenhum lugar e foi removido
+- [x] Testado ao vivo com um cliente de teste que já tinha comentário + resposta — layout batendo certinho com o do gestor
 ### Fase 6.5.6 — Mesclar Incidentes e Alertas numa aba só (pendente, detalhar quando chegar a vez)
 
 ## Fase 7 — C.A.S.S.I.E. (IA) e testes finais (provisório, detalhar quando chegar a vez)

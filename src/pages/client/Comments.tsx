@@ -1,4 +1,4 @@
-import { CommentFeed } from '@/components/comments/CommentFeed'
+import { ChatThread } from '@/components/comments/ChatThread'
 import { CommentGuidelines } from '@/components/comments/CommentGuidelines'
 import { NewCommentForm } from '@/components/comments/NewCommentForm'
 import { useAuth } from '@/contexts/AuthContext'
@@ -32,8 +32,8 @@ export default function Comments() {
         <CommentGuidelines />
       </div>
 
+      <ChatThread comments={comments ?? []} />
       <NewCommentForm />
-      <CommentFeed comments={comments ?? []} />
     </div>
   )
 }
