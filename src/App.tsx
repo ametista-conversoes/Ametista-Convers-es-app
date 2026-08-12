@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { RoleRoute } from '@/components/auth/RoleRoute'
 import { AppLayout } from '@/components/layout/AppLayout'
@@ -18,7 +18,6 @@ import Reports from '@/pages/client/Reports'
 import Tasks from '@/pages/client/Tasks'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import Settings from '@/pages/Settings'
-import Alerts from '@/pages/admin/Alerts'
 import Assets from '@/pages/admin/Assets'
 import ClientComments from '@/pages/admin/ClientComments'
 import ClientDetail from '@/pages/admin/ClientDetail'
@@ -59,7 +58,6 @@ const managerPagesReady: Record<string, ComponentType> = {
   '/client-tasks': ManagerClientTasks,
   '/workflows': Workflows,
   '/incidents': Incidents,
-  '/alerts': Alerts,
   '/timeline': Timeline,
   '/assets': Assets,
   '/integrations': Integrations,
@@ -104,6 +102,10 @@ function App() {
             })}
             {/* "/status" mostra o mesmo conteúdo de "/incidents" (sem item próprio no menu) */}
             <Route path="/status" element={<Incidents />} />
+            {/* "/alerts" existia separado antes da Fase 6.5.6 (Incidentes e
+                Alertas viraram uma aba só) — mantido como redirecionamento
+                pra quem tiver o link antigo salvo. */}
+            <Route path="/alerts" element={<Navigate to="/incidents" replace />} />
             {/* Central de Informações do Cliente — acessada clicando num card em "/clients" */}
             <Route path="/clients/:id" element={<ClientDetail />} />
           </Route>

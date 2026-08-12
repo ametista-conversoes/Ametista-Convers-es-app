@@ -16,6 +16,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { useAllClients, useCreateIncident } from '@/hooks/useManagerPortalData'
 import { severityLabels } from '@/lib/status-styles'
 
@@ -24,6 +25,7 @@ const newIncidentSchema = z.object({
   clientId: z.string().min(1, 'Escolha um cliente'),
   severity: z.enum(['low', 'medium', 'high', 'critical']),
   category: z.string().optional(),
+  description: z.string().optional(),
 })
 
 type NewIncidentValues = z.infer<typeof newIncidentSchema>
@@ -35,7 +37,7 @@ export function NewIncidentDialog() {
 
   const form = useForm<NewIncidentValues>({
     resolver: zodResolver(newIncidentSchema),
-    defaultValues: { title: '', clientId: '', severity: 'medium', category: '' },
+    defaultValues: { title: '', clientId: '', severity: 'medium', category: '', description: '' },
   })
 
   function handleOpenChange(next: boolean) {
@@ -50,6 +52,7 @@ export function NewIncidentDialog() {
         client_id: values.clientId,
         severity: values.severity,
         category: values.category?.trim() ? values.category.trim() : null,
+        description: values.description?.trim() ? values.description.trim() : null,
       })
       form.reset()
       setOpen(false)
@@ -63,12 +66,12 @@ export function NewIncidentDialog() {
       <DialogTrigger asChild>
         <Button>
           <Plus className="h-4 w-4" />
-          Novo incidente
+          Novo
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Novo incidente</DialogTitle>
+          <DialogTitle>Novo item</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -150,9 +153,23 @@ export function NewIncidentDialog() {
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descrição (opcional)</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Detalhes do que está acontecendo..." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Criando...' : 'Criar incidente'}
+                {form.formState.isSubmitting ? 'Criando...' : 'Criar'}
               </Button>
             </DialogFooter>
           </form>

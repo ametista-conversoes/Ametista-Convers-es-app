@@ -25,6 +25,7 @@ export interface ManagerIncidentRecord {
   severity: string
   status: string
   category: string | null
+  description: string | null
   resolution: string | null
   created_at: string
   client: { name: string } | null
@@ -174,6 +175,7 @@ export interface NewIncidentInput {
   client_id: string
   severity: string
   category: string | null
+  description: string | null
 }
 
 export function useCreateIncident() {
@@ -233,28 +235,6 @@ export function useAllAlerts() {
       return (data as unknown as ManagerAlertRecord[]).sort(
         (a, b) => severityRank[b.severity] - severityRank[a.severity],
       )
-    },
-  })
-}
-
-export interface NewAlertInput {
-  title: string
-  message: string | null
-  client_id: string
-  severity: string
-  category: string | null
-}
-
-export function useCreateAlert() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (input: NewAlertInput) => {
-      const { error } = await supabase.from('alerts').insert(input)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['manager-alerts'] })
-      queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
     },
   })
 }
@@ -1186,8 +1166,7 @@ export function useManagerNavActivity(enabled = true) {
         '/client-comments': comments,
         '/client-meetings': meetings,
         '/client-files': latestOf(fileItems, approvals),
-        '/alerts': alerts,
-        '/incidents': incidents,
+        '/incidents': latestOf(alerts, incidents),
         '/kanban': tasks,
         '/smart-goals': smartGoals,
       } as Record<string, string | null>

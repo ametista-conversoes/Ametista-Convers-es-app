@@ -1,17 +1,18 @@
 import { useState } from 'react'
-import { IncidentList } from '@/components/incidents/IncidentList'
+import { IncidentAlertList } from '@/components/incidents/IncidentAlertList'
 import { NewIncidentDialog } from '@/components/incidents/NewIncidentDialog'
 import { SeverityCounts } from '@/components/incidents/SeverityCounts'
 import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
-import { useAllIncidents } from '@/hooks/useManagerPortalData'
+import { useAllAlerts, useAllIncidents } from '@/hooks/useManagerPortalData'
 import { useMarkNavSeen } from '@/hooks/useNavSeen'
 
 export default function Incidents() {
   useMarkNavSeen('/incidents')
-  const { data: incidents, isLoading } = useAllIncidents()
+  const { data: incidents, isLoading: isLoadingIncidents } = useAllIncidents()
+  const { data: alerts, isLoading: isLoadingAlerts } = useAllAlerts()
   const [deleteMode, setDeleteMode] = useState(false)
 
-  if (isLoading) {
+  if (isLoadingIncidents || isLoadingAlerts) {
     return <p className="text-sm text-muted-foreground">Carregando...</p>
   }
 
@@ -21,15 +22,15 @@ export default function Incidents() {
         <div className="flex items-center gap-2">
           <div>
             <p className="text-sm text-muted-foreground">Portal Gestor</p>
-            <h1 className="text-2xl font-semibold text-foreground">Incidentes</h1>
+            <h1 className="text-2xl font-semibold text-foreground">Incidentes e Alertas</h1>
           </div>
           <DeleteModeToggle active={deleteMode} onToggle={() => setDeleteMode((v) => !v)} />
         </div>
         <NewIncidentDialog />
       </div>
 
-      <SeverityCounts incidents={incidents ?? []} />
-      <IncidentList incidents={incidents ?? []} deleteMode={deleteMode} />
+      <SeverityCounts incidents={incidents ?? []} alerts={alerts ?? []} />
+      <IncidentAlertList incidents={incidents ?? []} alerts={alerts ?? []} deleteMode={deleteMode} />
     </div>
   )
 }

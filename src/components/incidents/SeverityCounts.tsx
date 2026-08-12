@@ -1,9 +1,10 @@
 import { Card } from '@/components/ui/card'
-import type { ManagerIncidentRecord } from '@/hooks/useManagerPortalData'
+import type { ManagerAlertRecord, ManagerIncidentRecord } from '@/hooks/useManagerPortalData'
 import { severityLabels } from '@/lib/status-styles'
 
 interface SeverityCountsProps {
   incidents: ManagerIncidentRecord[]
+  alerts: ManagerAlertRecord[]
 }
 
 const SEVERITIES = ['low', 'medium', 'high', 'critical'] as const
@@ -15,8 +16,14 @@ const DOT_COLOR: Record<string, string> = {
   critical: 'bg-destructive',
 }
 
-export function SeverityCounts({ incidents }: SeverityCountsProps) {
-  const open = incidents.filter((i) => i.status !== 'resolved' && i.status !== 'closed')
+/** Conta severidade só do que ainda está aberto — incidente (status
+ * diferente de resolvido/fechado) ou alerta (`resolved === false`),
+ * juntos (Fase 6.5.6). */
+export function SeverityCounts({ incidents, alerts }: SeverityCountsProps) {
+  const open = [
+    ...incidents.filter((i) => i.status !== 'resolved' && i.status !== 'closed'),
+    ...alerts.filter((a) => !a.resolved),
+  ]
 
   return (
     <div className="content-grid-container">

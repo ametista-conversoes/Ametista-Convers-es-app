@@ -189,7 +189,14 @@
 ### Fase 6.5.5 — Comentários do cliente em duas colunas
 - [x] Portal Cliente > Comentários agora usa o mesmo `ChatThread` (duas colunas, tipo WhatsApp — mensagem própria de um lado, da agência do outro) que o Portal Gestor já usava — os dois lados tinham exatamente o mesmo formato de dado, então foi só trocar o componente de exibição; `CommentFeed.tsx` (formato antigo, em lista única) ficou sem uso em nenhum lugar e foi removido
 - [x] Testado ao vivo com um cliente de teste que já tinha comentário + resposta — layout batendo certinho com o do gestor
-### Fase 6.5.6 — Mesclar Incidentes e Alertas numa aba só (pendente, detalhar quando chegar a vez)
+### Fase 6.5.6 — Mesclar Incidentes e Alertas numa aba só
+- [x] "Incidentes" e "Alertas" viram uma aba só, "Incidentes e Alertas" (`/incidents`) — mescla só na tela: os bancos `incidents`/`alerts` continuam existindo como estavam (zero risco, e o webhook do Google Forms continua criando alerta automático normalmente); a lista unificada (`IncidentAlertList.tsx`) mostra os dois juntos, ordenados por severidade, cada um resolvido pelo fluxo que já tinha (incidente pede texto de resolução; alerta só marca resolvido)
+- [x] Criação de item novo virou um formulário só, sem perguntar "Incidente ou Alerta?" — título, cliente, severidade, categoria e descrição (nova coluna `incidents.description`); todo item novo nasce como incidente (é o formato cujo status já bate com "aberto/em andamento/resolvido")
+- [x] Menu lateral: item "Alertas" removido, "Incidentes" renomeado pra "Incidentes e Alertas"; link antigo `/alerts` redireciona pra `/incidents`; `/status` continua mostrando a mesma tela
+- [x] Testado ao vivo: itens antigos de `incidents` e `alerts` aparecendo juntos, ordenados por severidade, com os botões de resolver certos pra cada um; menu e redirecionamento conferidos
+- [ ] Pendente: rodar `migration-023-fase656-mesclar-incidentes-alertas.sql` — sem isso, criar um item novo dá erro (falta a coluna `description`); o resto (ver a lista mesclada, resolver, menu) já funciona igual
+
+**Fase 6.5 fechada.**
 
 ## Fase 7 — C.A.S.S.I.E. (IA) e testes finais (provisório, detalhar quando chegar a vez)
 - [ ] Funcionalidades da assistente Cassie (IA) e automações que dependerem dela
