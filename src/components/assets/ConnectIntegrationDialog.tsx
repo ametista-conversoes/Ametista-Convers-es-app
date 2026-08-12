@@ -13,7 +13,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { ManagerDigitalAssetRecord } from '@/hooks/useManagerPortalData'
-import { useAllProjects } from '@/hooks/useManagerPortalData'
 import { connectIntegration } from '@/lib/integrations'
 
 const PROVIDER_LABELS: Record<'google_ads' | 'google_forms' | 'meta_ads', string> = {
@@ -37,28 +36,18 @@ interface ConnectIntegrationDialogProps {
 export function ConnectIntegrationDialog({ trigger, asset }: ConnectIntegrationDialogProps) {
   const [open, setOpen] = useState(false)
   const [provider, setProvider] = useState<IntegrationProvider>('google_ads')
-  const [projectId, setProjectId] = useState('')
   const [formId, setFormId] = useState('')
   const [connecting, setConnecting] = useState(false)
-
-  const { data: projects } = useAllProjects()
-  const clientProjects = (projects ?? []).filter((p) => p.client_id === asset.client_id)
-  const needsProject = provider === 'google_ads' || provider === 'meta_ads'
 
   function handleOpenChange(next: boolean) {
     setOpen(next)
     if (next) {
       setProvider('google_ads')
-      setProjectId('')
       setFormId('')
     }
   }
 
   async function handleConnect() {
-    if (needsProject && !projectId) {
-      toast.error('Escolha o projeto que vai receber as métricas.')
-      return
-    }
     if (provider === 'google_forms' && !formId.trim()) {
       toast.error('Cole o id ou o link do formulário.')
       return
@@ -69,7 +58,6 @@ export function ConnectIntegrationDialog({ trigger, asset }: ConnectIntegrationD
       const authorizationUrl = await connectIntegration({
         provider,
         digitalAssetId: asset.id,
-        projectId: needsProject ? projectId : undefined,
         formId: provider === 'google_forms' ? formId.trim() : undefined,
       })
       window.location.href = authorizationUrl
@@ -102,27 +90,6 @@ export function ConnectIntegrationDialog({ trigger, asset }: ConnectIntegrationD
               </SelectContent>
             </Select>
           </div>
-
-          {needsProject && (
-            <div className="space-y-2">
-              <Label>Projeto que vai receber as métricas</Label>
-              <Select value={projectId} onValueChange={setProjectId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um projeto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientProjects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {clientProjects.length === 0 && (
-                <p className="text-xs text-muted-foreground">Esse cliente ainda não tem nenhum projeto cadastrado.</p>
-              )}
-            </div>
-          )}
 
           {provider === 'google_forms' && (
             <div className="space-y-2">

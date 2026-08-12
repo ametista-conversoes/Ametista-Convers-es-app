@@ -17,7 +17,6 @@ async function authHeaders(): Promise<Record<string, string>> {
 export interface ConnectIntegrationParams {
   provider: 'google_ads' | 'google_forms' | 'meta_ads'
   digitalAssetId: string
-  projectId?: string
   formId?: string
 }
 
@@ -26,7 +25,6 @@ export interface ConnectIntegrationParams {
  * (`window.location.href = url`). */
 export async function connectIntegration(params: ConnectIntegrationParams): Promise<string> {
   const search = new URLSearchParams({ provider: params.provider, digital_asset_id: params.digitalAssetId })
-  if (params.projectId) search.set('project_id', params.projectId)
   if (params.formId) search.set('form_id', params.formId)
 
   const res = await fetch(`${FUNCTIONS_BASE}/connect?${search.toString()}`, { headers: await authHeaders() })

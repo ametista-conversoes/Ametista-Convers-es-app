@@ -6,12 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import {
-  useAllClients,
-  useAllDigitalAssets,
-  useAllProjects,
-  useDigitalAssetConnections,
-} from '@/hooks/useManagerPortalData'
+import { useAllClients, useAllDigitalAssets, useDigitalAssetConnections } from '@/hooks/useManagerPortalData'
 import { formatDateTime } from '@/lib/format'
 import { syncIntegration } from '@/lib/integrations'
 import { connectionProviderLabels, connectionStatusLabels, connectionStatusStyles } from '@/lib/status-styles'
@@ -23,7 +18,6 @@ export default function Integrations() {
   const { data: clients } = useAllClients()
   const { data: assets, isLoading } = useAllDigitalAssets()
   const { data: connections } = useDigitalAssetConnections()
-  const { data: projects } = useAllProjects()
   const [clientFilter, setClientFilter] = useState(ALL_CLIENTS)
   const [search, setSearch] = useState('')
   const [syncingId, setSyncingId] = useState<string | null>(null)
@@ -33,7 +27,6 @@ export default function Integrations() {
   }
 
   const assetsById = new Map((assets ?? []).map((asset) => [asset.id, asset]))
-  const projectsById = new Map((projects ?? []).map((project) => [project.id, project]))
 
   const term = search.trim().toLowerCase()
   const rows = (connections ?? [])
@@ -101,7 +94,6 @@ export default function Integrations() {
             </p>
           )}
           {rows.map(({ connection, asset }) => {
-            const project = connection.project_id ? projectsById.get(connection.project_id) : undefined
             return (
               <div
                 key={connection.id}
@@ -118,7 +110,6 @@ export default function Integrations() {
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {asset!.name} · {asset!.client?.name ?? 'Cliente'}
-                    {project ? ` · Projeto: ${project.title}` : ''}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground/70">
                     Última sincronização: {formatDateTime(connection.last_synced_at)}

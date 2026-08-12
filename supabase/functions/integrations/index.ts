@@ -29,9 +29,9 @@
 //                                   barra no final)
 //
 // Rotas (identificadas pelo final do path da requisição):
-//   GET  .../integrations/connect?provider=google_ads&digital_asset_id=...&project_id=...
+//   GET  .../integrations/connect?provider=google_ads&digital_asset_id=...
 //   GET  .../integrations/connect?provider=google_forms&digital_asset_id=...&form_id=...
-//   GET  .../integrations/connect?provider=meta_ads&digital_asset_id=...&project_id=...
+//   GET  .../integrations/connect?provider=meta_ads&digital_asset_id=...
 //   GET  .../integrations/callback?state=...&code=...          (aberta pelo Google/Meta)
 //   POST .../integrations/sync            { connection_id }     (botão "Sincronizar agora")
 //   POST .../integrations/sync-all        {}                    (cabeçalho X-Cron-Secret,
@@ -142,12 +142,8 @@ async function handleConnect(req: Request, url: URL) {
     return jsonResponse({ error: 'digital_asset_id é obrigatório' }, 400)
   }
 
-  const projectId = url.searchParams.get('project_id')
   const formIdInput = url.searchParams.get('form_id')
 
-  if ((provider === 'google_ads' || provider === 'meta_ads') && !projectId) {
-    return jsonResponse({ error: 'Escolha o projeto que vai receber as métricas' }, 400)
-  }
   if (provider === 'google_forms' && !formIdInput) {
     return jsonResponse({ error: 'Informe o id ou o link do formulário' }, 400)
   }
@@ -179,7 +175,6 @@ async function handleConnect(req: Request, url: URL) {
   if (!asset) return jsonResponse({ error: 'Ativo digital não encontrado' }, 404)
 
   const upsertPayload: Record<string, unknown> = { digital_asset_id: digitalAssetId, provider, status: 'disconnected' }
-  if (provider === 'google_ads' || provider === 'meta_ads') upsertPayload.project_id = projectId
   if (provider === 'google_forms') upsertPayload.external_account_id = extractFormId(formIdInput as string)
 
   const { data: connection, error: connectionError } = await supabase
@@ -447,7 +442,6 @@ async function getValidAccessToken(supabase: SupabaseClient, connectionId: strin
 type SyncableConnection = {
   id: string
   provider: Provider
-  project_id: string | null
   external_account_id: string | null
   digital_assets: { client_id: string } | { client_id: string }[]
 }
@@ -462,8 +456,8 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
   if (connection.provider !== 'google_ads' && connection.provider !== 'meta_ads') {
     return { ok: false, error: 'Sincronização só implementada pra Google Ads e Meta Ads' }
   }
-  if (!connection.project_id || !connection.external_account_id) {
-    return { ok: false, error: 'Conexão incompleta (falta projeto ou conta de anúncios)' }
+  if (!connection.external_account_id) {
+    return { ok: false, error: 'Conexão incompleta (falta conta de anúncios)' }
   }
 
   const accessToken = await getValidAccessToken(supabase, connection.id, connection.provider)
@@ -541,7 +535,6 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
   const clientId = (connection.digital_assets as unknown as { client_id: string }).client_id
   const rows = Array.from(byDate.entries()).map(([date, m]) => ({
     client_id: clientId,
-    project_id: connection.project_id,
     snapshot_date: date,
     spend: m.spend,
     clicks: m.clicks,
@@ -553,7 +546,7 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
   if (rows.length > 0) {
     const { error: upsertError } = await supabase
       .from('performance_snapshots')
-      .upsert(rows, { onConflict: 'project_id,snapshot_date' })
+      .upsert(rows, { onConflict: 'client_id,channel,snapshot_date' })
     if (upsertError) return { ok: false, error: upsertError.message }
   }
 
@@ -578,7 +571,7 @@ async function handleSync(req: Request) {
 
   const { data: connection, error: connectionError } = await supabase
     .from('digital_asset_connections')
-    .select('id, provider, project_id, external_account_id, digital_assets(client_id)')
+    .select('id, provider, external_account_id, digital_assets(client_id)')
     .eq('id', body.connection_id)
     .maybeSingle()
   if (connectionError) return jsonResponse({ error: connectionError.message }, 500)
@@ -608,7 +601,7 @@ async function handleSyncAll(req: Request) {
 
   const { data: connections, error: connectionsError } = await supabase
     .from('digital_asset_connections')
-    .select('id, provider, project_id, external_account_id, digital_assets(client_id)')
+    .select('id, provider, external_account_id, digital_assets(client_id)')
     .eq('status', 'connected')
     .in('provider', ['google_ads', 'meta_ads'])
   if (connectionsError) return jsonResponse({ error: connectionsError.message }, 500)
