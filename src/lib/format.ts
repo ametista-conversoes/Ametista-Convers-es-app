@@ -25,14 +25,21 @@ export function formatPercent(value: number | null | undefined): string {
   return `${decimalFormatter.format(value)}%`
 }
 
+/** "AAAA-MM-DD" sem horário é interpretado pelo JS como meia-noite UTC, que em
+ * fusos negativos (Brasil inteiro) volta pro dia anterior ao formatar — fixar
+ * o horário ao meio-dia local evita esse salto de um dia pra trás. */
+function parseLocalDate(value: string): Date {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00`) : new Date(value)
+}
+
 export function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
-  return dateFormatter.format(new Date(value))
+  return dateFormatter.format(parseLocalDate(value))
 }
 
 export function formatFullDate(value: string | null | undefined): string {
   if (!value) return '—'
-  return fullDateFormatter.format(new Date(value))
+  return fullDateFormatter.format(parseLocalDate(value))
 }
 
 export function formatDateTime(value: string | null | undefined): string {

@@ -12,7 +12,7 @@ interface AuthContextValue {
   fullName: string | null
   phone: string | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>
+  signIn: (email: string, password: string) => Promise<{ error: string | null; isOffline: boolean }>
   signUp: (
     email: string,
     password: string,
@@ -81,7 +81,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signIn(email: string, password: string) {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error: error?.message ?? null }
+    if (!error) return { error: null, isOffline: false }
+    // status 0 = a requisição nem chegou a sair (sem rede) — o GoTrueClient usa
+    // esse valor especificamente pra erros de fetch, diferente de um 400 real
+    // vindo do servidor (credenciais inválidas).
+    const isOffline = error.status === 0 || !navigator.onLine
+    return { error: error.message, isOffline }
   }
 
   async function signUp(email: string, password: string, fullName: string) {

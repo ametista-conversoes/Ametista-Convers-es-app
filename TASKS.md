@@ -198,6 +198,13 @@
 
 **Fase 6.5 fechada.**
 
+## Fase 6.6 — ajustes pontuais pós Fase 6.5
+- [x] Login: mensagem errada ao tentar entrar sem internet — antes mostrava "e-mail ou senha incorretos" mesmo estando offline; agora `AuthContext` diferencia falha de rede (sem resposta do servidor) de credencial inválida (resposta 400 real) e a tela de login mostra "Sem conexão com a internet..." quando for o caso
+- [x] "Tarefas do Cliente" (Portal Gestor): confirmado ao vivo que o acinzentamento de tarefa atrasada e a ordenação por proximidade do prazo (mais perto no topo, mais longe embaixo, sem prazo por último) já estavam implementados desde a Fase 6.5.3/5.7 — a única lacuna real era o ano não aparecer na data; corrigido reaproveitando o formatador que já tinha ano (usado nas Metas SMART)
+- [x] Bug de fuso horário corrigido em `src/lib/format.ts` (afetava o app inteiro, não só tarefas): datas tipo "AAAA-MM-DD" eram interpretadas como meia-noite UTC, que em qualquer fuso do Brasil (todos atrás de UTC) volta pro dia anterior ao exibir — encontrado ao testar o item acima (uma tarefa com prazo hoje aparecia acinzentada 1 dia adiantada). Corrigido fixando meio-dia local ao interpretar datas sem horário; não afeta datas com horário (reuniões, criado em, etc.), só o cálculo de exibição de dia
+- [ ] Integrações por cliente vs. por projeto — investigado, achados e pergunta enviados ao usuário, aguardando decisão antes de mexer em código
+- [ ] Futuro da aba Onboarding — investigado, sugestões enviadas ao usuário, aguardando decisão antes de mexer em código
+
 ## Fase 7 — C.A.S.S.I.E. (IA) e testes finais (provisório, detalhar quando chegar a vez)
 - [ ] Funcionalidades da assistente Cassie (IA) e automações que dependerem dela
 - [ ] Testes automatizados (Vitest + Playwright)

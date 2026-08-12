@@ -32,11 +32,15 @@ export default function Login() {
   async function onSubmit(values: LoginValues) {
     setFormError(null)
     setSubmitting(true)
-    const { error } = await signIn(values.email, values.password)
+    const { error, isOffline } = await signIn(values.email, values.password)
     setSubmitting(false)
 
     if (error) {
-      setFormError('E-mail ou senha incorretos.')
+      setFormError(
+        isOffline
+          ? 'Sem conexão com a internet. Verifique sua conexão e tente novamente.'
+          : 'E-mail ou senha incorretos.',
+      )
       return
     }
 
