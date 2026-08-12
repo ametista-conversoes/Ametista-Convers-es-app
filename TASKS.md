@@ -176,8 +176,12 @@
 - [x] `apply_workflow` (já existia desde a Fase 5) passa a aceitar um `due_days` opcional em cada etapa do modelo — ao aplicar, o prazo da tarefa é calculado sozinho (hoje + os dias, no fuso da agência), sem precisar digitar prazo manual em nenhuma tarefa
 - [x] Nova aba "Workflows do Cliente" dentro da página Workflows (mesma página, duas abas — "Operacional" e "Workflows do Cliente"): nova tabela `client_workflow_templates` e função `apply_client_workflow`, que aplica um modelo a um ou mais clientes escolhidos de uma vez (sem passar por projeto) — as tarefas nascem com o `client_id` certo e já aparecem na aba "Tarefas" de cada cliente
 - [x] Mesma regra de acesso das duas abas: admin cria/edita/apaga modelos; admin e gestor conseguem ver e aplicar (testado com os dois papéis)
-- [ ] Pendente: rodar `migration-021-fase652-workflows-cliente-prazos.sql` — só depois disso a aba "Workflows do Cliente" carrega de verdade e o cálculo de prazo passa a valer (testado tudo que dava pra testar sem isso: os dois formulários com o campo de prazo, permissões por papel, aba Operacional continuando igual)
-### Fase 6.5.3 — Nova aba "Tarefas do Cliente" no Portal Gestor (pendente, detalhar quando chegar a vez)
+- [x] `migration-021-fase652-workflows-cliente-prazos.sql` rodada e confirmada — aba "Workflows do Cliente" carregando de verdade
+
+### Fase 6.5.3 — Nova aba "Tarefas do Cliente" no Portal Gestor
+- [x] Nova aba `/client-tasks` no menu do Portal Gestor: filtro por cliente (ou "Todos"), busca por título, botão "Nova tarefa" e lista de tarefas — tudo reaproveitando hooks e o formulário que já existiam (`useAllTasks`, `useCreateManagerTask`/`useUpdateManagerTask`/`useDeleteManagerTask`/`useUpdateTaskStatus`, `KanbanTaskFormDialog`), sem nenhuma migração nova
+- [x] Cada linha de tarefa mostra prioridade, status (clicável, com menu pra trocar), prazo, e fica acinzentada quando atrasada — mesma regra visual que o Kanban já usa (`opacity-60 grayscale-[0.5]` quando o prazo passou e a tarefa não está concluída)
+- [x] Testado ao vivo: criar, editar, trocar status e filtrar por cliente — tudo refletindo na mesma tabela que o Kanban usa (é a mesma tarefa, só outra tela pra ver/mexer)
 ### Fase 6.5.4 — Restringir edição dos dados da agência ao admin (pendente, detalhar quando chegar a vez)
 ### Fase 6.5.5 — Comentários do cliente em duas colunas (pendente, detalhar quando chegar a vez)
 ### Fase 6.5.6 — Mesclar Incidentes e Alertas numa aba só (pendente, detalhar quando chegar a vez)

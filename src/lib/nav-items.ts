@@ -45,6 +45,7 @@ export const managerNavItems: NavItem[] = [
   { title: 'Dashboard Executivo', href: '/admin', icon: LayoutDashboard },
   { title: 'Clientes', href: '/clients', icon: Users },
   { title: 'Kanban', href: '/kanban', icon: Columns3 },
+  { title: 'Tarefas do Cliente', href: '/client-tasks', icon: CheckSquare },
   { title: 'Workflows', href: '/workflows', icon: Workflow },
   { title: 'Incidentes', href: '/incidents', icon: AlertTriangle },
   { title: 'Ativos Digitais', href: '/assets', icon: Boxes },

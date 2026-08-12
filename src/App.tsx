@@ -27,6 +27,7 @@ import DashboardExecutivo from '@/pages/admin/DashboardExecutivo'
 import Incidents from '@/pages/admin/Incidents'
 import Integrations from '@/pages/admin/Integrations'
 import Kanban from '@/pages/admin/Kanban'
+import ManagerClientTasks from '@/pages/admin/ManagerClientTasks'
 import ManagerFiles from '@/pages/admin/ManagerFiles'
 import ManagerMeetings from '@/pages/admin/ManagerMeetings'
 import Onboarding from '@/pages/admin/Onboarding'
@@ -55,6 +56,7 @@ const managerPagesReady: Record<string, ComponentType> = {
   '/admin': DashboardExecutivo,
   '/clients': Clients,
   '/kanban': Kanban,
+  '/client-tasks': ManagerClientTasks,
   '/workflows': Workflows,
   '/incidents': Incidents,
   '/alerts': Alerts,
