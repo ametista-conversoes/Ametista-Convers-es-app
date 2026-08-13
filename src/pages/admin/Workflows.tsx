@@ -30,6 +30,19 @@ export default function Workflows() {
     (template) => !term || template.name.toLowerCase().includes(term),
   )
 
+  // Pra cada Workflow de Atividades, quais Workflows Operacionais o
+  // disparam — calculado aqui (não fica salvo em lugar nenhum) porque
+  // o vínculo em si só existe do lado do Workflow Operacional
+  // (activity_template_ids).
+  const linkedWorkflowNamesByActivityId = new Map<string, string[]>()
+  for (const workflowTemplate of templates ?? []) {
+    for (const activityTemplateId of workflowTemplate.activity_template_ids) {
+      const list = linkedWorkflowNamesByActivityId.get(activityTemplateId) ?? []
+      list.push(workflowTemplate.name)
+      linkedWorkflowNamesByActivityId.set(activityTemplateId, list)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -151,6 +164,7 @@ export default function Workflows() {
                   template={template}
                   deleteMode={role === 'admin' && deleteMode}
                   canEdit={role === 'admin'}
+                  linkedWorkflowNames={linkedWorkflowNamesByActivityId.get(template.id) ?? []}
                 />
               ))}
             </div>

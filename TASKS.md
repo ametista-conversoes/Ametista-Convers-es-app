@@ -208,7 +208,8 @@
 - [x] Central de Informações do Cliente ganhou um card "Atividades" mostrando os itens desse cliente
 - [x] Checklist de onboarding que o próprio cliente via em "Meu Projeto" foi removido (a página que o alimentava não existe mais) — nada do resto do portal do cliente mudou
 - [x] Testado ao vivo: menu renomeado, `/onboarding` redireciona pra `/activities`, 3ª aba "Workflows de Atividades" aparece em Workflows, página Atividades e card na Central de Informações renderizam sem erro mesmo antes da migração rodar
-- [ ] Pendente: rodar `migration-025-fase66-atividades.sql` — sem isso, "Workflows de Atividades" fica preso em "Carregando..." e não é possível criar/aplicar nada; o resto (navegação, páginas vazias) já funciona
+- [x] `migration-025-fase66-atividades.sql` rodada pelo usuário — confirmado ao vivo (Workflow de Atividades real aparecendo na aba)
+- [x] Card de Workflow de Atividades passa a mostrar quais Workflows Operacionais estão vinculados a ele ("Vinculado a: X, Y") — calculado a partir do que já existe (`activity_template_ids` de cada Workflow Operacional), sem precisar de nada novo no banco
 
 ## Fase 7 — C.A.S.S.I.E. (IA) e testes finais (provisório, detalhar quando chegar a vez)
 - [ ] Funcionalidades da assistente Cassie (IA) e automações que dependerem dela

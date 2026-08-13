@@ -1,4 +1,4 @@
-import { ListChecks, Pencil, Star } from 'lucide-react'
+import { ListChecks, Pencil, Star, Workflow as WorkflowIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,9 +11,13 @@ interface ActivityTemplateCardProps {
   template: ActivityTemplateRecord
   deleteMode?: boolean
   canEdit?: boolean
+  /** Nomes dos Workflows Operacionais que disparam esse Workflow de
+   * Atividades ao serem aplicados (ver `activity_template_ids` em
+   * `WorkflowTemplateRecord`) — só pra visibilidade, não é salvo aqui. */
+  linkedWorkflowNames?: string[]
 }
 
-export function ActivityTemplateCard({ template, deleteMode, canEdit }: ActivityTemplateCardProps) {
+export function ActivityTemplateCard({ template, deleteMode, canEdit, linkedWorkflowNames }: ActivityTemplateCardProps) {
   const deleteTemplate = useDeleteActivityTemplate()
   const setDefault = useSetDefaultActivityTemplate()
 
@@ -50,6 +54,12 @@ export function ActivityTemplateCard({ template, deleteMode, canEdit }: Activity
         {template.is_default && (
           <Badge className="w-fit border-purple-600/20 bg-purple-600/15 text-purple-400">Padrão no cadastro</Badge>
         )}
+        <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+          <WorkflowIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          {linkedWorkflowNames && linkedWorkflowNames.length > 0
+            ? `Vinculado a: ${linkedWorkflowNames.join(', ')}`
+            : 'Nenhum Workflow Operacional vinculado ainda'}
+        </p>
         <ul className="space-y-1.5">
           {template.items.map((item) => (
             <li key={item.title} className="flex items-center gap-2 text-sm text-foreground">
