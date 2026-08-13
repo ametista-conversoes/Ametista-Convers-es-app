@@ -1,22 +1,14 @@
 import { GoalsProgressCard } from '@/components/dashboard/GoalsProgressCard'
-import { OnboardingChecklist } from '@/components/project/OnboardingChecklist'
 import { ProjectInfoCards } from '@/components/project/ProjectInfoCards'
 import { TaskList } from '@/components/tasks/TaskList'
 import { useAuth } from '@/contexts/AuthContext'
-import {
-  useClient,
-  useOnboardingSteps,
-  useProjects,
-  useSmartGoals,
-  useTasks,
-} from '@/hooks/useClientPortalData'
+import { useClient, useProjects, useSmartGoals, useTasks } from '@/hooks/useClientPortalData'
 
 export default function Project() {
   const { clientId } = useAuth()
   const { data: client, isLoading: loadingClient } = useClient()
   const { data: projects, isLoading: loadingProjects } = useProjects()
   const { data: tasks } = useTasks()
-  const { data: onboardingSteps } = useOnboardingSteps()
   const { data: goals } = useSmartGoals()
 
   if (!clientId) {
@@ -43,9 +35,6 @@ export default function Project() {
   }
 
   const projectTasks = (tasks ?? []).filter((task) => task.project_id === project.id)
-  const projectOnboardingSteps = (onboardingSteps ?? []).filter(
-    (step) => step.project_id === project.id || step.project_id === null,
-  )
 
   return (
     <div className="space-y-6">
@@ -58,7 +47,6 @@ export default function Project() {
 
       <div className="content-grid-container">
         <div className="content-grid gap-4">
-          <OnboardingChecklist steps={projectOnboardingSteps} />
           <GoalsProgressCard goals={goals ?? []} />
           <TaskList tasks={projectTasks} />
         </div>

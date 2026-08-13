@@ -1,11 +1,23 @@
 import { useState, type ChangeEvent } from 'react'
 import { useParams } from 'react-router-dom'
-import { AlertTriangle, Building2, Calendar, CheckSquare, FolderKanban, Mail, Phone, Target, Upload } from 'lucide-react'
+import {
+  AlertTriangle,
+  Building2,
+  Calendar,
+  CheckSquare,
+  FolderKanban,
+  ListChecks,
+  Mail,
+  Phone,
+  Target,
+  Upload,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { NewProjectDialog } from '@/components/admin/NewProjectDialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { DatePicker } from '@/components/ui/date-picker'
 import {
   DropdownMenu,
@@ -19,6 +31,7 @@ import { Progress } from '@/components/ui/progress'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import {
+  useActivityChecklistItems,
   useAllAlerts,
   useAllIncidents,
   useAllMeetings,
@@ -26,6 +39,7 @@ import {
   useAllSmartGoals,
   useAllTasks,
   useManagerClient,
+  useToggleActivityChecklistItem,
   useUpdateClientDetails,
   useUpdateClientStatus,
 } from '@/hooks/useManagerPortalData'
@@ -60,6 +74,8 @@ export default function ClientDetail() {
   const { data: meetings } = useAllMeetings()
   const { data: alerts } = useAllAlerts()
   const { data: incidents } = useAllIncidents()
+  const { data: activityItems } = useActivityChecklistItems()
+  const toggleActivityItem = useToggleActivityChecklistItem()
   const updateStatus = useUpdateClientStatus()
   const updateDetails = useUpdateClientDetails()
 
@@ -149,6 +165,7 @@ export default function ClientDetail() {
   const clientTasks = (tasks ?? []).filter((t) => t.client_id === client.id)
   const clientGoals = (goals ?? []).filter((g) => g.client_id === client.id)
   const clientMeetings = (meetings ?? []).filter((m) => m.client_id === client.id)
+  const clientActivityItems = (activityItems ?? []).filter((i) => i.client_id === client.id)
   const riskDetails = getClientRiskDetails(client.id, {
     incidents: incidents ?? [],
     alerts: alerts ?? [],
@@ -450,6 +467,43 @@ export default function ClientDetail() {
                     <p className="mt-1 text-xs text-muted-foreground">Motivo: {meeting.cancellation_reason}</p>
                   )}
                 </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
+            <CardHeader className="p-0">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ListChecks className="h-4 w-4 text-purple-400" />
+                Atividades
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="max-h-[560px] space-y-2 overflow-y-auto p-0 pt-4 pr-1">
+              {clientActivityItems.length === 0 && <p className="text-sm text-muted-foreground">Nenhum item.</p>}
+              {clientActivityItems.map((item) => (
+                <label
+                  key={item.id}
+                  className="flex cursor-pointer items-center gap-3 rounded-lg bg-secondary/50 px-3 py-2"
+                >
+                  <Checkbox
+                    checked={item.completed}
+                    disabled={toggleActivityItem.isPending}
+                    onCheckedChange={(checked) =>
+                      toggleActivityItem.mutate({ itemId: item.id, completed: checked === true })
+                    }
+                  />
+                  <div className="min-w-0">
+                    <p
+                      className={`truncate text-sm ${item.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}
+                    >
+                      {item.title}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.source_template_name ?? 'Avulsa'}
+                      {item.category ? ` · ${item.category}` : ''}
+                    </p>
+                  </div>
+                </label>
               ))}
             </CardContent>
           </Card>

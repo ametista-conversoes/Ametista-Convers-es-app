@@ -42,8 +42,11 @@ export function ApplyWorkflowDialog({ template }: ApplyWorkflowDialogProps) {
         projectId: project.id,
         workflowName: template.name,
         steps: template.steps,
+        activityTemplateIds: template.activity_template_ids,
       })
-      toast.success(`${template.steps.length} tarefas criadas no Kanban.`)
+      const activitiesMsg =
+        template.activity_template_ids.length > 0 ? ' + itens de checklist criados em Atividades.' : ''
+      toast.success(`${template.steps.length} tarefas criadas no Kanban.${activitiesMsg}`)
       setOpen(false)
       setProjectId('')
     } catch {
@@ -65,6 +68,8 @@ export function ApplyWorkflowDialog({ template }: ApplyWorkflowDialogProps) {
           <DialogDescription>
             Cria {template.steps.length} tarefas em Backlog, uma para cada etapa do modelo, no projeto escolhido — o
             prazo de cada uma (quando o modelo tiver) já nasce calculado a partir de hoje.
+            {template.activity_template_ids.length > 0 &&
+              ' Também cria os itens dos Workflows de Atividades vinculados, na aba Atividades.'}
           </DialogDescription>
         </DialogHeader>
 

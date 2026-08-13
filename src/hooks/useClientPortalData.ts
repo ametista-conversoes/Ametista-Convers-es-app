@@ -116,15 +116,6 @@ export interface ApprovalRecord {
   created_at: string
 }
 
-export interface OnboardingStepRecord {
-  id: string
-  title: string
-  project_id: string | null
-  completed: boolean
-  step_order: number
-  category: string | null
-}
-
 export interface PerformanceSnapshotRecord {
   id: string
   project_id: string
@@ -230,36 +221,6 @@ export function useAlerts() {
   })
 }
 
-export function useOnboardingSteps() {
-  const { clientId } = useAuth()
-  return useQuery({
-    queryKey: ['onboarding-steps', clientId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('onboarding_steps')
-        .select('*')
-        .eq('client_id', clientId as string)
-        .order('step_order', { ascending: true })
-      if (error) throw error
-      return data as OnboardingStepRecord[]
-    },
-    enabled: !!clientId,
-  })
-}
-
-export function useToggleOnboardingStep() {
-  const { clientId } = useAuth()
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ stepId, completed }: { stepId: string; completed: boolean }) => {
-      const { error } = await supabase.rpc('toggle_onboarding_step', { step_id: stepId, is_completed: completed })
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['onboarding-steps', clientId] })
-    },
-  })
-}
 
 export function usePerformanceSnapshots() {
   const { clientId } = useAuth()

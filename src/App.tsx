@@ -19,6 +19,7 @@ import Tasks from '@/pages/client/Tasks'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import Settings from '@/pages/Settings'
 import Assets from '@/pages/admin/Assets'
+import Activities from '@/pages/admin/Activities'
 import ClientComments from '@/pages/admin/ClientComments'
 import ClientDetail from '@/pages/admin/ClientDetail'
 import Clients from '@/pages/admin/Clients'
@@ -29,7 +30,6 @@ import Kanban from '@/pages/admin/Kanban'
 import ManagerClientTasks from '@/pages/admin/ManagerClientTasks'
 import ManagerFiles from '@/pages/admin/ManagerFiles'
 import ManagerMeetings from '@/pages/admin/ManagerMeetings'
-import Onboarding from '@/pages/admin/Onboarding'
 import SmartGoals from '@/pages/admin/SmartGoals'
 import Timeline from '@/pages/admin/Timeline'
 import Workflows from '@/pages/admin/Workflows'
@@ -62,7 +62,7 @@ const managerPagesReady: Record<string, ComponentType> = {
   '/assets': Assets,
   '/integrations': Integrations,
   '/smart-goals': SmartGoals,
-  '/onboarding': Onboarding,
+  '/activities': Activities,
   '/client-comments': ClientComments,
   '/client-meetings': ManagerMeetings,
   '/client-files': ManagerFiles,
@@ -106,6 +106,9 @@ function App() {
                 Alertas viraram uma aba só) — mantido como redirecionamento
                 pra quem tiver o link antigo salvo. */}
             <Route path="/alerts" element={<Navigate to="/incidents" replace />} />
+            {/* "/onboarding" virou "/activities" na Fase 6.6.2 — mesmo
+                padrão de redirecionamento do "/alerts" acima. */}
+            <Route path="/onboarding" element={<Navigate to="/activities" replace />} />
             {/* Central de Informações do Cliente — acessada clicando num card em "/clients" */}
             <Route path="/clients/:id" element={<ClientDetail />} />
           </Route>

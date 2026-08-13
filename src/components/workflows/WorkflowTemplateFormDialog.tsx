@@ -16,12 +16,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import type { WorkflowTemplateRecord } from '@/hooks/useManagerPortalData'
-import { useCreateWorkflowTemplate, useUpdateWorkflowTemplate } from '@/hooks/useManagerPortalData'
+import { useActivityTemplates, useCreateWorkflowTemplate, useUpdateWorkflowTemplate } from '@/hooks/useManagerPortalData'
 
 const templateFormSchema = z.object({
   name: z.string().min(2, 'Digite um nome'),
@@ -40,6 +41,7 @@ const templateFormSchema = z.object({
       }),
     )
     .min(1, 'Adicione pelo menos uma etapa'),
+  activity_template_ids: z.array(z.string()),
 })
 
 type TemplateFormValues = z.infer<typeof templateFormSchema>
@@ -48,6 +50,7 @@ const EMPTY_VALUES: TemplateFormValues = {
   name: '',
   description: '',
   steps: [{ title: '', category: '', due_days: '' }],
+  activity_template_ids: [],
 }
 
 interface SortableStepRowProps {
@@ -139,6 +142,7 @@ export function WorkflowTemplateFormDialog({ trigger, template }: WorkflowTempla
   const [open, setOpen] = useState(false)
   const createTemplate = useCreateWorkflowTemplate()
   const updateTemplate = useUpdateWorkflowTemplate()
+  const { data: activityTemplates } = useActivityTemplates()
   const isEdit = !!template
 
   const form = useForm<TemplateFormValues>({
@@ -171,6 +175,7 @@ export function WorkflowTemplateFormDialog({ trigger, template }: WorkflowTempla
                 category: step.category,
                 due_days: step.due_days ? String(step.due_days) : '',
               })),
+              activity_template_ids: template.activity_template_ids,
             }
           : EMPTY_VALUES,
       )
@@ -186,6 +191,7 @@ export function WorkflowTemplateFormDialog({ trigger, template }: WorkflowTempla
         category: step.category,
         due_days: step.due_days?.trim() ? Number(step.due_days) : null,
       })),
+      activity_template_ids: values.activity_template_ids,
     }
     try {
       if (template) {
@@ -266,6 +272,40 @@ export function WorkflowTemplateFormDialog({ trigger, template }: WorkflowTempla
                 Adicionar etapa
               </Button>
             </div>
+
+            <FormField
+              control={form.control}
+              name="activity_template_ids"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Workflows de Atividades vinculados (opcional)</FormLabel>
+                  <div className="max-h-40 space-y-2 overflow-y-auto">
+                    {(activityTemplates ?? []).map((activityTemplate) => (
+                      <label
+                        key={activityTemplate.id}
+                        className="flex items-center gap-2 rounded-lg bg-secondary/50 px-3 py-2 text-sm"
+                      >
+                        <Checkbox
+                          checked={field.value.includes(activityTemplate.id)}
+                          onCheckedChange={(checked) =>
+                            field.onChange(
+                              checked === true
+                                ? [...field.value, activityTemplate.id]
+                                : field.value.filter((id) => id !== activityTemplate.id),
+                            )
+                          }
+                        />
+                        <span className="text-foreground">{activityTemplate.name}</span>
+                      </label>
+                    ))}
+                    {(activityTemplates ?? []).length === 0 && (
+                      <p className="text-xs text-muted-foreground">Nenhum Workflow de Atividades cadastrado ainda.</p>
+                    )}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>

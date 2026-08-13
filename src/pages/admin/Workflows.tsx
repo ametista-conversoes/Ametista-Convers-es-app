@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Plus, Search } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { ActivityTemplateCard } from '@/components/workflows/ActivityTemplateCard'
+import { ActivityTemplateFormDialog } from '@/components/workflows/ActivityTemplateFormDialog'
 import { ClientWorkflowCard } from '@/components/workflows/ClientWorkflowCard'
 import { ClientWorkflowTemplateFormDialog } from '@/components/workflows/ClientWorkflowTemplateFormDialog'
 import { WorkflowCard } from '@/components/workflows/WorkflowCard'
@@ -9,18 +11,22 @@ import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useClientWorkflowTemplates, useWorkflowTemplates } from '@/hooks/useManagerPortalData'
+import { useActivityTemplates, useClientWorkflowTemplates, useWorkflowTemplates } from '@/hooks/useManagerPortalData'
 
 export default function Workflows() {
   const { role } = useAuth()
   const { data: templates, isLoading } = useWorkflowTemplates()
   const { data: clientTemplates, isLoading: isLoadingClientTemplates } = useClientWorkflowTemplates()
+  const { data: activityTemplates, isLoading: isLoadingActivityTemplates } = useActivityTemplates()
   const [deleteMode, setDeleteMode] = useState(false)
   const [search, setSearch] = useState('')
 
   const term = search.trim().toLowerCase()
   const filteredTemplates = (templates ?? []).filter((template) => !term || template.name.toLowerCase().includes(term))
   const filteredClientTemplates = (clientTemplates ?? []).filter(
+    (template) => !term || template.name.toLowerCase().includes(term),
+  )
+  const filteredActivityTemplates = (activityTemplates ?? []).filter(
     (template) => !term || template.name.toLowerCase().includes(term),
   )
 
@@ -49,6 +55,7 @@ export default function Workflows() {
         <TabsList>
           <TabsTrigger value="operational">Operacional</TabsTrigger>
           <TabsTrigger value="client">Workflows do Cliente</TabsTrigger>
+          <TabsTrigger value="activity">Workflows de Atividades</TabsTrigger>
         </TabsList>
 
         <TabsContent value="operational" className="space-y-4">
@@ -107,6 +114,39 @@ export default function Workflows() {
             <div className="content-grid gap-4">
               {filteredClientTemplates.map((template) => (
                 <ClientWorkflowCard
+                  key={template.id}
+                  template={template}
+                  deleteMode={role === 'admin' && deleteMode}
+                  canEdit={role === 'admin'}
+                />
+              ))}
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="activity" className="space-y-4">
+          {role === 'admin' && (
+            <div className="flex justify-end">
+              <ActivityTemplateFormDialog
+                trigger={
+                  <Button>
+                    <Plus className="h-4 w-4" />
+                    Novo modelo
+                  </Button>
+                }
+              />
+            </div>
+          )}
+
+          {isLoadingActivityTemplates && <p className="text-sm text-muted-foreground">Carregando modelos...</p>}
+          {!isLoadingActivityTemplates && filteredActivityTemplates.length === 0 && (
+            <p className="text-sm text-muted-foreground">Nenhum Workflow de Atividades encontrado.</p>
+          )}
+
+          <div className="content-grid-container">
+            <div className="content-grid gap-4">
+              {filteredActivityTemplates.map((template) => (
+                <ActivityTemplateCard
                   key={template.id}
                   template={template}
                   deleteMode={role === 'admin' && deleteMode}

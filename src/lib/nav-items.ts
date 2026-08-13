@@ -51,7 +51,7 @@ export const managerNavItems: NavItem[] = [
   { title: 'Integrações', href: '/integrations', icon: Plug },
   { title: 'Timeline', href: '/timeline', icon: History },
   { title: 'Metas SMART', href: '/smart-goals', icon: Target },
-  { title: 'Onboarding', href: '/onboarding', icon: ListChecks },
+  { title: 'Atividades', href: '/activities', icon: ListChecks },
   { title: 'Comentários', href: '/client-comments', icon: MessageSquare },
   { title: 'Reuniões', href: '/client-meetings', icon: Calendar },
   { title: 'Arquivos', href: '/client-files', icon: FileText },

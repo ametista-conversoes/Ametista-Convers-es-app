@@ -397,23 +397,27 @@ export function useApplyWorkflow() {
       projectId,
       workflowName,
       steps,
+      activityTemplateIds,
     }: {
       clientId: string
       projectId: string
       workflowName: string
       steps: { title: string; category: string }[]
+      activityTemplateIds?: string[]
     }) => {
       const { error } = await supabase.rpc('apply_workflow', {
         p_client_id: clientId,
         p_project_id: projectId,
         p_workflow_name: workflowName,
         p_steps: steps,
+        p_activity_template_ids: activityTemplateIds ?? [],
       })
       if (error) throw error
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-tasks'] })
       queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
+      queryClient.invalidateQueries({ queryKey: ['activity-checklist-items'] })
     },
   })
 }
@@ -432,6 +436,9 @@ export interface WorkflowTemplateRecord {
   name: string
   description: string | null
   steps: WorkflowTemplateStep[]
+  /** Workflows de Atividades disparados junto quando esse workflow é
+   * aplicado (Fase 6.6.2) — ids de `activity_templates`. */
+  activity_template_ids: string[]
 }
 
 export function useWorkflowTemplates() {
@@ -440,7 +447,7 @@ export function useWorkflowTemplates() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('workflow_templates')
-        .select('id, name, description, steps')
+        .select('id, name, description, steps, activity_template_ids')
         .order('name', { ascending: true })
       if (error) throw error
       return data as unknown as WorkflowTemplateRecord[]
@@ -452,6 +459,7 @@ export interface NewWorkflowTemplateInput {
   name: string
   description: string | null
   steps: WorkflowTemplateStep[]
+  activity_template_ids: string[]
 }
 
 export function useCreateWorkflowTemplate() {
@@ -575,6 +583,171 @@ export function useApplyClientWorkflow() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-tasks'] })
       queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
+    },
+  })
+}
+
+// Workflows de Atividades (Fase 6.6.2) — checklists reaproveitáveis de
+// texto simples. Disparados junto de um Workflow do Kanban (ver
+// activity_template_ids em WorkflowTemplateRecord) ou, quando marcados
+// como padrão, aplicados sozinhos a todo cliente novo (trigger no
+// banco, ver handle_new_client_activity_template).
+export interface ActivityTemplateItem {
+  title: string
+  category?: string | null
+}
+
+export interface ActivityTemplateRecord {
+  id: string
+  name: string
+  description: string | null
+  items: ActivityTemplateItem[]
+  is_default: boolean
+}
+
+export function useActivityTemplates() {
+  return useQuery({
+    queryKey: ['activity-templates'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('activity_templates')
+        .select('id, name, description, items, is_default')
+        .order('name', { ascending: true })
+      if (error) throw error
+      return data as unknown as ActivityTemplateRecord[]
+    },
+  })
+}
+
+export interface NewActivityTemplateInput {
+  name: string
+  description: string | null
+  items: ActivityTemplateItem[]
+}
+
+export function useCreateActivityTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: NewActivityTemplateInput) => {
+      const { error } = await supabase.from('activity_templates').insert(input)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activity-templates'] })
+    },
+  })
+}
+
+export function useUpdateActivityTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...input }: NewActivityTemplateInput & { id: string }) => {
+      const { error } = await supabase.from('activity_templates').update(input).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activity-templates'] })
+    },
+  })
+}
+
+export function useDeleteActivityTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (templateId: string) => {
+      const { error } = await supabase.from('activity_templates').delete().eq('id', templateId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activity-templates'] })
+    },
+  })
+}
+
+export function useSetDefaultActivityTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (templateId: string) => {
+      const { error } = await supabase.rpc('set_default_activity_template', { p_template_id: templateId })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activity-templates'] })
+    },
+  })
+}
+
+// Atividades (Fase 6.6.2) — itens já instanciados por cliente, exibidos
+// na aba "Atividades" e na Central de Informações do Cliente.
+export interface ActivityChecklistItemRecord {
+  id: string
+  client_id: string
+  project_id: string | null
+  title: string
+  category: string | null
+  completed: boolean
+  step_order: number
+  source_template_name: string | null
+  client: { name: string } | null
+}
+
+export function useActivityChecklistItems() {
+  return useQuery({
+    queryKey: ['activity-checklist-items'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('activity_checklist_items')
+        .select(
+          'id, client_id, project_id, title, category, completed, step_order, source_template_name, client:clients(name)',
+        )
+        .order('step_order', { ascending: true })
+      if (error) throw error
+      return data as unknown as ActivityChecklistItemRecord[]
+    },
+  })
+}
+
+export interface NewActivityChecklistItemInput {
+  client_id: string
+  title: string
+  category: string | null
+}
+
+export function useCreateActivityChecklistItem() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: NewActivityChecklistItemInput) => {
+      const { error } = await supabase.from('activity_checklist_items').insert(input)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activity-checklist-items'] })
+    },
+  })
+}
+
+export function useToggleActivityChecklistItem() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ itemId, completed }: { itemId: string; completed: boolean }) => {
+      const { error } = await supabase.from('activity_checklist_items').update({ completed }).eq('id', itemId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activity-checklist-items'] })
+    },
+  })
+}
+
+export function useDeleteActivityChecklistItem() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (itemId: string) => {
+      const { error } = await supabase.from('activity_checklist_items').delete().eq('id', itemId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activity-checklist-items'] })
     },
   })
 }
@@ -776,78 +949,6 @@ export function useDeleteSmartGoal() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-smart-goals'] })
-    },
-  })
-}
-
-export interface ManagerOnboardingStepRecord {
-  id: string
-  title: string
-  client_id: string
-  project_id: string | null
-  completed: boolean
-  step_order: number
-  category: string | null
-  client: { name: string } | null
-}
-
-export function useAllOnboardingSteps() {
-  return useQuery({
-    queryKey: ['manager-onboarding-steps'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('onboarding_steps')
-        .select('*, client:clients(name)')
-        .order('step_order', { ascending: true })
-      if (error) throw error
-      return data as unknown as ManagerOnboardingStepRecord[]
-    },
-  })
-}
-
-export interface NewOnboardingStepInput {
-  title: string
-  client_id: string
-  project_id: string | null
-  category: string | null
-  step_order: number
-}
-
-export function useCreateOnboardingStep() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (input: NewOnboardingStepInput) => {
-      const { error } = await supabase.from('onboarding_steps').insert(input)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['manager-onboarding-steps'] })
-    },
-  })
-}
-
-export function useToggleManagerOnboardingStep() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ stepId, completed }: { stepId: string; completed: boolean }) => {
-      const { error } = await supabase.rpc('toggle_onboarding_step', { step_id: stepId, is_completed: completed })
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['manager-onboarding-steps'] })
-    },
-  })
-}
-
-export function useDeleteOnboardingStep() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (stepId: string) => {
-      const { error } = await supabase.from('onboarding_steps').delete().eq('id', stepId)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['manager-onboarding-steps'] })
     },
   })
 }
