@@ -212,7 +212,8 @@
 - [x] Card de Workflow de Atividades passa a mostrar quais Workflows Operacionais estão vinculados a ele ("Vinculado a: X, Y") — calculado a partir do que já existe (`activity_template_ids` de cada Workflow Operacional), sem precisar de nada novo no banco
 
 ## Fase 7 — C.A.S.S.I.E. (IA) e testes finais (provisório, detalhar quando chegar a vez)
-- [ ] Funcionalidades da assistente Cassie (IA) e automações que dependerem dela
+- [x] Aprovação automática por atraso: arquivo enviado pra aprovação do cliente (aba "Aprovações") que fica 48h em "Pendente" sem resposta é aprovado sozinho, com o status mostrando "Aprovado por atraso" (cor âmbar, pra diferenciar de uma aprovação real do cliente) tanto no portal do cliente quanto no do gestor. Job agendado (`pg_cron`, a cada 30 min) roda `auto_approve_overdue_approvals()`, que replica exatamente o que já acontece numa aprovação manual (também cria a entrada correspondente em "Arquivos"). Não mexe na aba "Arquivos" em si (ela não tem fluxo de aprovação próprio) nem em `respond_to_approval` (aprovação manual continua igual). Testado ao vivo com uma aprovação simulada: badge aparece certo nos dois portais, arquivo aparece em "Arquivos"
+- [ ] Funcionalidades da assistente Cassie (IA) e automações que dependerem dela — investigação inicial feita (o que a Cassie deve responder, só portal do cliente, custo/pagamento da API da Anthropic explicado ao usuário); ainda falta decidir o modelo (Haiku/Sonnet/Opus) antes de planejar a implementação
 - [ ] Testes automatizados (Vitest + Playwright)
 - [ ] Revisão geral de responsividade e acessibilidade
 - [ ] Preparar o app para publicação (deploy)

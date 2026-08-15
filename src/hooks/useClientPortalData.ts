@@ -114,6 +114,7 @@ export interface ApprovalRecord {
   status: string
   feedback: string | null
   created_at: string
+  auto_approved: boolean
 }
 
 export interface PerformanceSnapshotRecord {

@@ -8,7 +8,7 @@ import type { ApprovalRecord } from '@/hooks/useClientPortalData'
 import { useRespondToApproval } from '@/hooks/useClientPortalData'
 import { formatDateTime } from '@/lib/format'
 import { getFileSignedUrl } from '@/lib/storage'
-import { reviewStatusLabels, reviewStatusStyles } from '@/lib/status-styles'
+import { getApprovalStatusLabel, getApprovalStatusStyle } from '@/lib/status-styles'
 import { ApprovalFeedbackDialog } from './ApprovalFeedbackDialog'
 
 interface ApprovalListProps {
@@ -70,9 +70,7 @@ export function ApprovalList({ approvals }: ApprovalListProps) {
             <div key={approval.id} className="rounded-lg bg-secondary/50 px-3 py-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium text-foreground">{approval.title}</p>
-                <Badge className={reviewStatusStyles[approval.status]}>
-                  {reviewStatusLabels[approval.status] ?? approval.status}
-                </Badge>
+                <Badge className={getApprovalStatusStyle(approval)}>{getApprovalStatusLabel(approval)}</Badge>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(approval.created_at)}</p>
               {approval.file_url && (

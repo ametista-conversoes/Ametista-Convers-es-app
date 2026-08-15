@@ -1197,6 +1197,7 @@ export interface ManagerApprovalRecord {
   status: string
   feedback: string | null
   created_at: string
+  auto_approved: boolean
 }
 
 export function useClientApprovals(clientId: string | null) {

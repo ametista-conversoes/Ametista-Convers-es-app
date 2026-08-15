@@ -166,6 +166,21 @@ export const reviewStatusStyles: Record<string, string> = {
   revision_requested: 'border-purple-500/20 bg-purple-500/10 text-purple-400',
 }
 
+/** Aprovações viradas sozinhas depois de 48h sem resposta do cliente
+ * (Fase 7) — mesmo status "approved" no banco, mas com um rótulo/cor
+ * diferentes pra deixar claro que não foi uma decisão real do cliente. */
+export function getApprovalStatusLabel(approval: { status: string; auto_approved: boolean }): string {
+  if (approval.status === 'approved' && approval.auto_approved) return 'Aprovado por atraso'
+  return reviewStatusLabels[approval.status] ?? approval.status
+}
+
+export function getApprovalStatusStyle(approval: { status: string; auto_approved: boolean }): string {
+  if (approval.status === 'approved' && approval.auto_approved) {
+    return 'border-amber-500/20 bg-amber-500/10 text-amber-400'
+  }
+  return reviewStatusStyles[approval.status] ?? ''
+}
+
 export const smartGoalStatusLabels: Record<string, string> = {
   on_track: 'No caminho certo',
   at_risk: 'Em risco',
