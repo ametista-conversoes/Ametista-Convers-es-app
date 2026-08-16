@@ -226,7 +226,8 @@
   - Botão "Limpar Histórico" (com confirmação)
   - Indicador de "pensando" **animado** (pontinhos) no lugar do texto parado "Cassie está digitando...", e a mensagem do usuário agora aparece **na hora** que ele manda, sem esperar a resposta completa (testado ao vivo, confirmado nos dois pontos)
   - `migration-028-fase7-cassie-modos.sql` (nova) — apaga as mensagens de teste existentes (sem valor pra manter, combinado com o usuário) e ajusta a tabela `cassie_messages`
-  - [ ] Pendente: rodar `migration-028-fase7-cassie-modos.sql` e colar o código atualizado de `supabase/functions/cassie/index.ts` na função `CASSIE` do painel do Supabase — sem isso o chat da Cassie não funciona (dá erro 400, coluna nova ainda não existe no banco). Depois disso eu testo o fluxo completo ao vivo (as 4 modalidades, liberação por plano, resposta fora de escopo, limpar histórico)
+- [x] `migration-028` rodada e função `CASSIE` reimplantada pelo usuário — **testado ao vivo de ponta a ponta**: cliente de teste só via o modo "Assistente" (plano não definido = 1 modo só, liberação por plano funcionando); pergunta sobre conversões respondida com número real (0, cálculo correto pros dados desse cliente); pergunta fora de escopo ("qual a capital da França?") recebeu a resposta fixa de encaminhamento, com aviso visual âmbar; "Limpar Histórico" apagou a conversa de verdade; no portal do gestor, o card da Cassie na Central de Informações mostrou os 4 modos sempre liberados, e a mensagem mandada por ali **não apareceu** na conversa do cliente (conversas separadas confirmadas)
+- [x] Função `integrations` também reimplantada pelo usuário — testado ao vivo: diálogo de conectar não pede mais projeto, e o erro mudou de "escolha o projeto" pra um aviso de credencial do Google não configurada (esperado, é outra pendência, não bug)
 - [ ] Testes automatizados (Vitest + Playwright)
 - [ ] Revisão geral de responsividade e acessibilidade
 - [ ] Preparar o app para publicação (deploy)
