@@ -1,24 +1,21 @@
 import { useState } from 'react'
 import { Send } from 'lucide-react'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
-import { useSendCassieMessage } from '@/hooks/useCassieMessages'
 
-export function CassieMessageForm() {
+interface CassieMessageFormProps {
+  onSend: (message: string) => void
+  sending: boolean
+}
+
+export function CassieMessageForm({ onSend, sending }: CassieMessageFormProps) {
   const [message, setMessage] = useState('')
-  const sendMessage = useSendCassieMessage()
 
-  async function handleSubmit() {
+  function handleSubmit() {
     if (!message.trim()) return
-    const text = message.trim()
+    onSend(message.trim())
     setMessage('')
-    try {
-      await sendMessage.mutateAsync(text)
-    } catch {
-      toast.error('Não foi possível falar com a Cassie.')
-    }
   }
 
   return (
@@ -36,9 +33,9 @@ export function CassieMessageForm() {
           }}
         />
         <div className="flex justify-end">
-          <Button onClick={handleSubmit} disabled={!message.trim() || sendMessage.isPending}>
+          <Button onClick={handleSubmit} disabled={!message.trim() || sending}>
             <Send className="h-4 w-4" />
-            {sendMessage.isPending ? 'Enviando...' : 'Enviar'}
+            Enviar
           </Button>
         </div>
       </CardContent>

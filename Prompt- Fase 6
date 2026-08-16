@@ -1,0 +1,101 @@
+# Prompt — Fase 6: Integrações com Google Ads, Meta Ads e Google Forms
+
+Cole no Claude Code. As Fases 1 a 5 já foram concluídas e aprovadas.
+
+---
+
+Antes de começar, releia o `CLAUDE.md` e (se existir) `docs/especificacao-completa.md`.
+
+Continue seguindo as mesmas regras de trabalho já combinadas:
+1. Uma sub-fase por vez — não avance sem eu aprovar.
+2. Use Plan Mode antes de criar/alterar arquivos.
+3. Ao final de cada sub-fase, pare, resuma em linguagem simples e me diga exatamente o que testar.
+4. Atualize o `TASKS.md` marcando os itens concluídos.
+5. Um commit por sub-fase concluída.
+6. Pergunte antes de instalar qualquer dependência nova.
+7. Nunca coloque client secret, token de acesso ou refresh token no código do frontend — tudo isso vive só no backend.
+
+## Observação importante — consolidar a Fase 8 antes de começar
+
+Antes de tocar em qualquer código novo, faça o seguinte:
+1. Abra o `TASKS.md` e compare o conteúdo da "Fase 8" (criada anteriormente por engano, sobre o mesmo assunto de integrações) com o conteúdo da Fase 6 abaixo.
+2. Se a Fase 8 tiver algum item que não está coberto aqui, incorpore esse item na Fase 6.
+3. Remova a Fase 8 duplicada do `TASKS.md` e renumere se necessário, de forma que reste apenas uma fase tratando de integrações.
+4. Me confirme que essa consolidação foi feita antes de começar a Fase 6.1.
+
+## Pré-requisitos externos (fora do VS Code)
+
+Essas contas e credenciais precisam existir antes de cada sub-fase específica — não precisam estar prontas todas de uma vez:
+
+**Para Google Ads e Google Forms (Fase 6.2):**
+- Criar um projeto no [Google Cloud Console](https://console.cloud.google.com), ativar a Google Ads API e a Google Forms API, e gerar um Client ID + Client Secret de OAuth 2.0
+- Gerar um developer token no Google Ads Manager Account (API Center) — o acesso inicial ("Explorer") já é liberado automaticamente e permite testar com contas de anúncio reais, só com limite de operações. Não é preciso esperar aprovação para começar a testar.
+
+**Para Meta Ads (Fase 6.3):**
+- Criar um app em [developers.facebook.com](https://developers.facebook.com), adicionar o produto "Marketing API"
+- **Atenção ao prazo**: como o app vai gerenciar contas de anúncio de vários clientes diferentes (não só uma conta própria), o Meta exige "Advanced Access" com verificação de negócio (Business Verification) para isso funcionar de verdade — esse processo pode levar de alguns dias a algumas semanas. Recomendo iniciar esse pedido agora, em paralelo ao desenvolvimento. Enquanto a aprovação não sai, dá para testar tudo usando a própria conta de anúncios da agência (acesso padrão, liberado na hora).
+
+Comece pela Fase 6.1.
+
+## Fase 6.1 — Fundação do backend de integrações
+
+**Objetivo:** a estrutura genérica que vai suportar qualquer integração (Google ou Meta), antes de conectar a um provedor específico.
+
+Tarefas:
+- Criar o backend de integrações (Edge Function do Supabase, ou serviço Node dedicado)
+- Implementar armazenamento seguro de tokens (criptografado — nunca em texto puro no banco)
+- Criar a entidade `MetricSnapshot` (histórico de métricas: project_id, channel, date, spend, clicks, impressions, conversions)
+- Criar a estrutura genérica de OAuth (rota que inicia a conexão + rota de callback) que será reaproveitada por cada integração específica
+
+**Critérios de aceite:**
+- Existe uma rota de backend que gera uma URL de autorização (posso testar com dados fictícios por enquanto, antes de ligar a um provedor real)
+- Ao abrir a tabela de tokens no painel do Supabase, o valor salvo não aparece como texto legível — está criptografado
+- A tabela `MetricSnapshot` existe com os campos corretos
+
+## Fase 6.2 — Conexão com Google (Ads e Forms)
+
+**Objetivo:** conectar de verdade ao Google Ads e ao Google Forms, usando o mesmo login do Google.
+
+Tarefas:
+- Implementar o fluxo completo de OAuth com o Google (botão "Conectar" → tela de login/consentimento do Google → callback → troca do código por tokens)
+- Conectar à Google Ads API e buscar métricas (investimento, cliques, impressões, conversões) de uma conta de anúncios real ou de teste
+- Conectar à Google Forms API (reaproveitando o mesmo login do Google, só com uma permissão a mais)
+- Definir e implementar o que uma resposta de formulário deve gerar no sistema (ex: criar um Client/Lead novo, ou uma Task de "novo contato")
+
+**Critérios de aceite:**
+- Clico em "Conectar Google Ads" na tela de Ativos Digitais e completo o login/consentimento com uma conta real do Google
+- Depois de conectar, o status muda para "Conectado" naquele ativo
+- Vejo métricas reais (ou de uma conta de teste) aparecendo na tabela `MetricSnapshot`
+- Envio uma resposta de teste em um Google Forms conectado, e o sistema cria automaticamente o registro esperado (Client/Lead ou Task)
+
+## Fase 6.3 — Conexão com Meta Ads
+
+**Objetivo:** conectar de verdade à Meta Marketing API.
+
+Tarefas:
+- Implementar o fluxo completo de OAuth com o Meta (botão "Conectar" → login/consentimento → callback → troca do código por tokens)
+- Conectar à Meta Marketing API e buscar métricas de campanha
+
+**Critérios de aceite:**
+- Clico em "Conectar Meta Ads" e completo o login/consentimento
+- Depois de conectar, o status muda para "Conectado"
+- Vejo métricas de uma conta de anúncios de teste (a própria conta da agência) sincronizadas na tabela `MetricSnapshot`
+- Nota: conectar contas de anúncio de clientes de terceiros só vai funcionar de verdade depois que o Meta aprovar o Business Verification mencionado nos pré-requisitos — isso é esperado, não é um bug
+
+## Fase 6.4 — Sincronização agendada e página de Integrações
+
+**Objetivo:** automatizar a atualização dos dados e dar visibilidade ao status das conexões.
+
+Tarefas:
+- Criar o job agendado que roda periodicamente (ex: a cada 6 horas) para renovar tokens e buscar métricas atualizadas de todas as conexões ativas
+- Criar a página "Integrações" no Portal do Gestor, mostrando por Ativo Digital: status da conexão, data/hora da última sincronização, botão "Sincronizar agora"
+
+**Critérios de aceite:**
+- Espero algumas horas (ou forço a execução manualmente) e vejo que os dados em Performance/Relatórios (Fases 4.1 e 4.2) mudaram sozinhos, sem eu ter feito nada
+- A página de Integrações mostra corretamente quais ativos estão conectados e quando foi a última sincronização de cada um
+- Clico em "Sincronizar agora" em um ativo e os dados atualizam na hora
+- Confirmo no `TASKS.md` que não existe mais nenhuma "Fase 8" separada — tudo ficou consolidado nesta Fase 6
+
+---
+
+Ao terminar a Fase 6.4 e eu confirmar que todos os critérios passaram, pare e aguarde antes de seguir para a Fase 7 (C.A.S.S.I.E. e testes finais).

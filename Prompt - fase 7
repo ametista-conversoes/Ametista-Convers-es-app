@@ -1,0 +1,90 @@
+# Prompt — Fase 7: C.A.S.S.I.E. e testes finais
+
+Cole no Claude Code. As Fases 1 a 6 já foram concluídas e aprovadas.
+
+---
+
+Antes de começar, releia o `CLAUDE.md` e (se existir) `docs/especificacao-completa.md`.
+
+Continue seguindo as mesmas regras de trabalho já combinadas:
+1. Uma sub-fase por vez — não avance sem eu aprovar.
+2. Use Plan Mode antes de criar/alterar arquivos.
+3. Ao final de cada sub-fase, pare, resuma em linguagem simples e me diga exatamente o que testar.
+4. Atualize o `TASKS.md` marcando os itens concluídos.
+5. Um commit por sub-fase concluída.
+6. Pergunte antes de instalar qualquer dependência nova.
+7. Assim como nas integrações da Fase 6, a chave de API do provedor de IA nunca pode aparecer no frontend — a conversa com a IA passa sempre pelo backend.
+
+## Observação sobre o documento original
+
+A especificação original descrevia o histórico de conversas do C.A.S.S.I.E. usando armazenamento local do navegador (localStorage) e um recurso de IA nativo do Base44 (InvokeLLM), porque o app foi pensado originalmente para rodar naquela plataforma. Como migramos para uma stack própria (Supabase), adapte esses dois pontos:
+- O histórico de conversas deve ficar salvo no banco de dados (por projeto), não no navegador — assim ele não se perde ao trocar de dispositivo.
+- A chamada para a IA deve ser feita por um endpoint de backend próprio, usando a API de um provedor de IA à sua escolha, e não um recurso específico do Base44.
+
+Comece pela Fase 7.1.
+
+## Fase 7.1 — Backend do C.A.S.S.I.E.
+
+**Objetivo:** o motor por trás do chat, antes de construir a tela.
+
+Tarefas:
+- Criar um endpoint de backend que recebe a mensagem do usuário e chama a API de um provedor de IA, usando uma chave de API guardada só no backend
+- Implementar os 4 modos com seus respectivos direcionamentos: Assistente (dúvidas gerais), Analista (métricas como CPA/ROAS/CTR), Consultora (estratégia, funil), Auditora (conformidade, riscos)
+- Implementar o carregamento de contexto do projeto (reuniões, tarefas concluídas, metas, comentários, perfil) para enviar junto com a pergunta
+- Implementar a regra de escopo: se a pergunta fugir de tráfego/marketing/gestão, a resposta deve indicar "encaminhado para atendimento humano"
+- Criar a tabela de histórico de conversas no banco, isolada por projeto, limitando a memória a um número razoável de mensagens recentes (ex: 20)
+
+**Critérios de aceite:**
+- Envio uma pergunta de teste sobre CPA/ROAS e recebo uma resposta relevante ao contexto do projeto
+- Abro a aba "Network" das Ferramentas do Desenvolvedor do navegador e confirmo que nenhuma chave de API aparece nas requisições vistas pelo navegador
+- Faço uma pergunta fora do escopo (ex: um assunto pessoal qualquer) e recebo a indicação de "encaminhado para atendimento humano"
+- Fecho o navegador, abro de novo, e o histórico da conversa daquele projeto continua lá
+
+## Fase 7.2 — Interface de chat
+
+**Objetivo:** a tela do C.A.S.S.I.E. em si.
+
+Tarefas:
+- Header: ícone com efeito pulsante, título, plano ativo e modo atual
+- Botão "Limpar Histórico"
+- Seletor de modos (mostrando só os modos liberados pelo plano do cliente)
+- Bolhas de mensagem com avatar (IA/usuário) e alerta visual quando a resposta for "fora de escopo"
+- Indicador de carregamento enquanto a IA responde
+- Campo de texto + botão de enviar (Enter também envia)
+- Controle por plano: Validação libera 1 modo (Assistente), Escala libera 2, Dominação libera 3, e usuários admin/gestor sempre veem os 4 modos
+
+**Critérios de aceite:**
+- Logado como cliente de um projeto no plano Validação, só vejo o modo "Assistente" disponível para escolher
+- Logado como admin ou gestor, vejo os 4 modos disponíveis
+- Envio uma mensagem, vejo o indicador de carregamento, e depois a resposta aparece na bolha correta
+- Clico em "Limpar Histórico" e a conversa daquele projeto é apagada
+
+## Fase 7.3 — Testes automatizados
+
+**Objetivo:** garantir que os fluxos mais importantes do app não quebrem no futuro.
+
+Tarefas:
+- Escrever testes automatizados (Vitest) cobrindo: RoleRoute bloqueando o papel `cliente` de rotas do gestor, aprovação de criativo gerando uma tarefa de revisão automaticamente, aplicação de um workflow criando as tarefas corretas
+- Escrever pelo menos um teste de ponta a ponta (Playwright) cobrindo login → navegação por uma página → logout
+
+**Critérios de aceite:**
+- Rodo o comando de teste e vejo todos os testes passando
+- Peço para alterar temporariamente uma regra (ex: desativar a checagem de RBAC) só para ver o teste correspondente falhar — confirma que o teste realmente verifica o que deveria, e não só finge que passa
+
+## Fase 7.4 — Revisão geral e ajustes finais
+
+**Objetivo:** fechar o app inteiro, não só o C.A.S.S.I.E.
+
+Tarefas:
+- Revisar todas as páginas do Portal Cliente e do Portal Gestor buscando inconsistências visuais e textos de exemplo esquecidos (tipo "Exemplo de card")
+- Conferir estados vazios (ex: "nenhuma tarefa ainda") em todas as listas
+- Revisar a responsividade geral mais uma vez, incluindo os tamanhos de tela que já causaram problema antes (iPad Air ~820px, Asus Zenbook Fold ~853px)
+
+**Critérios de aceite:**
+- Percorro cada item do menu (Portal Cliente e Portal Gestor) e não encontro nenhum texto placeholder restante
+- Um estado vazio (lista sem itens) mostra uma mensagem adequada, não uma tela quebrada ou em branco
+- A responsividade está consistente em todos os tamanhos testados ao longo do projeto
+
+---
+
+Ao terminar a Fase 7.4 e eu confirmar que todos os critérios passaram, o Ametista Conversões está com todas as 7 fases concluídas.

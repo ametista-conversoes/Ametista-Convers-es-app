@@ -1,3 +1,4 @@
+import type { CassieMode } from '@/lib/cassie-modes'
 import { supabase } from '@/lib/supabase'
 
 // Cliente da Edge Function da Cassie (Fase 7.1) — chamado direto via
@@ -14,11 +15,17 @@ async function authHeaders(): Promise<Record<string, string>> {
   }
 }
 
-export async function sendCassieMessage(message: string): Promise<string> {
+interface SendCassieMessageParams {
+  clientId: string
+  message: string
+  mode: CassieMode
+}
+
+export async function sendCassieMessage({ clientId, message, mode }: SendCassieMessageParams): Promise<string> {
   const res = await fetch(`${FUNCTIONS_BASE}/chat`, {
     method: 'POST',
     headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ client_id: clientId, message, mode }),
   })
   const body = await res.json()
   if (!res.ok) throw new Error(body.error ?? 'Não foi possível falar com a Cassie.')

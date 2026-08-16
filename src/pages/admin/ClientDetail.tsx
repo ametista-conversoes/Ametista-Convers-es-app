@@ -14,6 +14,9 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { NewProjectDialog } from '@/components/admin/NewProjectDialog'
+import { CassieChatThread } from '@/components/cassie/CassieChatThread'
+import { CassieHeader } from '@/components/cassie/CassieHeader'
+import { CassieMessageForm } from '@/components/cassie/CassieMessageForm'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -30,6 +33,7 @@ import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { useCassieMessages, useClearCassieHistory, useSendCassieMessage } from '@/hooks/useCassieMessages'
 import {
   useActivityChecklistItems,
   useAllAlerts,
@@ -43,6 +47,7 @@ import {
   useUpdateClientDetails,
   useUpdateClientStatus,
 } from '@/hooks/useManagerPortalData'
+import { CASSIE_MODES, type CassieMode } from '@/lib/cassie-modes'
 import { formatDate, formatDateTime, formatFullDate } from '@/lib/format'
 import { getClientRiskDetails } from '@/lib/client-risk'
 import { uploadClientLogo } from '@/lib/storage'
@@ -78,8 +83,12 @@ export default function ClientDetail() {
   const toggleActivityItem = useToggleActivityChecklistItem()
   const updateStatus = useUpdateClientStatus()
   const updateDetails = useUpdateClientDetails()
+  const { data: cassieMessages } = useCassieMessages(id ?? '')
+  const sendCassieMessage = useSendCassieMessage(id ?? '')
+  const clearCassieHistory = useClearCassieHistory(id ?? '')
 
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [cassieMode, setCassieMode] = useState<CassieMode>(CASSIE_MODES[0])
   const [name, setName] = useState<string | null>(null)
   const [company, setCompany] = useState<string | null>(null)
   const [email, setEmail] = useState<string | null>(null)
@@ -509,6 +518,28 @@ export default function ClientDetail() {
           </Card>
         </div>
       </div>
+
+      {/* Cassie IA — conversa própria do gestor sobre esse cliente,
+          separada da conversa que o próprio cliente tem com a Cassie.
+          Admin/gestor sempre veem os 4 modos, independente do plano. */}
+      <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
+        <CardContent className="space-y-4 p-0">
+          <CassieHeader
+            plan={client.plan}
+            allowedModes={CASSIE_MODES}
+            mode={cassieMode}
+            onModeChange={setCassieMode}
+            onClearHistory={() => clearCassieHistory.mutate()}
+            clearing={clearCassieHistory.isPending}
+            hasMessages={(cassieMessages ?? []).length > 0}
+          />
+          <CassieChatThread messages={cassieMessages ?? []} sending={sendCassieMessage.isPending} />
+          <CassieMessageForm
+            onSend={(text) => sendCassieMessage.mutate({ message: text, mode: cassieMode })}
+            sending={sendCassieMessage.isPending}
+          />
+        </CardContent>
+      </Card>
     </div>
   )
 }
