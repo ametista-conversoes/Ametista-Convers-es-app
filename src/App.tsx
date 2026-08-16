@@ -8,6 +8,7 @@ import ForgotPassword from '@/pages/auth/ForgotPassword'
 import Login from '@/pages/auth/Login'
 import Register from '@/pages/auth/Register'
 import ResetPassword from '@/pages/auth/ResetPassword'
+import Cassie from '@/pages/client/Cassie'
 import Comments from '@/pages/client/Comments'
 import Dashboard from '@/pages/client/Dashboard'
 import Files from '@/pages/client/Files'
@@ -46,6 +47,7 @@ const clientPagesReady: Record<string, ComponentType> = {
   '/files': Files,
   '/comments': Comments,
   '/meetings': Meetings,
+  '/cassie': Cassie,
   '/settings': Settings,
 }
 
