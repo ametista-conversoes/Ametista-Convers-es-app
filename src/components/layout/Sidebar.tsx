@@ -1,5 +1,4 @@
 import { NavLink } from 'react-router-dom'
-import { Gem } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useNavActivity } from '@/hooks/useClientPortalData'
 import { useManagerNavActivity } from '@/hooks/useManagerPortalData'
@@ -76,9 +75,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center gap-2 px-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600/15 text-purple-400">
-          <Gem className="h-4 w-4" />
-        </div>
+        <img src="/logo.png" alt="Ametista Conversões" className="h-8 w-8 shrink-0 rounded-lg" />
         <span className="text-sm font-semibold text-foreground">Ametista Conversões</span>
       </div>
       <nav className="flex flex-1 flex-col justify-between overflow-y-auto px-3 pb-6">
