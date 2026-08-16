@@ -75,7 +75,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center gap-2 px-5">
-        <img src="/logo.png" alt="Ametista Conversões" className="h-8 w-8 shrink-0 rounded-lg" />
+        <img src="/logo.png" alt="Ametista Conversões" className="h-8 w-8 shrink-0" />
         <span className="text-sm font-semibold text-foreground">Ametista Conversões</span>
       </div>
       <nav className="flex flex-1 flex-col justify-between overflow-y-auto px-3 pb-6">
