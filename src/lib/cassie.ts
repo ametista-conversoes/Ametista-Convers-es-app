@@ -1,9 +1,10 @@
 import { supabase } from '@/lib/supabase'
 
-// Cliente da Edge Function "cassie" (Fase 7.1) — chamado direto via
+// Cliente da Edge Function da Cassie (Fase 7.1) — chamado direto via
 // fetch (não supabase.functions.invoke), mesmo padrão já usado em
-// src/lib/integrations.ts.
-const FUNCTIONS_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cassie`
+// src/lib/integrations.ts. Nome da função no painel do Supabase é
+// "CASSIE" (não "cassie") — é só isso que muda aqui.
+const FUNCTIONS_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/CASSIE`
 
 async function authHeaders(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession()

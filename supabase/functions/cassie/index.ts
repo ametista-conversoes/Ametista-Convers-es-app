@@ -2,18 +2,26 @@
 // cliente, via API da OpenAI).
 //
 // Como usar: cole este arquivo inteiro no painel do Supabase, em
-// Edge Functions > "cassie" > editar código > Deploy. Essa função só
-// é chamada pelo nosso próprio front-end (usuário já logado), então a
-// verificação automática de JWT pode ficar LIGADA nas configurações
-// da função (diferente da função "integrations", que também recebe
-// chamadas de fora).
+// Edge Functions > "cassie" > editar código > Deploy. A verificação
+// automática de JWT precisa estar DESLIGADA nas configurações da
+// função (Edge Functions > cassie > Settings) — mesmo que só o nosso
+// próprio front-end chame essa rota, o navegador manda um pedido
+// "preflight" (OPTIONS) sem o token de login antes da chamada de
+// verdade, e o Supabase bloqueia esse preflight se a verificação
+// automática estiver ligada. A autenticação de quem chama já é feita
+// na mão aqui dentro (ver `requireClient`), igual a função
+// "integrations" já faz.
 //
 // Segredo que essa função espera encontrar configurado (Edge
 // Functions > cassie > Secrets), além dos que o Supabase já injeta
 // sozinho em toda função (SUPABASE_URL, SUPABASE_ANON_KEY,
 // SUPABASE_SERVICE_ROLE_KEY):
-//   OPENAI_API_KEY — gerada em platform.openai.com, colada direto aqui
-//                     (nunca no código, nunca no chat com o Claude)
+//   Openai_api_key — gerada em platform.openai.com, colada direto aqui
+//                     (nunca no código, nunca no chat com o Claude).
+//                     Nome com essa grafia específica porque o painel do
+//                     Supabase não deixa renomear um segredo depois de
+//                     criado — o padrão do resto do projeto é
+//                     MAIÚSCULO_COM_UNDERSCORE, mas esse aqui ficou assim.
 //
 // Rota:
 //   POST .../cassie/chat   { message: string }
@@ -155,9 +163,9 @@ async function handleChat(req: Request) {
   const message = body.message?.trim()
   if (!message) return jsonResponse({ error: 'message é obrigatório' }, 400)
 
-  const openaiKey = Deno.env.get('OPENAI_API_KEY')
+  const openaiKey = Deno.env.get('Openai_api_key')
   if (!openaiKey) {
-    return jsonResponse({ error: 'A chave da OpenAI ainda não foi configurada nesta função (falta o segredo OPENAI_API_KEY).' }, 400)
+    return jsonResponse({ error: 'A chave da OpenAI ainda não foi configurada nesta função (falta o segredo Openai_api_key).' }, 400)
   }
 
   const supabase = getServiceClient()
