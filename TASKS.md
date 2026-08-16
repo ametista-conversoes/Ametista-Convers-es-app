@@ -235,7 +235,7 @@
   - Relacionamento: aprovações "por atraso", reuniões canceladas, incidentes/alertas graves em aberto
   - `migration-029-fase7-health-score-real.sql` (nova) — funções `recompute_client_health_score(client_id)` e `recompute_all_client_health_scores()`, agendada 1x por dia via `pg_cron`, com backfill de todo mundo já dentro da própria migração
   - Botão "Recalcular agora" na Central de Informações do Cliente, pra não precisar esperar o cron durante teste
-  - [ ] Pendente: rodar `migration-029-fase7-health-score-real.sql` — depois disso eu testo ao vivo com clientes de sinais variados (meta atrasada, tarefa atrasada, aprovação por atraso) e com um cliente sem nenhum dado, pra confirmar que aparece "sem dados" em vez de número inventado
+  - [x] `migration-029` rodada pelo usuário — **testado ao vivo e conferido na mão, número por número**: cliente "Studio Prisma" (onboarding, sem metas, 1 tarefa atrasada, sem itens de atividade, renovação dentro de 15 dias, sem incidentes/alertas/aprovações por atraso) mostrou Desempenho "—" (sem meta e sem dado de desempenho — correto), Financeiro 70 (90 de onboarding − 20 da janela de renovação — correto), Entrega 85 (100 − 15 da tarefa atrasada — correto), Relacionamento 100 (sem sinal negativo — correto), e Health Score geral 85 (média exata dos 3 com dado, ignorando o "—" — correto). Botão "Recalcular agora" testado na Central de Informações do Cliente, sem erro. Lista de clientes passou a mostrar notas bem diferentes entre si (55, 57, 85, 50), condizentes com quem está "Em problemas"/"Em risco" e quem não está
 - [ ] Testes automatizados (Vitest + Playwright)
 - [ ] Revisão geral de responsividade e acessibilidade
 - [ ] Preparar o app para publicação (deploy)
