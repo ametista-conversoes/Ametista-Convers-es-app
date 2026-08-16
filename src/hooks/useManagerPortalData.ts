@@ -139,6 +139,20 @@ export function useUpdateClientStatus() {
   })
 }
 
+export function useRecomputeClientHealthScore() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (clientId: string) => {
+      const { error } = await supabase.rpc('recompute_client_health_score', { p_client_id: clientId })
+      if (error) throw error
+    },
+    onSuccess: (_data, clientId) => {
+      queryClient.invalidateQueries({ queryKey: ['manager-client', clientId] })
+      queryClient.invalidateQueries({ queryKey: ['manager-clients'] })
+    },
+  })
+}
+
 export function useDeleteClient() {
   const queryClient = useQueryClient()
   return useMutation({

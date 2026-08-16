@@ -9,6 +9,7 @@ import {
   ListChecks,
   Mail,
   Phone,
+  RefreshCw,
   Target,
   Upload,
 } from 'lucide-react'
@@ -43,6 +44,7 @@ import {
   useAllSmartGoals,
   useAllTasks,
   useManagerClient,
+  useRecomputeClientHealthScore,
   useToggleActivityChecklistItem,
   useUpdateClientDetails,
   useUpdateClientStatus,
@@ -83,6 +85,7 @@ export default function ClientDetail() {
   const toggleActivityItem = useToggleActivityChecklistItem()
   const updateStatus = useUpdateClientStatus()
   const updateDetails = useUpdateClientDetails()
+  const recomputeHealthScore = useRecomputeClientHealthScore()
   const { data: cassieMessages } = useCassieMessages(id ?? '')
   const sendCassieMessage = useSendCassieMessage(id ?? '')
   const clearCassieHistory = useClearCassieHistory(id ?? '')
@@ -298,11 +301,28 @@ export default function ClientDetail() {
                   className="h-8 w-32"
                 />
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Health Score</span>
-                <span className={cn('font-medium', getHealthScoreColor(client.health_score))}>
-                  {client.health_score ?? '—'}
-                </span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="shrink-0 text-muted-foreground">Health Score</span>
+                <div className="flex items-center gap-2">
+                  <span className={cn('font-medium', getHealthScoreColor(client.health_score))}>
+                    {client.health_score ?? '—'}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    disabled={recomputeHealthScore.isPending}
+                    onClick={() =>
+                      recomputeHealthScore.mutate(client.id, {
+                        onError: () => toast.error('Não foi possível recalcular o Health Score.'),
+                      })
+                    }
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${recomputeHealthScore.isPending ? 'animate-spin' : ''}`} />
+                    Recalcular agora
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

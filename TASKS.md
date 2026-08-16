@@ -228,6 +228,14 @@
   - `migration-028-fase7-cassie-modos.sql` (nova) — apaga as mensagens de teste existentes (sem valor pra manter, combinado com o usuário) e ajusta a tabela `cassie_messages`
 - [x] `migration-028` rodada e função `CASSIE` reimplantada pelo usuário — **testado ao vivo de ponta a ponta**: cliente de teste só via o modo "Assistente" (plano não definido = 1 modo só, liberação por plano funcionando); pergunta sobre conversões respondida com número real (0, cálculo correto pros dados desse cliente); pergunta fora de escopo ("qual a capital da França?") recebeu a resposta fixa de encaminhamento, com aviso visual âmbar; "Limpar Histórico" apagou a conversa de verdade; no portal do gestor, o card da Cassie na Central de Informações mostrou os 4 modos sempre liberados, e a mensagem mandada por ali **não apareceu** na conversa do cliente (conversas separadas confirmadas)
 - [x] Função `integrations` também reimplantada pelo usuário — testado ao vivo: diálogo de conectar não pede mais projeto, e o erro mudou de "escolha o projeto" pra um aviso de credencial do Google não configurada (esperado, é outra pendência, não bug)
+- [x] **Health Score real**: antes era só um número digitado manualmente (e as 4 sub-notas — Desempenho/Financeiro/Entrega/Relacionamento — nunca tinham sido calculadas). Modelo: cada sub-nota começa em 100 e perde pontos por sinal negativo real (mesmo raciocínio de `src/lib/client-risk.ts`, que já marca "Cliente em risco"); sem dado nenhum numa categoria, ela fica "sem dados" em vez de inventar número
+  - Desempenho: média das metas SMART (por status + atraso) e tendência de ROAS (compara os últimos 15 dias com os 15 anteriores, sem depender de um valor "bom" fixo)
+  - Financeiro: status do cliente (ativo/onboarding/pausado/churned) + janela de risco de renovação + ROI recente
+  - Entrega: tarefas atrasadas + % de itens concluídos nas Atividades
+  - Relacionamento: aprovações "por atraso", reuniões canceladas, incidentes/alertas graves em aberto
+  - `migration-029-fase7-health-score-real.sql` (nova) — funções `recompute_client_health_score(client_id)` e `recompute_all_client_health_scores()`, agendada 1x por dia via `pg_cron`, com backfill de todo mundo já dentro da própria migração
+  - Botão "Recalcular agora" na Central de Informações do Cliente, pra não precisar esperar o cron durante teste
+  - [ ] Pendente: rodar `migration-029-fase7-health-score-real.sql` — depois disso eu testo ao vivo com clientes de sinais variados (meta atrasada, tarefa atrasada, aprovação por atraso) e com um cliente sem nenhum dado, pra confirmar que aparece "sem dados" em vez de número inventado
 - [ ] Testes automatizados (Vitest + Playwright)
 - [ ] Revisão geral de responsividade e acessibilidade
 - [ ] Preparar o app para publicação (deploy)
