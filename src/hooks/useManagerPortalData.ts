@@ -73,6 +73,9 @@ export interface ManagerProjectRecord {
   health_score: number | null
   start_date: string | null
   end_date: string | null
+  external_connection_id: string | null
+  external_campaign_id: string | null
+  external_campaign_name: string | null
 }
 
 export interface ManagerTaskRecord {
@@ -313,7 +316,7 @@ export function useAllProjects() {
       const { data, error } = await supabase
         .from('projects')
         .select(
-          'id, title, client_id, status, spend, objective, description, icp, segmentations, systems, channel, cpa, roas, ctr, revenue, health_score, start_date, end_date',
+          'id, title, client_id, status, spend, objective, description, icp, segmentations, systems, channel, cpa, roas, ctr, revenue, health_score, start_date, end_date, external_connection_id, external_campaign_id, external_campaign_name',
         )
       if (error) throw error
       return data as ManagerProjectRecord[]
@@ -326,6 +329,9 @@ export interface NewProjectInput {
   client_id: string
   objective: string | null
   description: string | null
+  external_connection_id?: string | null
+  external_campaign_id?: string | null
+  external_campaign_name?: string | null
 }
 
 export function useCreateProject() {
@@ -348,6 +354,9 @@ export interface UpdateProjectCampaignInput {
   objective: string | null
   systems: string | null
   description: string | null
+  external_connection_id: string | null
+  external_campaign_id: string | null
+  external_campaign_name: string | null
 }
 
 export function useUpdateProject() {
@@ -360,6 +369,54 @@ export function useUpdateProject() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-projects'] })
     },
+  })
+}
+
+export interface CampaignPerformance {
+  spend: number
+  clicks: number
+  impressions: number
+  conversions: number
+  cpa: number | null
+  ctr: number | null
+}
+
+/** Últimos 30 dias de `campaign_performance_snapshots` pra uma campanha
+ * vinculada (Fase 8.1b). Sem ROAS/receita — os provedores de anúncio
+ * não reportam isso nessa sincronização (mesma limitação que já existe
+ * hoje pro agregado por conta em `performance_snapshots`). */
+export function useCampaignPerformance(connectionId: string | null, campaignId: string | null) {
+  return useQuery({
+    queryKey: ['campaign-performance', connectionId, campaignId],
+    queryFn: async () => {
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      const { data, error } = await supabase
+        .from('campaign_performance_snapshots')
+        .select('spend, clicks, impressions, conversions')
+        .eq('connection_id', connectionId as string)
+        .eq('external_campaign_id', campaignId as string)
+        .gte('snapshot_date', since)
+      if (error) throw error
+
+      type Totals = { spend: number; clicks: number; impressions: number; conversions: number }
+      const rows = data as Array<{ spend: number | null; clicks: number | null; impressions: number | null; conversions: number | null }>
+      const totals = rows.reduce<Totals>(
+        (acc, row) => ({
+          spend: acc.spend + (row.spend ?? 0),
+          clicks: acc.clicks + (row.clicks ?? 0),
+          impressions: acc.impressions + (row.impressions ?? 0),
+          conversions: acc.conversions + (row.conversions ?? 0),
+        }),
+        { spend: 0, clicks: 0, impressions: 0, conversions: 0 },
+      )
+
+      return {
+        ...totals,
+        cpa: totals.conversions > 0 ? totals.spend / totals.conversions : null,
+        ctr: totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : null,
+      } as CampaignPerformance
+    },
+    enabled: !!connectionId && !!campaignId,
   })
 }
 

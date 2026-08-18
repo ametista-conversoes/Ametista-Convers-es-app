@@ -16,12 +16,16 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { CampaignLinkField } from '@/components/project/CampaignLinkField'
 import { useCreateProject } from '@/hooks/useManagerPortalData'
 
 const newProjectSchema = z.object({
   title: z.string().min(2, 'Digite o nome do projeto'),
   objective: z.string().optional(),
   description: z.string().optional(),
+  external_connection_id: z.string().nullable(),
+  external_campaign_id: z.string().nullable(),
+  external_campaign_name: z.string().nullable(),
 })
 
 type NewProjectValues = z.infer<typeof newProjectSchema>
@@ -40,7 +44,14 @@ export function NewProjectDialog({ clientId }: NewProjectDialogProps) {
 
   const form = useForm<NewProjectValues>({
     resolver: zodResolver(newProjectSchema),
-    defaultValues: { title: '', objective: '', description: '' },
+    defaultValues: {
+      title: '',
+      objective: '',
+      description: '',
+      external_connection_id: null,
+      external_campaign_id: null,
+      external_campaign_name: null,
+    },
   })
 
   function handleOpenChange(next: boolean) {
@@ -55,6 +66,9 @@ export function NewProjectDialog({ clientId }: NewProjectDialogProps) {
         client_id: clientId,
         objective: values.objective?.trim() ? values.objective.trim() : null,
         description: values.description?.trim() ? values.description.trim() : null,
+        external_connection_id: values.external_connection_id,
+        external_campaign_id: values.external_campaign_id,
+        external_campaign_name: values.external_campaign_name,
       })
       toast.success('Projeto criado.')
       form.reset()
@@ -119,6 +133,23 @@ export function NewProjectDialog({ clientId }: NewProjectDialogProps) {
                 </FormItem>
               )}
             />
+
+            <div>
+              <p className="mb-2 text-sm font-medium text-foreground">Campanha vinculada (opcional)</p>
+              <CampaignLinkField
+                clientId={clientId}
+                value={{
+                  externalConnectionId: form.watch('external_connection_id'),
+                  externalCampaignId: form.watch('external_campaign_id'),
+                  externalCampaignName: form.watch('external_campaign_name'),
+                }}
+                onChange={(next) => {
+                  form.setValue('external_connection_id', next.externalConnectionId)
+                  form.setValue('external_campaign_id', next.externalCampaignId)
+                  form.setValue('external_campaign_name', next.externalCampaignName)
+                }}
+              />
+            </div>
 
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>

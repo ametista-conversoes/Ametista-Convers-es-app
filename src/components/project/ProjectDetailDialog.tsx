@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -6,9 +7,12 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { TaskList } from '@/components/tasks/TaskList'
+import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
+import { KanbanTaskFormDialog } from '@/components/kanban/KanbanTaskFormDialog'
+import { CampaignLinkField } from '@/components/project/CampaignLinkField'
+import { ManagerTaskRow } from '@/components/tasks/ManagerTaskRow'
 import type { ManagerProjectRecord, ManagerTaskRecord } from '@/hooks/useManagerPortalData'
-import { useUpdateProject } from '@/hooks/useManagerPortalData'
+import { useCampaignPerformance, useUpdateProject } from '@/hooks/useManagerPortalData'
 import { formatCurrency, formatDate, formatMultiplier, formatPercent } from '@/lib/format'
 import { segmentationOptionGroups } from '@/lib/segmentation-options'
 import { projectStatusLabels, projectStatusStyles } from '@/lib/status-styles'
@@ -26,13 +30,26 @@ interface CampaignFormValues {
   objective: string
   systems: string
   description: string
+  external_connection_id: string | null
+  external_campaign_id: string | null
+  external_campaign_name: string | null
 }
 
 export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDetailDialogProps) {
   const updateProject = useUpdateProject()
+  const [deleteMode, setDeleteMode] = useState(false)
 
   const form = useForm<CampaignFormValues>({
-    defaultValues: { icp: '', segmentations: [], objective: '', systems: '', description: '' },
+    defaultValues: {
+      icp: '',
+      segmentations: [],
+      objective: '',
+      systems: '',
+      description: '',
+      external_connection_id: null,
+      external_campaign_id: null,
+      external_campaign_name: null,
+    },
   })
 
   useEffect(() => {
@@ -43,6 +60,9 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
       objective: project.objective ?? '',
       systems: project.systems ?? '',
       description: project.description ?? '',
+      external_connection_id: project.external_connection_id,
+      external_campaign_id: project.external_campaign_id,
+      external_campaign_name: project.external_campaign_name,
     })
   }, [project, form])
 
@@ -56,6 +76,9 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
         objective: values.objective.trim() ? values.objective.trim() : null,
         systems: values.systems.trim() ? values.systems.trim() : null,
         description: values.description.trim() ? values.description.trim() : null,
+        external_connection_id: values.external_connection_id,
+        external_campaign_id: values.external_campaign_id,
+        external_campaign_name: values.external_campaign_name,
       })
       toast.success('Campanha atualizada.')
     } catch {
@@ -64,6 +87,9 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
   }
 
   const segmentations = form.watch('segmentations')
+  const linkedCampaignId = project?.external_campaign_id ?? null
+  const linkedConnectionId = project?.external_connection_id ?? null
+  const campaignPerformance = useCampaignPerformance(linkedConnectionId, linkedCampaignId)
 
   return (
     <Dialog open={!!project} onOpenChange={onOpenChange}>
@@ -91,10 +117,19 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                   )}
                 </div>
 
+                {linkedCampaignId && (
+                  <p className="text-xs text-muted-foreground">
+                    CPA, CTR e gasto abaixo vêm da campanha vinculada ({project.external_campaign_name}), últimos 30 dias.
+                    ROAS e receita continuam manuais — os provedores de anúncio não reportam receita nessa sincronização.
+                  </p>
+                )}
+
                 <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-3">
                   <div>
                     <p className="text-xs text-muted-foreground">CPA</p>
-                    <p className="text-foreground">{formatCurrency(project.cpa)}</p>
+                    <p className="text-foreground">
+                      {formatCurrency(linkedCampaignId ? (campaignPerformance.data?.cpa ?? null) : project.cpa)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">ROAS</p>
@@ -102,11 +137,15 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">CTR</p>
-                    <p className="text-foreground">{formatPercent(project.ctr)}</p>
+                    <p className="text-foreground">
+                      {formatPercent(linkedCampaignId ? (campaignPerformance.data?.ctr ?? null) : project.ctr)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Gasto</p>
-                    <p className="text-foreground">{formatCurrency(project.spend)}</p>
+                    <p className="text-foreground">
+                      {formatCurrency(linkedCampaignId ? (campaignPerformance.data?.spend ?? null) : project.spend)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Receita</p>
@@ -134,11 +173,44 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                 )}
               </TabsContent>
 
-              <TabsContent value="tasks">
-                <TaskList tasks={tasks} title="Tarefas do projeto" />
+              <TabsContent value="tasks" className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <DeleteModeToggle active={deleteMode} onToggle={() => setDeleteMode((v) => !v)} />
+                  <KanbanTaskFormDialog
+                    defaultClientId={project.client_id}
+                    defaultProjectId={project.id}
+                    trigger={
+                      <Button size="sm">
+                        <Plus className="h-4 w-4" />
+                        Nova tarefa
+                      </Button>
+                    }
+                  />
+                </div>
+                {tasks.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma tarefa neste projeto.</p>}
+                {tasks.map((task) => (
+                  <ManagerTaskRow key={task.id} task={task} deleteMode={deleteMode} />
+                ))}
               </TabsContent>
 
               <TabsContent value="campaign" className="space-y-4">
+                <div>
+                  <p className="mb-2 text-sm text-foreground">Campanha vinculada (opcional)</p>
+                  <CampaignLinkField
+                    clientId={project.client_id}
+                    value={{
+                      externalConnectionId: form.watch('external_connection_id'),
+                      externalCampaignId: form.watch('external_campaign_id'),
+                      externalCampaignName: form.watch('external_campaign_name'),
+                    }}
+                    onChange={(next) => {
+                      form.setValue('external_connection_id', next.externalConnectionId, { shouldDirty: true })
+                      form.setValue('external_campaign_id', next.externalCampaignId, { shouldDirty: true })
+                      form.setValue('external_campaign_name', next.externalCampaignName, { shouldDirty: true })
+                    }}
+                  />
+                </div>
+
                 <div>
                   <label className="text-sm text-foreground">Público-alvo</label>
                   <Textarea

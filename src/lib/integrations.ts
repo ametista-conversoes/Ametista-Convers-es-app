@@ -43,3 +43,19 @@ export async function syncIntegration(connectionId: string): Promise<{ syncedDay
   if (!res.ok) throw new Error(body.error ?? 'Não foi possível sincronizar.')
   return body
 }
+
+export interface ExternalCampaign {
+  id: string
+  name: string
+  status: string
+}
+
+/** Lista as campanhas reais de uma conta já conectada (Fase 8.1b —
+ * vincular um projeto a uma campanha específica do Meta/Google Ads). */
+export async function listCampaigns(connectionId: string): Promise<ExternalCampaign[]> {
+  const search = new URLSearchParams({ connection_id: connectionId })
+  const res = await fetch(`${FUNCTIONS_BASE}/campaigns?${search.toString()}`, { headers: await authHeaders() })
+  const body = await res.json()
+  if (!res.ok) throw new Error(body.error ?? 'Não foi possível buscar as campanhas.')
+  return body.campaigns as ExternalCampaign[]
+}

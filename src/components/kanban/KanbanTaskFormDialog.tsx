@@ -39,6 +39,12 @@ const EMPTY_VALUES: TaskFormValues = { title: '', clientId: '', projectId: '', c
 interface KanbanTaskFormDialogProps {
   trigger: ReactNode
   task?: ManagerTaskRecord
+  /** Só usados quando não é edição — pra abrir já preenchido quando a
+   * tarefa nasce de dentro de um cliente/projeto específico (ex: aba
+   * Tarefas do detalhe de um projeto), em vez de exigir escolher nos
+   * dois selects de novo. */
+  defaultClientId?: string
+  defaultProjectId?: string
 }
 
 /** Diálogo de criar OU editar uma tarefa do Kanban — sem `task` cria uma
@@ -47,7 +53,7 @@ interface KanbanTaskFormDialogProps {
  * `handleOpenChange` ao abrir). O prazo só é obrigatoriamente "não
  * passado" ao criar — editando, a tarefa pode já estar atrasada e isso
  * é um estado válido que não deve travar o resto da edição. */
-export function KanbanTaskFormDialog({ trigger, task }: KanbanTaskFormDialogProps) {
+export function KanbanTaskFormDialog({ trigger, task, defaultClientId, defaultProjectId }: KanbanTaskFormDialogProps) {
   const [open, setOpen] = useState(false)
   const { data: clients } = useAllClients()
   const { data: projects } = useAllProjects()
@@ -76,7 +82,7 @@ export function KanbanTaskFormDialog({ trigger, task }: KanbanTaskFormDialogProp
               due_date: task.due_date ?? '',
               priority: task.priority as TaskFormValues['priority'],
             }
-          : EMPTY_VALUES,
+          : { ...EMPTY_VALUES, clientId: defaultClientId ?? '', projectId: defaultProjectId ?? '' },
       )
     }
   }

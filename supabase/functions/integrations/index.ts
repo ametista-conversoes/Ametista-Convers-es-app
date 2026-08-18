@@ -33,6 +33,7 @@
 //   GET  .../integrations/connect?provider=google_forms&digital_asset_id=...&form_id=...
 //   GET  .../integrations/connect?provider=meta_ads&digital_asset_id=...
 //   GET  .../integrations/callback?state=...&code=...          (aberta pelo Google/Meta)
+//   GET  .../integrations/campaigns?connection_id=...           (vincular projeto a uma campanha — Fase 8.1b)
 //   POST .../integrations/sync            { connection_id }     (botão "Sincronizar agora")
 //   POST .../integrations/sync-all        {}                    (cabeçalho X-Cron-Secret,
 //                                          chamada pelo job agendado — Fase 6.4)
@@ -464,10 +465,17 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
   if (!accessToken) return { ok: false, error: 'Não foi possível obter um token de acesso válido' }
 
   const byDate = new Map<string, { spend: number; clicks: number; impressions: number; conversions: number }>()
+  // Mesmos números que "byDate", só que quebrados por campanha também —
+  // alimenta campaign_performance_snapshots (Fase 8.1b), sem mudar em
+  // nada o agregado por conta que já existia (performance_snapshots).
+  const byCampaign = new Map<
+    string,
+    { campaignId: string; campaignName: string; date: string; spend: number; clicks: number; impressions: number; conversions: number }
+  >()
 
   if (connection.provider === 'google_ads') {
     const gaqlQuery = `
-      SELECT segments.date, metrics.cost_micros, metrics.clicks, metrics.impressions, metrics.conversions
+      SELECT segments.date, campaign.id, campaign.name, metrics.cost_micros, metrics.clicks, metrics.impressions, metrics.conversions
       FROM campaign
       WHERE segments.date DURING LAST_30_DAYS
     `
@@ -493,11 +501,34 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
       const date = row.segments?.date as string | undefined
       if (!date) continue
       const acc = byDate.get(date) ?? { spend: 0, clicks: 0, impressions: 0, conversions: 0 }
-      acc.spend += Number(row.metrics?.costMicros ?? 0) / 1_000_000
-      acc.clicks += Number(row.metrics?.clicks ?? 0)
-      acc.impressions += Number(row.metrics?.impressions ?? 0)
-      acc.conversions += Number(row.metrics?.conversions ?? 0)
+      const spend = Number(row.metrics?.costMicros ?? 0) / 1_000_000
+      const clicks = Number(row.metrics?.clicks ?? 0)
+      const impressions = Number(row.metrics?.impressions ?? 0)
+      const conversions = Number(row.metrics?.conversions ?? 0)
+      acc.spend += spend
+      acc.clicks += clicks
+      acc.impressions += impressions
+      acc.conversions += conversions
       byDate.set(date, acc)
+
+      const campaignId = row.campaign?.id != null ? String(row.campaign.id) : undefined
+      if (campaignId) {
+        const key = `${campaignId}|${date}`
+        const campAcc = byCampaign.get(key) ?? {
+          campaignId,
+          campaignName: (row.campaign?.name as string | undefined) ?? campaignId,
+          date,
+          spend: 0,
+          clicks: 0,
+          impressions: 0,
+          conversions: 0,
+        }
+        campAcc.spend += spend
+        campAcc.clicks += clicks
+        campAcc.impressions += impressions
+        campAcc.conversions += conversions
+        byCampaign.set(key, campAcc)
+      }
     }
   } else {
     // meta_ads — Insights da Graph API, já quebrado por dia
@@ -506,8 +537,12 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
     // valor); somo todos os valores como uma aproximação razoável de
     // conversões, não uma contagem exata de um tipo específico
     // (refinável depois, se precisar discriminar por tipo de ação).
+    // level=campaign devolve uma linha por campanha+dia (em vez de uma
+    // linha por dia só, agregando a conta inteira) — dá pra montar os
+    // dois níveis (byDate/byCampaign) a partir da mesma chamada.
     const insightsUrl = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/${connection.external_account_id}/insights`)
-    insightsUrl.searchParams.set('fields', 'spend,clicks,impressions,actions')
+    insightsUrl.searchParams.set('level', 'campaign')
+    insightsUrl.searchParams.set('fields', 'campaign_id,campaign_name,spend,clicks,impressions,actions')
     insightsUrl.searchParams.set('date_preset', 'last_30d')
     insightsUrl.searchParams.set('time_increment', '1')
     insightsUrl.searchParams.set('access_token', accessToken)
@@ -523,12 +558,34 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
       if (!date) continue
       const actions = (row.actions ?? []) as Array<{ value?: string }>
       const conversions = actions.reduce((sum, a) => sum + Number(a.value ?? 0), 0)
+      const spend = Number(row.spend ?? 0)
+      const clicks = Number(row.clicks ?? 0)
+      const impressions = Number(row.impressions ?? 0)
       const acc = byDate.get(date) ?? { spend: 0, clicks: 0, impressions: 0, conversions: 0 }
-      acc.spend += Number(row.spend ?? 0)
-      acc.clicks += Number(row.clicks ?? 0)
-      acc.impressions += Number(row.impressions ?? 0)
+      acc.spend += spend
+      acc.clicks += clicks
+      acc.impressions += impressions
       acc.conversions += conversions
       byDate.set(date, acc)
+
+      const campaignId = row.campaign_id as string | undefined
+      if (campaignId) {
+        const key = `${campaignId}|${date}`
+        const campAcc = byCampaign.get(key) ?? {
+          campaignId,
+          campaignName: (row.campaign_name as string | undefined) ?? campaignId,
+          date,
+          spend: 0,
+          clicks: 0,
+          impressions: 0,
+          conversions: 0,
+        }
+        campAcc.spend += spend
+        campAcc.clicks += clicks
+        campAcc.impressions += impressions
+        campAcc.conversions += conversions
+        byCampaign.set(key, campAcc)
+      }
     }
   }
 
@@ -548,6 +605,26 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
       .from('performance_snapshots')
       .upsert(rows, { onConflict: 'client_id,channel,snapshot_date' })
     if (upsertError) return { ok: false, error: upsertError.message }
+  }
+
+  const campaignRows = Array.from(byCampaign.values()).map((c) => ({
+    connection_id: connection.id,
+    external_campaign_id: c.campaignId,
+    external_campaign_name: c.campaignName,
+    client_id: clientId,
+    channel: connection.provider,
+    snapshot_date: c.date,
+    spend: c.spend,
+    clicks: c.clicks,
+    impressions: c.impressions,
+    conversions: c.conversions,
+  }))
+
+  if (campaignRows.length > 0) {
+    const { error: campaignUpsertError } = await supabase
+      .from('campaign_performance_snapshots')
+      .upsert(campaignRows, { onConflict: 'connection_id,external_campaign_id,snapshot_date' })
+    if (campaignUpsertError) return { ok: false, error: campaignUpsertError.message }
   }
 
   await supabase.from('digital_asset_connections').update({ last_synced_at: new Date().toISOString() }).eq('id', connection.id)
@@ -580,6 +657,86 @@ async function handleSync(req: Request) {
   const result = await syncConnection(supabase, connection as SyncableConnection)
   if (!result.ok) return jsonResponse({ error: result.error }, 502)
   return jsonResponse({ ok: true, syncedDays: result.syncedDays })
+}
+
+/** Lista as campanhas reais de uma conta já conectada (Google Ads/Meta
+ * Ads) — usada pelo campo de vincular um projeto a uma campanha
+ * específica (Fase 8.1b). Só lê, não grava nada. */
+async function handleListCampaigns(req: Request, url: URL) {
+  const auth = await requireAdminOrGestor(req)
+  if (auth instanceof Response) return auth
+
+  const connectionId = url.searchParams.get('connection_id')
+  if (!connectionId) return jsonResponse({ error: 'connection_id é obrigatório' }, 400)
+
+  const supabase = getServiceClient()
+
+  const { data: connection, error: connectionError } = await supabase
+    .from('digital_asset_connections')
+    .select('id, provider, external_account_id')
+    .eq('id', connectionId)
+    .maybeSingle()
+  if (connectionError) return jsonResponse({ error: connectionError.message }, 500)
+  if (!connection) return jsonResponse({ error: 'Conexão não encontrada' }, 404)
+  if (connection.provider !== 'google_ads' && connection.provider !== 'meta_ads') {
+    return jsonResponse({ error: 'Listagem de campanhas só disponível pra Google Ads e Meta Ads' }, 400)
+  }
+  if (!connection.external_account_id) {
+    return jsonResponse({ error: 'Conexão incompleta (falta conta de anúncios)' }, 400)
+  }
+
+  const accessToken = await getValidAccessToken(supabase, connection.id, connection.provider)
+  if (!accessToken) return jsonResponse({ error: 'Não foi possível obter um token de acesso válido' }, 502)
+
+  if (connection.provider === 'google_ads') {
+    const gaqlQuery = `
+      SELECT campaign.id, campaign.name, campaign.status
+      FROM campaign
+      WHERE campaign.status != 'REMOVED'
+      ORDER BY campaign.name
+    `
+    const searchRes = await fetch(
+      `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${connection.external_account_id}/googleAds:search`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'developer-token': Deno.env.get('GOOGLE_ADS_DEVELOPER_TOKEN') ?? '',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: gaqlQuery }),
+      },
+    )
+    const searchBody = await searchRes.json()
+    if (!searchRes.ok) {
+      return jsonResponse({ error: searchBody.error?.message ?? 'Erro ao consultar a Google Ads API' }, 502)
+    }
+
+    const campaigns = ((searchBody.results ?? []) as Array<Record<string, Record<string, unknown>>>).map((row) => ({
+      id: String(row.campaign?.id ?? ''),
+      name: (row.campaign?.name as string | undefined) ?? '',
+      status: (row.campaign?.status as string | undefined) ?? '',
+    }))
+    return jsonResponse({ campaigns })
+  }
+
+  // meta_ads
+  const campaignsUrl = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/${connection.external_account_id}/campaigns`)
+  campaignsUrl.searchParams.set('fields', 'id,name,status')
+  campaignsUrl.searchParams.set('access_token', accessToken)
+
+  const campaignsRes = await fetch(campaignsUrl.toString())
+  const campaignsBody = await campaignsRes.json()
+  if (!campaignsRes.ok) {
+    return jsonResponse({ error: campaignsBody.error?.message ?? 'Erro ao consultar a Meta Marketing API' }, 502)
+  }
+
+  const campaigns = ((campaignsBody.data ?? []) as Array<{ id: string; name: string; status: string }>).map((c) => ({
+    id: c.id,
+    name: c.name,
+    status: c.status,
+  }))
+  return jsonResponse({ campaigns })
 }
 
 /** Chamada pelo job agendado (pg_cron + pg_net, ver
@@ -679,10 +836,14 @@ Deno.serve(async (req) => {
   try {
     if (req.method === 'GET' && url.pathname.endsWith('/connect')) return await handleConnect(req, url)
     if (req.method === 'GET' && url.pathname.endsWith('/callback')) return await handleCallback(url)
+    if (req.method === 'GET' && url.pathname.endsWith('/campaigns')) return await handleListCampaigns(req, url)
     if (req.method === 'POST' && url.pathname.endsWith('/sync-all')) return await handleSyncAll(req)
     if (req.method === 'POST' && url.pathname.endsWith('/sync')) return await handleSync(req)
     if (req.method === 'POST' && url.pathname.endsWith('/forms-webhook')) return await handleFormsWebhook(req)
-    return jsonResponse({ error: 'Rota não encontrada. Use /connect, /callback, /sync, /sync-all ou /forms-webhook.' }, 404)
+    return jsonResponse(
+      { error: 'Rota não encontrada. Use /connect, /callback, /campaigns, /sync, /sync-all ou /forms-webhook.' },
+      404,
+    )
   } catch (err) {
     return jsonResponse({ error: err instanceof Error ? err.message : 'Erro inesperado' }, 500)
   }
