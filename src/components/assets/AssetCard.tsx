@@ -64,7 +64,13 @@ export function AssetCard({ asset, deleteMode, connections }: AssetCardProps) {
             <AssetFormDialog
               asset={asset}
               trigger={
-                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  aria-label={`Editar ${asset.name}`}
+                >
                   <Pencil className="h-4 w-4" />
                 </Button>
               }

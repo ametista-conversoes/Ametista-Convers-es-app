@@ -175,6 +175,7 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
                       className="shrink-0 text-muted-foreground hover:text-destructive"
                       disabled={fields.length === 1}
                       onClick={() => remove(index)}
+                      aria-label={`Remover item ${index + 1}`}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

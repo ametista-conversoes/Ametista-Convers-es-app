@@ -71,7 +71,13 @@ export function ManagerTaskRow({ task, showClientName, deleteMode }: ManagerTask
       <KanbanTaskFormDialog
         task={task}
         trigger={
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            aria-label={`Editar ${task.title}`}
+          >
             <Pencil className="h-4 w-4" />
           </Button>
         }

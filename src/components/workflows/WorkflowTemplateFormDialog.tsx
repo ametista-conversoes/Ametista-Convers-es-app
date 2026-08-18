@@ -121,6 +121,7 @@ function SortableStepRow({ id, index, control, onRemove, disableRemove }: Sortab
         className="shrink-0 text-muted-foreground hover:text-destructive"
         disabled={disableRemove}
         onClick={onRemove}
+        aria-label={`Remover etapa ${index + 1}`}
       >
         <Trash2 className="h-4 w-4" />
       </Button>
