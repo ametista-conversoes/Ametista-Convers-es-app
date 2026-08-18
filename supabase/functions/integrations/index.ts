@@ -13,10 +13,14 @@
 // Segredos que essa função espera encontrar configurados (Edge
 // Functions > integrations > Secrets), além dos quatro que o Supabase
 // já injeta sozinho em toda função (SUPABASE_URL, SUPABASE_ANON_KEY,
-// SUPABASE_SERVICE_ROLE_KEY, SUPABASE_DB_URL):
-//   GOOGLE_OAUTH_CLIENT_ID       — do Google Cloud Console
-//   GOOGLE_OAUTH_CLIENT_SECRET   — do Google Cloud Console
-//   GOOGLE_ADS_DEVELOPER_TOKEN   — do Google Ads Manager Account
+// SUPABASE_SERVICE_ROLE_KEY, SUPABASE_DB_URL). Os 3 do Google foram
+// criados no painel com nomes diferentes do padrão (o painel não deixa
+// renomear depois de criado — mesmo caso já resolvido assim pra Cassie
+// na Fase 7.1) — os nomes REAIS usados no código são os que aparecem
+// entre parênteses, ver `GOOGLE_OAUTH_CLIENT_ID_ENV` etc. logo abaixo:
+//   GOOGLE_OAUTH_CLIENT_ID       (real: "client ID")       — do Google Cloud Console
+//   GOOGLE_OAUTH_CLIENT_SECRET   (real: "Client secret")   — do Google Cloud Console
+//   GOOGLE_ADS_DEVELOPER_TOKEN   (real: "Developer token") — do Google Ads Manager Account
 //   META_APP_ID                  — do app em developers.facebook.com
 //   META_APP_SECRET              — do app em developers.facebook.com
 //   FORMS_WEBHOOK_SECRET         — inventado por você, usado também no
@@ -53,6 +57,17 @@ type Provider = (typeof PROVIDERS)[number]
 const GOOGLE_AUTHORIZE_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const GOOGLE_ADS_API_VERSION = 'v17' // conferir se ainda é a versão suportada quando for testar de verdade — a Google descontinua versões antigas com o tempo
+
+// Nomes REAIS dos secrets no painel do Supabase (Fase 8.2b) — o
+// usuário já tinha criado os 3 com esses nomes antes de eu documentar
+// o padrão GOOGLE_OAUTH_CLIENT_ID/GOOGLE_OAUTH_CLIENT_SECRET/
+// GOOGLE_ADS_DEVELOPER_TOKEN, e o painel não deixa renomear um secret
+// depois de criado — então o código lê pelos nomes que existem de
+// verdade, em vez de pedir pra recriar tudo (mesma solução já usada
+// pra Cassie na Fase 7.1, com Openai_api_key).
+const GOOGLE_OAUTH_CLIENT_ID_ENV = 'client ID'
+const GOOGLE_OAUTH_CLIENT_SECRET_ENV = 'Client secret'
+const GOOGLE_ADS_DEVELOPER_TOKEN_ENV = 'Developer token'
 
 const GOOGLE_SCOPES: Record<'google_ads' | 'google_forms', string> = {
   google_ads: 'https://www.googleapis.com/auth/adwords',
@@ -163,9 +178,9 @@ async function handleConnect(req: Request, url: URL) {
   // Falha aqui dentro, com uma mensagem clara, em vez de mandar a
   // pessoa pro Google/Meta com um link quebrado (os dois recusam um
   // "client_id" vazio com um erro genérico, sem nem mostrar login).
-  if (provider !== 'meta_ads' && !Deno.env.get('GOOGLE_OAUTH_CLIENT_ID')) {
+  if (provider !== 'meta_ads' && !Deno.env.get(GOOGLE_OAUTH_CLIENT_ID_ENV)) {
     return jsonResponse(
-      { error: 'As credenciais do Google ainda não foram configuradas nesta função (falta o segredo GOOGLE_OAUTH_CLIENT_ID).' },
+      { error: `As credenciais do Google ainda não foram configuradas nesta função (falta o segredo "${GOOGLE_OAUTH_CLIENT_ID_ENV}").` },
       400,
     )
   }
@@ -212,7 +227,7 @@ async function handleConnect(req: Request, url: URL) {
     authorizationUrl.searchParams.set('state', connection.id)
   } else {
     authorizationUrl = new URL(GOOGLE_AUTHORIZE_URL)
-    authorizationUrl.searchParams.set('client_id', Deno.env.get('GOOGLE_OAUTH_CLIENT_ID') ?? '')
+    authorizationUrl.searchParams.set('client_id', Deno.env.get(GOOGLE_OAUTH_CLIENT_ID_ENV) ?? '')
     authorizationUrl.searchParams.set('redirect_uri', redirectUri)
     authorizationUrl.searchParams.set('response_type', 'code')
     authorizationUrl.searchParams.set('access_type', 'offline')
@@ -295,8 +310,8 @@ async function handleCallback(url: URL) {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        client_id: Deno.env.get('GOOGLE_OAUTH_CLIENT_ID') ?? '',
-        client_secret: Deno.env.get('GOOGLE_OAUTH_CLIENT_SECRET') ?? '',
+        client_id: Deno.env.get(GOOGLE_OAUTH_CLIENT_ID_ENV) ?? '',
+        client_secret: Deno.env.get(GOOGLE_OAUTH_CLIENT_SECRET_ENV) ?? '',
         code,
         grant_type: 'authorization_code',
         redirect_uri: redirectUri,
@@ -341,7 +356,7 @@ async function handleCallback(url: URL) {
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
-            'developer-token': Deno.env.get('GOOGLE_ADS_DEVELOPER_TOKEN') ?? '',
+            'developer-token': Deno.env.get(GOOGLE_ADS_DEVELOPER_TOKEN_ENV) ?? '',
           },
         },
       )
@@ -430,8 +445,8 @@ async function getValidAccessToken(supabase: SupabaseClient, connectionId: strin
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id: Deno.env.get('GOOGLE_OAUTH_CLIENT_ID') ?? '',
-      client_secret: Deno.env.get('GOOGLE_OAUTH_CLIENT_SECRET') ?? '',
+      client_id: Deno.env.get(GOOGLE_OAUTH_CLIENT_ID_ENV) ?? '',
+      client_secret: Deno.env.get(GOOGLE_OAUTH_CLIENT_SECRET_ENV) ?? '',
       refresh_token: refreshToken as string,
       grant_type: 'refresh_token',
     }),
@@ -497,7 +512,7 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          'developer-token': Deno.env.get('GOOGLE_ADS_DEVELOPER_TOKEN') ?? '',
+          'developer-token': Deno.env.get(GOOGLE_ADS_DEVELOPER_TOKEN_ENV) ?? '',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ query: gaqlQuery }),
@@ -940,7 +955,7 @@ async function handleListCampaigns(req: Request, url: URL) {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          'developer-token': Deno.env.get('GOOGLE_ADS_DEVELOPER_TOKEN') ?? '',
+          'developer-token': Deno.env.get(GOOGLE_ADS_DEVELOPER_TOKEN_ENV) ?? '',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ query: gaqlQuery }),
