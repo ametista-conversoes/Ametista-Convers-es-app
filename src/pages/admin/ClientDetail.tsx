@@ -34,7 +34,8 @@ import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { useCassieMessages, useClearCassieHistory, useSendCassieMessage } from '@/hooks/useCassieMessages'
+import { useCassieDraft } from '@/hooks/useCassieDraft'
+import { useCassieMessages, useCassieSending, useClearCassieHistory, useSendCassieMessage } from '@/hooks/useCassieMessages'
 import {
   useActivityChecklistItems,
   useAllAlerts,
@@ -89,6 +90,8 @@ export default function ClientDetail() {
   const { data: cassieMessages } = useCassieMessages(id ?? '')
   const sendCassieMessage = useSendCassieMessage(id ?? '')
   const clearCassieHistory = useClearCassieHistory(id ?? '')
+  const isCassieSending = useCassieSending(id ?? '')
+  const [cassieDraft, setCassieDraft] = useCassieDraft(id ?? '')
 
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [cassieMode, setCassieMode] = useState<CassieMode>(CASSIE_MODES[0])
@@ -553,10 +556,12 @@ export default function ClientDetail() {
             clearing={clearCassieHistory.isPending}
             hasMessages={(cassieMessages ?? []).length > 0}
           />
-          <CassieChatThread messages={cassieMessages ?? []} sending={sendCassieMessage.isPending} />
+          <CassieChatThread messages={cassieMessages ?? []} sending={isCassieSending} />
           <CassieMessageForm
+            value={cassieDraft}
+            onChange={setCassieDraft}
             onSend={(text) => sendCassieMessage.mutate({ message: text, mode: cassieMode })}
-            sending={sendCassieMessage.isPending}
+            sending={isCassieSending}
           />
         </CardContent>
       </Card>

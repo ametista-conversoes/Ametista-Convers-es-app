@@ -4,7 +4,8 @@ import { CassieHeader } from '@/components/cassie/CassieHeader'
 import { CassieMessageForm } from '@/components/cassie/CassieMessageForm'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClient } from '@/hooks/useClientPortalData'
-import { useCassieMessages, useClearCassieHistory, useSendCassieMessage } from '@/hooks/useCassieMessages'
+import { useCassieDraft } from '@/hooks/useCassieDraft'
+import { useCassieMessages, useCassieSending, useClearCassieHistory, useSendCassieMessage } from '@/hooks/useCassieMessages'
 import { getAllowedCassieModes, type CassieMode } from '@/lib/cassie-modes'
 import { useMarkNavSeen } from '@/hooks/useNavSeen'
 
@@ -15,6 +16,8 @@ export default function Cassie() {
   const { data: messages, isLoading } = useCassieMessages(clientId ?? '')
   const sendMessage = useSendCassieMessage(clientId ?? '')
   const clearHistory = useClearCassieHistory(clientId ?? '')
+  const isSending = useCassieSending(clientId ?? '')
+  const [draft, setDraft] = useCassieDraft(clientId ?? '')
 
   const allowedModes = getAllowedCassieModes('cliente', client?.plan ?? null)
   const [mode, setMode] = useState<CassieMode>(allowedModes[0])
@@ -48,8 +51,13 @@ export default function Cassie() {
         hasMessages={(messages ?? []).length > 0}
       />
 
-      <CassieChatThread messages={messages ?? []} sending={sendMessage.isPending} />
-      <CassieMessageForm onSend={(text) => sendMessage.mutate({ message: text, mode })} sending={sendMessage.isPending} />
+      <CassieChatThread messages={messages ?? []} sending={isSending} />
+      <CassieMessageForm
+        value={draft}
+        onChange={setDraft}
+        onSend={(text) => sendMessage.mutate({ message: text, mode })}
+        sending={isSending}
+      />
     </div>
   )
 }

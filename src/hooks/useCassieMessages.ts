@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useMutationState, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { sendCassieMessage } from '@/lib/cassie'
@@ -34,6 +34,7 @@ export function useSendCassieMessage(clientId: string) {
   const queryKey = ['cassie-messages', clientId]
 
   return useMutation({
+    mutationKey: ['cassie-send', clientId],
     mutationFn: ({ message, mode }: { message: string; mode: CassieMode }) => sendCassieMessage({ clientId, message, mode }),
     onMutate: async ({ message, mode }) => {
       await queryClient.cancelQueries({ queryKey })
@@ -56,6 +57,17 @@ export function useSendCassieMessage(clientId: string) {
       queryClient.invalidateQueries({ queryKey })
     },
   })
+}
+
+// Consulta o cache global de mutações (não o estado local do hook acima)
+// para que o indicador "pensando" continue certo mesmo se a página foi
+// desmontada e remontada enquanto o envio ainda estava em andamento.
+export function useCassieSending(clientId: string) {
+  const pending = useMutationState({
+    filters: { mutationKey: ['cassie-send', clientId], status: 'pending' },
+    select: () => true,
+  })
+  return pending.length > 0
 }
 
 export function useClearCassieHistory(clientId: string) {
