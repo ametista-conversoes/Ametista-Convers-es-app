@@ -1,18 +1,19 @@
 import { useState } from 'react'
-import { Plug, RefreshCw, Search } from 'lucide-react'
+import { ListChecks, Plug, RefreshCw, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { FormResponsesDialog } from '@/components/assets/FormResponsesDialog'
 import { useAllClients, useAllDigitalAssets, useDigitalAssetConnections } from '@/hooks/useManagerPortalData'
 import { formatDateTime } from '@/lib/format'
 import { syncIntegration } from '@/lib/integrations'
 import { connectionProviderLabels, connectionStatusLabels, connectionStatusStyles } from '@/lib/status-styles'
 
 const ALL_CLIENTS = 'all'
-const SYNCABLE_PROVIDERS = ['google_ads', 'meta_ads']
+const SYNCABLE_PROVIDERS = ['google_ads', 'meta_ads', 'google_forms']
 
 export default function Integrations() {
   const { data: clients } = useAllClients()
@@ -39,7 +40,11 @@ export default function Integrations() {
     setSyncingId(connectionId)
     try {
       const result = await syncIntegration(connectionId)
-      toast.success(`Sincronizado — ${result.syncedDays} dia(s) de métricas atualizados.`)
+      const message =
+        result.syncedResponses !== undefined
+          ? `Sincronizado — ${result.syncedQuestions ?? 0} pergunta(s) e ${result.syncedResponses} resposta(s) atualizadas.`
+          : `Sincronizado — ${result.syncedDays ?? 0} dia(s) de métricas atualizados.`
+      toast.success(message)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Não foi possível sincronizar.')
     } finally {
@@ -115,19 +120,32 @@ export default function Integrations() {
                     Última sincronização: {formatDateTime(connection.last_synced_at)}
                   </p>
                 </div>
-                {connection.status === 'connected' && SYNCABLE_PROVIDERS.includes(connection.provider) && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs"
-                    disabled={syncingId === connection.id}
-                    onClick={() => handleSync(connection.id)}
-                  >
-                    <RefreshCw className={`h-3.5 w-3.5 ${syncingId === connection.id ? 'animate-spin' : ''}`} />
-                    Sincronizar agora
-                  </Button>
-                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  {connection.status === 'connected' && connection.provider === 'google_forms' && (
+                    <FormResponsesDialog
+                      connectionId={connection.id}
+                      trigger={
+                        <Button type="button" variant="outline" size="sm" className="h-7 text-xs">
+                          <ListChecks className="h-3.5 w-3.5" />
+                          Ver respostas
+                        </Button>
+                      }
+                    />
+                  )}
+                  {connection.status === 'connected' && SYNCABLE_PROVIDERS.includes(connection.provider) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      disabled={syncingId === connection.id}
+                      onClick={() => handleSync(connection.id)}
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${syncingId === connection.id ? 'animate-spin' : ''}`} />
+                      Sincronizar agora
+                    </Button>
+                  )}
+                </div>
               </div>
             )
           })}

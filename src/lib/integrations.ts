@@ -33,7 +33,13 @@ export async function connectIntegration(params: ConnectIntegrationParams): Prom
   return body.authorizationUrl as string
 }
 
-export async function syncIntegration(connectionId: string): Promise<{ syncedDays: number }> {
+export interface SyncIntegrationResult {
+  syncedDays?: number
+  syncedQuestions?: number
+  syncedResponses?: number
+}
+
+export async function syncIntegration(connectionId: string): Promise<SyncIntegrationResult> {
   const res = await fetch(`${FUNCTIONS_BASE}/sync`, {
     method: 'POST',
     headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },

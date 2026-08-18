@@ -34,11 +34,16 @@
 //   GET  .../integrations/connect?provider=meta_ads&digital_asset_id=...
 //   GET  .../integrations/callback?state=...&code=...          (aberta pelo Google/Meta)
 //   GET  .../integrations/campaigns?connection_id=...           (vincular projeto a uma campanha — Fase 8.1b)
-//   POST .../integrations/sync            { connection_id }     (botão "Sincronizar agora")
+//   POST .../integrations/sync            { connection_id }     (botão "Sincronizar agora" — Google
+//                                          Ads/Meta Ads sincroniza métricas; Google Forms sincroniza
+//                                          perguntas+respostas estruturadas via forms.googleapis.com,
+//                                          Fase 8.2)
 //   POST .../integrations/sync-all        {}                    (cabeçalho X-Cron-Secret,
-//                                          chamada pelo job agendado — Fase 6.4)
+//                                          chamada pelo job agendado — Fase 6.4, agora também
+//                                          sincroniza conexões de Google Forms)
 //   POST .../integrations/forms-webhook   { formId, responseId, submittedAt, answers }
-//                                          (cabeçalho X-Webhook-Secret)
+//                                          (cabeçalho X-Webhook-Secret — continua só criando o
+//                                          Alerta genérico de "nova resposta", sem mudança)
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2'
 
@@ -58,6 +63,12 @@ const META_GRAPH_API_VERSION = 'v19.0' // conferir se ainda é suportada quando 
 const META_AUTHORIZE_URL = `https://www.facebook.com/${META_GRAPH_API_VERSION}/dialog/oauth`
 const META_TOKEN_URL = `https://graph.facebook.com/${META_GRAPH_API_VERSION}/oauth/access_token`
 const META_SCOPE = 'ads_read' // só leitura de métricas — nada de gerenciar campanha
+
+// API oficial do Google Forms (Fase 8.2) — precisa estar habilitada no
+// mesmo projeto do Google Cloud Console usado pro OAuth, além dos
+// escopos forms.body.readonly/forms.responses.readonly já pedidos
+// desde a Fase 6.2 (que até aqui nunca eram usados de verdade).
+const GOOGLE_FORMS_API_BASE = 'https://forms.googleapis.com/v1/forms'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -632,6 +643,228 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
   return { ok: true, syncedDays: rows.length }
 }
 
+type FormQuestionRow = {
+  externalQuestionId: string
+  title: string
+  questionType: string
+  options: string[] | null
+  position: number
+}
+
+/** Normaliza o tipo de UMA pergunta (`questionItem.question` da API do
+ * Forms) pro vocabulário fixo usado em `form_questions.question_type` —
+ * ver lista completa no comentário da migration-033. */
+function normalizeQuestionType(question: Record<string, unknown>): { questionType: string; options: string[] | null } {
+  const choiceQuestion = question.choiceQuestion as Record<string, unknown> | undefined
+  if (choiceQuestion) {
+    const type = (choiceQuestion.type as string | undefined) ?? 'RADIO'
+    const questionType = type === 'CHECKBOX' ? 'choice_checkbox' : type === 'DROP_DOWN' ? 'choice_dropdown' : 'choice_radio'
+    const options = ((choiceQuestion.options as Array<{ value?: string }> | undefined) ?? [])
+      .map((o) => o.value)
+      .filter((v): v is string => !!v)
+    return { questionType, options: options.length > 0 ? options : null }
+  }
+
+  const textQuestion = question.textQuestion as Record<string, unknown> | undefined
+  if (textQuestion) {
+    return { questionType: textQuestion.paragraph ? 'text_paragraph' : 'text_short', options: null }
+  }
+
+  if (question.scaleQuestion) return { questionType: 'scale', options: null }
+  if (question.dateQuestion) return { questionType: 'date', options: null }
+  if (question.timeQuestion) return { questionType: 'time', options: null }
+  if (question.fileUploadQuestion) return { questionType: 'file_upload', options: null }
+
+  return { questionType: 'other', options: null }
+}
+
+/** Achata `items[]` (resposta de `GET /v1/forms/{formId}`) numa linha
+ * por pergunta — perguntas de grade (`questionGroupItem`) viram uma
+ * linha por sub-pergunta (linha da grade), melhor esforço, é o formato
+ * mais raro de aparecer. Itens sem pergunta (texto de seção, quebra de
+ * página) são ignorados. */
+function normalizeFormItems(items: Array<Record<string, unknown>>): FormQuestionRow[] {
+  const rows: FormQuestionRow[] = []
+
+  items.forEach((item, index) => {
+    const title = (item.title as string | undefined) ?? ''
+    const questionItem = item.questionItem as Record<string, unknown> | undefined
+    if (questionItem) {
+      const question = questionItem.question as Record<string, unknown> | undefined
+      const questionId = question?.questionId as string | undefined
+      if (!question || !questionId) return
+      const { questionType, options } = normalizeQuestionType(question)
+      rows.push({ externalQuestionId: questionId, title, questionType, options, position: index })
+      return
+    }
+
+    const questionGroupItem = item.questionGroupItem as Record<string, unknown> | undefined
+    if (questionGroupItem) {
+      const questions = (questionGroupItem.questions as Array<Record<string, unknown>> | undefined) ?? []
+      const grid = questionGroupItem.grid as Record<string, unknown> | undefined
+      const columns = grid?.columns as Record<string, unknown> | undefined
+      const gridOptions = ((columns?.options as Array<{ value?: string }> | undefined) ?? [])
+        .map((o) => o.value)
+        .filter((v): v is string => !!v)
+
+      questions.forEach((subQuestion) => {
+        const questionId = subQuestion.questionId as string | undefined
+        if (!questionId) return
+        const rowTitle = (subQuestion.rowQuestion as Record<string, unknown> | undefined)?.title as string | undefined
+        rows.push({
+          externalQuestionId: questionId,
+          title: rowTitle ? `${title} — ${rowTitle}` : title,
+          questionType: 'grid_row',
+          options: gridOptions.length > 0 ? gridOptions : null,
+          position: index,
+        })
+      })
+    }
+  })
+
+  return rows
+}
+
+type FormAnswerRow = { externalQuestionId: string; answerText: string | null; answerValues: string[] | null }
+
+/** Achata `answers{}` (dentro de UMA resposta, de `GET
+ * /v1/forms/{formId}/responses`) numa linha por pergunta respondida —
+ * `answerValues` preserva múltipla escolha como array; `answerText` é
+ * só a versão pronta pra exibir (valores juntos com ", "). */
+function normalizeFormAnswers(answers: Record<string, unknown>): FormAnswerRow[] {
+  return Object.values(answers)
+    .map((raw) => raw as Record<string, unknown>)
+    .filter((answer) => typeof answer.questionId === 'string')
+    .map((answer) => {
+      const externalQuestionId = answer.questionId as string
+      const textAnswers = answer.textAnswers as Record<string, unknown> | undefined
+      const textValues = ((textAnswers?.answers as Array<{ value?: string }> | undefined) ?? [])
+        .map((a) => a.value)
+        .filter((v): v is string => !!v)
+      if (textValues.length > 0) {
+        return { externalQuestionId, answerText: textValues.join(', '), answerValues: textValues }
+      }
+
+      const fileUploadAnswers = answer.fileUploadAnswers as Record<string, unknown> | undefined
+      const fileNames = ((fileUploadAnswers?.answers as Array<{ fileName?: string }> | undefined) ?? [])
+        .map((f) => f.fileName)
+        .filter((v): v is string => !!v)
+      if (fileNames.length > 0) {
+        return { externalQuestionId, answerText: fileNames.join(', '), answerValues: fileNames }
+      }
+
+      return { externalQuestionId, answerText: null, answerValues: null }
+    })
+}
+
+type FormsSyncResult = { ok: true; syncedQuestions: number; syncedResponses: number } | { ok: false; error: string }
+
+/** Núcleo da sincronização estruturada de UMA conexão de Google Forms
+ * (Fase 8.2) — busca a estrutura do formulário e TODAS as respostas
+ * (inclusive antigas, de antes da conexão existir) direto da API
+ * oficial (forms.googleapis.com), usando o token OAuth que a conexão já
+ * guarda desde a Fase 6.2. Reaproveitada por /sync e /sync-all, mesmo
+ * contrato de `syncConnection` (nunca lança, sempre devolve um
+ * resultado). Não mexe em nada do que /forms-webhook já faz (o Alerta
+ * genérico continua sendo criado à parte, sem mudança). */
+async function syncFormsConnection(supabase: SupabaseClient, connection: SyncableConnection): Promise<FormsSyncResult> {
+  if (connection.provider !== 'google_forms') {
+    return { ok: false, error: 'Sincronização estruturada só implementada pro Google Forms' }
+  }
+  if (!connection.external_account_id) {
+    return { ok: false, error: 'Conexão incompleta (falta o id do formulário)' }
+  }
+
+  const accessToken = await getValidAccessToken(supabase, connection.id, 'google_forms')
+  if (!accessToken) return { ok: false, error: 'Não foi possível obter um token de acesso válido' }
+
+  const formId = connection.external_account_id
+
+  const formRes = await fetch(`${GOOGLE_FORMS_API_BASE}/${formId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  const formBody = await formRes.json()
+  if (!formRes.ok) {
+    return { ok: false, error: formBody.error?.message ?? 'Erro ao consultar a Google Forms API (estrutura do formulário)' }
+  }
+
+  const questionRows = normalizeFormItems((formBody.items ?? []) as Array<Record<string, unknown>>)
+  if (questionRows.length > 0) {
+    const { error: questionsError } = await supabase.from('form_questions').upsert(
+      questionRows.map((q) => ({
+        connection_id: connection.id,
+        external_question_id: q.externalQuestionId,
+        title: q.title,
+        question_type: q.questionType,
+        options: q.options,
+        position: q.position,
+      })),
+      { onConflict: 'connection_id,external_question_id' },
+    )
+    if (questionsError) return { ok: false, error: questionsError.message }
+  }
+
+  const clientId = (connection.digital_assets as unknown as { client_id: string }).client_id
+
+  let syncedResponses = 0
+  let pageToken: string | undefined
+
+  do {
+    const responsesUrl = new URL(`${GOOGLE_FORMS_API_BASE}/${formId}/responses`)
+    responsesUrl.searchParams.set('pageSize', '200')
+    if (pageToken) responsesUrl.searchParams.set('pageToken', pageToken)
+
+    const responsesRes = await fetch(responsesUrl.toString(), { headers: { Authorization: `Bearer ${accessToken}` } })
+    const responsesBody = await responsesRes.json()
+    if (!responsesRes.ok) {
+      return { ok: false, error: responsesBody.error?.message ?? 'Erro ao consultar a Google Forms API (respostas)' }
+    }
+
+    const responses = (responsesBody.responses ?? []) as Array<Record<string, unknown>>
+    for (const response of responses) {
+      const externalResponseId = response.responseId as string | undefined
+      if (!externalResponseId) continue
+
+      const { data: responseRow, error: responseError } = await supabase
+        .from('form_responses')
+        .upsert(
+          {
+            connection_id: connection.id,
+            external_response_id: externalResponseId,
+            client_id: clientId,
+            submitted_at: (response.lastSubmittedTime as string | undefined) ?? (response.createTime as string | undefined) ?? null,
+          },
+          { onConflict: 'connection_id,external_response_id' },
+        )
+        .select('id')
+        .single()
+      if (responseError) return { ok: false, error: responseError.message }
+
+      const answerRows = normalizeFormAnswers((response.answers ?? {}) as Record<string, unknown>)
+      if (answerRows.length > 0) {
+        const { error: answersError } = await supabase.from('form_answers').upsert(
+          answerRows.map((a) => ({
+            response_id: responseRow.id,
+            external_question_id: a.externalQuestionId,
+            answer_text: a.answerText,
+            answer_values: a.answerValues,
+          })),
+          { onConflict: 'response_id,external_question_id' },
+        )
+        if (answersError) return { ok: false, error: answersError.message }
+      }
+
+      syncedResponses += 1
+    }
+
+    pageToken = responsesBody.nextPageToken as string | undefined
+  } while (pageToken)
+
+  await supabase.from('digital_asset_connections').update({ last_synced_at: new Date().toISOString() }).eq('id', connection.id)
+
+  return { ok: true, syncedQuestions: questionRows.length, syncedResponses }
+}
+
 async function handleSync(req: Request) {
   const auth = await requireAdminOrGestor(req)
   if (auth instanceof Response) return auth
@@ -653,6 +886,12 @@ async function handleSync(req: Request) {
     .maybeSingle()
   if (connectionError) return jsonResponse({ error: connectionError.message }, 500)
   if (!connection) return jsonResponse({ error: 'Conexão não encontrada' }, 404)
+
+  if (connection.provider === 'google_forms') {
+    const result = await syncFormsConnection(supabase, connection as SyncableConnection)
+    if (!result.ok) return jsonResponse({ error: result.error }, 502)
+    return jsonResponse({ ok: true, syncedQuestions: result.syncedQuestions, syncedResponses: result.syncedResponses })
+  }
 
   const result = await syncConnection(supabase, connection as SyncableConnection)
   if (!result.ok) return jsonResponse({ error: result.error }, 502)
@@ -744,9 +983,10 @@ async function handleListCampaigns(req: Request, url: URL) {
  * de usuário por trás (roda sozinha, de dentro do Postgres), então se
  * autentica com um segredo compartilhado, mesmo padrão já usado em
  * /forms-webhook. Sincroniza todas as conexões "connected" de Google
- * Ads/Meta Ads, uma de cada vez, sem deixar uma falha derrubar as
- * outras (cada uma tenta renovar o token sozinha dentro de
- * syncConnection, via getValidAccessToken). */
+ * Ads/Meta Ads (métricas) e Google Forms (perguntas+respostas
+ * estruturadas, Fase 8.2), uma de cada vez, sem deixar uma falha
+ * derrubar as outras (cada uma tenta renovar o token sozinha dentro de
+ * syncConnection/syncFormsConnection, via getValidAccessToken). */
 async function handleSyncAll(req: Request) {
   const secret = req.headers.get('X-Cron-Secret') ?? ''
   const expectedSecret = Deno.env.get('CRON_SECRET') ?? ''
@@ -760,12 +1000,15 @@ async function handleSyncAll(req: Request) {
     .from('digital_asset_connections')
     .select('id, provider, external_account_id, digital_assets(client_id)')
     .eq('status', 'connected')
-    .in('provider', ['google_ads', 'meta_ads'])
+    .in('provider', ['google_ads', 'meta_ads', 'google_forms'])
   if (connectionsError) return jsonResponse({ error: connectionsError.message }, 500)
 
-  const results: Array<{ connectionId: string } & SyncResult> = []
+  const results: Array<{ connectionId: string } & (SyncResult | FormsSyncResult)> = []
   for (const connection of (connections ?? []) as SyncableConnection[]) {
-    const result = await syncConnection(supabase, connection)
+    const result =
+      connection.provider === 'google_forms'
+        ? await syncFormsConnection(supabase, connection)
+        : await syncConnection(supabase, connection)
     results.push({ connectionId: connection.id, ...result })
   }
 

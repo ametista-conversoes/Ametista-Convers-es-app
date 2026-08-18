@@ -911,6 +911,67 @@ export function useDigitalAssetConnections() {
   })
 }
 
+export interface FormQuestionRecord {
+  id: string
+  external_question_id: string
+  title: string
+  question_type: string
+  options: string[] | null
+  position: number | null
+}
+
+/** Perguntas estruturadas de um Google Forms conectado (Fase 8.2),
+ * sincronizadas via API oficial (forms.googleapis.com) — usadas pra
+ * rotular as respostas de `useFormResponses` pelo título real. */
+export function useFormQuestions(connectionId: string | null) {
+  return useQuery({
+    queryKey: ['form-questions', connectionId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('form_questions')
+        .select('id, external_question_id, title, question_type, options, position')
+        .eq('connection_id', connectionId as string)
+        .order('position', { ascending: true })
+      if (error) throw error
+      return data as FormQuestionRecord[]
+    },
+    enabled: !!connectionId,
+  })
+}
+
+export interface FormAnswerRecord {
+  external_question_id: string
+  answer_text: string | null
+  answer_values: string[] | null
+}
+
+export interface FormResponseRecord {
+  id: string
+  external_response_id: string
+  submitted_at: string | null
+  form_answers: FormAnswerRecord[]
+}
+
+/** Respostas estruturadas mais recentes de um Google Forms conectado
+ * (Fase 8.2) — só uma vitrine pra confirmar que a sincronização trouxe
+ * dado real; a síntese em % das perguntas fechadas fica pra Fase 8.3. */
+export function useFormResponses(connectionId: string | null) {
+  return useQuery({
+    queryKey: ['form-responses', connectionId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('form_responses')
+        .select('id, external_response_id, submitted_at, form_answers(external_question_id, answer_text, answer_values)')
+        .eq('connection_id', connectionId as string)
+        .order('submitted_at', { ascending: false })
+        .limit(20)
+      if (error) throw error
+      return data as unknown as FormResponseRecord[]
+    },
+    enabled: !!connectionId,
+  })
+}
+
 export interface NewDigitalAssetInput {
   name: string
   client_id: string

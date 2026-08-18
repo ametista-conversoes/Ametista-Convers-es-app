@@ -264,8 +264,8 @@
 ## Fase 8 — Públicos-Alvo e Comunicação Persuasiva via IA (a partir de respostas de formulário)
 
 Pedido pelo usuário depois da Fase 7 fechada. Dividida em sub-fases, uma de cada vez:
-- **8.1 — Detalhamento de Projeto/Campanha** (em andamento, ver abaixo)
-- 8.2 — Sincronização estruturada do Google Forms (perguntas + respostas de verdade, não só o alerta genérico que existe hoje)
+- **8.1 — Detalhamento de Projeto/Campanha** (fechada, ver abaixo)
+- **8.2 — Sincronização estruturada do Google Forms** (fechada, ver abaixo — pendente rodar migration/redeploy)
 - 8.3 — Aba "Públicos-Alvo" (síntese em % das perguntas fechadas)
 - 8.4 — Comunicação Persuasiva (extração de palavras mais frequentes das respostas abertas + IA gerando headlines/textos)
 - 8.5 — Seção "Público-alvo" (resultado da 8.3, não da 8.4) dentro da Central de Informações do Cliente
@@ -284,3 +284,13 @@ Pedido pelo usuário depois da Fase 7 fechada. Dividida em sub-fases, uma de cad
   - [x] Edge Function `integrations` reimplantada pelo usuário — **testado ao vivo direto na rota nova**: `/campaigns` agora responde com erro de domínio ("Conexão não encontrada") em vez da lista de rotas antiga, confirmando que o código novo está no ar; testado também com uma conexão real mas desconectada, e a validação de conta de anúncios incompleta respondeu certo ("Conexão incompleta (falta conta de anúncios)"), sem travar nem devolver erro genérico
   - **Limite conhecido**: buscar campanhas de verdade e sincronizar métricas por campanha só funciona com credenciais reais do Google Ads/Meta Ads configuradas (mesmo segredo da Fase 6) — nenhum cliente de teste tem isso configurado ainda, então `CampaignLinkField` continua sem aparecer pra nenhum cliente até existir pelo menos uma conexão com status "connected" de verdade
   - `npx tsc -b --noEmit`, `npm run test` (25/25) e `npm run test:e2e` (3/3) limpos
+
+### 8.2 — Sincronização estruturada do Google Forms
+- [x] Até aqui, uma resposta de formulário só virava um Alerta genérico com o texto colado (`"Pergunta: Resposta"` por linha) — sem nenhuma tabela guardando pergunta/resposta de verdade. Achado interessante ao investigar: conectar um Google Forms já pedia os escopos certos da API oficial (`forms.body.readonly`/`forms.responses.readonly`) e já guardava o token OAuth desde a Fase 6.2 — só nunca tinha sido usado pra nada. A sincronização estruturada nova usa esse token pra chamar a API de verdade (`forms.googleapis.com`), trazendo pergunta por pergunta (id, título, tipo, opções) e resposta por resposta (inclusive **respostas antigas**, de antes da conexão existir — coisa que o gatilho do Apps Script nunca conseguia trazer, só via as novas dali pra frente)
+  - `migration-033-fase82-forms-estruturado.sql` (nova) — 3 tabelas: `form_questions`, `form_responses`, `form_answers` (mesmo padrão de RLS de `campaign_performance_snapshots`: só leitura admin/gestor, quem escreve é a Edge Function)
+  - Edge Function `integrations`: nova `syncFormsConnection` — busca a estrutura do formulário (`GET /v1/forms/{formId}`) e todas as respostas paginadas (`GET /v1/forms/{formId}/responses`), normaliza os tipos de pergunta (texto curto/parágrafo, múltipla escolha, caixa de seleção, lista suspensa, escala, data, hora, upload de arquivo, e linha de grade como melhor esforço) e grava tudo. `/sync` (botão "Sincronizar agora") e `/sync-all` (cron a cada 6h) passam a despachar pro Google Forms também, sem mudar nada do caminho de Google Ads/Meta Ads que já funciona
+  - **Nada mudou** em `/connect`, `/callback`, `/forms-webhook` (o Alerta genérico continua sendo criado exatamente igual) nem no `forms-trigger.gs.txt` — quem já tem o Apps Script instalado num formulário do cliente não precisa reinstalar nada
+  - Frontend: página Integrações ganhou o botão "Sincronizar agora" também pras conexões de Google Forms (antes só Ads/Meta), e um botão novo "Ver respostas" (`FormResponsesDialog`) que mostra as respostas mais recentes já com o título real da pergunta — só uma vitrine pra confirmar que a estrutura sincronizou certo; a síntese em % das perguntas fechadas fica pra Fase 8.3
+  - `npx tsc -b --noEmit`, `npm run test` (25/25) e `npm run test:e2e` (3/3) limpos. Testado ao vivo o que dava pra testar sem migration/credencial real: página Integrações carrega normal, sem erro no console, e os botões novos corretamente não aparecem pra nenhuma conexão (todas as conexões de teste ainda estão "Desconectado")
+  - **Pendente**: rodar `migration-033-fase82-forms-estruturado.sql` e reimplantar a Edge Function `integrations` (mesmo processo de sempre) — só depois disso dá pra clicar em "Sincronizar agora" numa conexão de Forms de verdade
+  - **Limite conhecido**: além das credenciais reais do Google (mesma pendência da Fase 6), sincronizar Forms também precisa que a API "Google Forms API" esteja habilitada no mesmo projeto do Google Cloud Console usado pro OAuth — é só ativar, não precisa de credencial nova
