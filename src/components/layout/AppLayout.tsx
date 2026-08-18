@@ -11,7 +11,7 @@ export function AppLayout() {
 
   return (
     <div
-      className="flex min-h-dvh bg-background"
+      className="flex h-dvh bg-background"
       style={{
         paddingLeft: 'env(safe-area-inset-left)',
         paddingRight: 'env(safe-area-inset-right)',
@@ -53,10 +53,18 @@ export function AppLayout() {
         </div>
       </div>
 
-      <div className="flex min-h-dvh flex-1 flex-col">
+      <div className="flex h-dvh flex-1 flex-col overflow-hidden">
         <TopBar onMenuClick={() => setIsMobileNavOpen(true)} />
+        {/* Só o <main> rola (não o documento) — Sidebar/TopBar ficam de
+            fora do fluxo de scroll em vez de usar `position: sticky`.
+            Isso evita um bug em que abrir qualquer Select/Dialog/Dropdown
+            do Radix (que trava o scroll do body enquanto está aberto)
+            fazia a sidebar e a topbar sumirem em páginas altas e
+            roladas — confirmado ao vivo, `position: sticky` relativo ao
+            scroll do documento quebra quando o body tem seu overflow
+            mexido, seja pelo nosso CSS ou por uma lib de terceiros. */}
         <main
-          className="content-grid-container flex-1 p-4 md:p-6 lg:p-8"
+          className="content-grid-container flex-1 overflow-y-auto p-4 md:p-6 lg:p-8"
           style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
         >
           <Outlet />
