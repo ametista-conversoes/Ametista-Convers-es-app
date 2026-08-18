@@ -28,6 +28,7 @@ import DashboardExecutivo from '@/pages/admin/DashboardExecutivo'
 import Incidents from '@/pages/admin/Incidents'
 import Integrations from '@/pages/admin/Integrations'
 import Kanban from '@/pages/admin/Kanban'
+import ManagerCassie from '@/pages/admin/ManagerCassie'
 import ManagerClientTasks from '@/pages/admin/ManagerClientTasks'
 import ManagerFiles from '@/pages/admin/ManagerFiles'
 import ManagerMeetings from '@/pages/admin/ManagerMeetings'
@@ -68,6 +69,7 @@ const managerPagesReady: Record<string, ComponentType> = {
   '/client-comments': ClientComments,
   '/client-meetings': ManagerMeetings,
   '/client-files': ManagerFiles,
+  '/client-cassie': ManagerCassie,
 }
 
 function App() {

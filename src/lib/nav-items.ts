@@ -55,4 +55,5 @@ export const managerNavItems: NavItem[] = [
   { title: 'Comentários', href: '/client-comments', icon: MessageSquare },
   { title: 'Reuniões', href: '/client-meetings', icon: Calendar },
   { title: 'Arquivos', href: '/client-files', icon: FileText },
+  { title: 'Cassie IA', href: '/client-cassie', icon: Sparkles },
 ]
