@@ -18,6 +18,8 @@ import { NewProjectDialog } from '@/components/admin/NewProjectDialog'
 import { CassieChatThread } from '@/components/cassie/CassieChatThread'
 import { CassieHeader } from '@/components/cassie/CassieHeader'
 import { CassieMessageForm } from '@/components/cassie/CassieMessageForm'
+import { ProjectDetailDialog } from '@/components/project/ProjectDetailDialog'
+import type { ManagerProjectRecord } from '@/hooks/useManagerPortalData'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -94,6 +96,7 @@ export default function ClientDetail() {
   const [cassieDraft, setCassieDraft] = useCassieDraft(id ?? '')
 
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [selectedProject, setSelectedProject] = useState<ManagerProjectRecord | null>(null)
   const [cassieMode, setCassieMode] = useState<CassieMode>(CASSIE_MODES[0])
   const [name, setName] = useState<string | null>(null)
   const [company, setCompany] = useState<string | null>(null)
@@ -402,7 +405,11 @@ export default function ClientDetail() {
         <CardContent className="space-y-2 p-0 pt-4">
           {clientProjects.length === 0 && <p className="text-sm text-muted-foreground">Nenhum projeto ainda.</p>}
           {clientProjects.map((project) => (
-            <div key={project.id} className="rounded-lg bg-secondary/50 px-3 py-2">
+            <div
+              key={project.id}
+              className="cursor-pointer rounded-lg bg-secondary/50 px-3 py-2 hover:bg-secondary"
+              onClick={() => setSelectedProject(project)}
+            >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium text-foreground">{project.title}</p>
                 <Badge className={projectStatusStyles[project.status]}>
@@ -565,6 +572,12 @@ export default function ClientDetail() {
           />
         </CardContent>
       </Card>
+
+      <ProjectDetailDialog
+        project={selectedProject}
+        tasks={clientTasks.filter((task) => task.project_id === selectedProject?.id)}
+        onOpenChange={(open) => !open && setSelectedProject(null)}
+      />
     </div>
   )
 }

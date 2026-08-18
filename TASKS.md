@@ -260,3 +260,19 @@
   - Corrigido na raiz (`AppLayout.tsx`, `Sidebar.tsx`, `TopBar.tsx`): o documento inteiro não rola mais — só o `<main>` rola de forma independente, e Sidebar/TopBar ficam fora do fluxo de scroll (sem precisar de `sticky`). Padrão comum de "app shell" (sidebar/topbar fixos, conteúdo com scroll próprio)
   - Testado ao vivo: sidebar/topbar não somem mais ao abrir o seletor de modo da Cassie numa página rolada; menu retrátil do celular abre/fecha normalmente; página em 820px sem scroll no documento (só dentro do `<main>`), sem overflow horizontal
 - [ ] Preparar o app para publicação (deploy)
+
+## Fase 8 — Públicos-Alvo e Comunicação Persuasiva via IA (a partir de respostas de formulário)
+
+Pedido pelo usuário depois da Fase 7 fechada. Dividida em sub-fases, uma de cada vez:
+- **8.1 — Detalhamento de Projeto/Campanha** (em andamento, ver abaixo)
+- 8.2 — Sincronização estruturada do Google Forms (perguntas + respostas de verdade, não só o alerta genérico que existe hoje)
+- 8.3 — Aba "Públicos-Alvo" (síntese em % das perguntas fechadas)
+- 8.4 — Comunicação Persuasiva (extração de palavras mais frequentes das respostas abertas + IA gerando headlines/textos)
+- 8.5 — Seção "Público-alvo" (resultado da 8.3, não da 8.4) dentro da Central de Informações do Cliente
+
+### 8.1 — Detalhamento de Projeto/Campanha
+- [x] Cada projeto na Central de Informações agora é clicável, abrindo `ProjectDetailDialog` (`src/components/project/ProjectDetailDialog.tsx`) com 3 abas: Visão Geral (status/CPA/ROAS/CTR/gasto/receita/período — dados que já existiam no banco mas não apareciam em lugar nenhum do lado do gestor), Tarefas (reaproveita `TaskList`, filtrado por projeto) e Campanha (editável: público-alvo, segmentações, objetivo, sistemas, outras informações)
+- [x] Segmentações: lista curada de referência (`src/lib/segmentation-options.ts`), agrupada por Meta Ads/Google Ads — não é uma integração ao vivo com as APIs deles, só padroniza como o gestor documenta a segmentação
+- [x] `migration-031-fase8-projeto-campanha.sql` (nova) — acrescenta `segmentations text[]` e `systems text` em `projects` (público-alvo/objetivo/outras informações reaproveitam `icp`/`objective`/`description`, que já existiam)
+- [x] `npx tsc -b --noEmit` e `npm run test` (25/25) limpos
+- [ ] **Pendente: rodar `migration-031`** — sem ela, o card "Projetos" da Central de Informações vai dar erro (a consulta já pede as colunas novas). Depois de rodada, reconfiro ao vivo: abrir o detalhe de um projeto, marcar segmentações, salvar, recarregar a página e confirmar que persistiu

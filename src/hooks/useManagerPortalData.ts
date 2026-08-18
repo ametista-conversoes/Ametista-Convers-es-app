@@ -62,11 +62,23 @@ export interface ManagerProjectRecord {
   spend: number | null
   objective: string | null
   description: string | null
+  icp: string | null
+  segmentations: string[]
+  systems: string | null
+  channel: string | null
+  cpa: number | null
+  roas: number | null
+  ctr: number | null
+  revenue: number | null
+  health_score: number | null
+  start_date: string | null
+  end_date: string | null
 }
 
 export interface ManagerTaskRecord {
   id: string
   title: string
+  description: string | null
   client_id: string
   project_id: string | null
   status: string
@@ -300,7 +312,9 @@ export function useAllProjects() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, title, client_id, status, spend, objective, description')
+        .select(
+          'id, title, client_id, status, spend, objective, description, icp, segmentations, systems, channel, cpa, roas, ctr, revenue, health_score, start_date, end_date',
+        )
       if (error) throw error
       return data as ManagerProjectRecord[]
     },
@@ -327,13 +341,35 @@ export function useCreateProject() {
   })
 }
 
+export interface UpdateProjectCampaignInput {
+  id: string
+  icp: string | null
+  segmentations: string[]
+  objective: string | null
+  systems: string | null
+  description: string | null
+}
+
+export function useUpdateProject() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...input }: UpdateProjectCampaignInput) => {
+      const { error } = await supabase.from('projects').update(input).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-projects'] })
+    },
+  })
+}
+
 export function useAllTasks() {
   return useQuery({
     queryKey: ['manager-tasks'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('tasks')
-        .select('id, title, client_id, project_id, status, priority, category, due_date, client:clients(name)')
+        .select('id, title, description, client_id, project_id, status, priority, category, due_date, client:clients(name)')
         .order('due_date', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false })
       if (error) throw error

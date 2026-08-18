@@ -18,6 +18,7 @@ function makeTask(overrides: Partial<ManagerTaskRecord> = {}): ManagerTaskRecord
   return {
     id: 'task-1',
     title: 'Tarefa',
+    description: null,
     client_id: CLIENT_ID,
     project_id: null,
     status: 'todo',
