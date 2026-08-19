@@ -97,23 +97,20 @@ function jsonResponse(body: unknown, status = 200) {
   })
 }
 
-function htmlResponse(html: string, status = 200) {
-  return new Response(html, { status, headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' } })
-}
-
-/** Página que o navegador da pessoa vê ao voltar do login do Google —
- * manda ela de volta pro app depois de um instante. */
-function callbackLandingPage(success: boolean, message: string) {
+/** Manda o navegador de volta pro app depois do login do Google/Meta —
+ * via redirect HTTP de verdade (302), não uma página HTML. Rotas de
+ * Edge Function chamadas sem autenticação (como /callback, aberta pelo
+ * navegador vindo do Google, sem login nosso por trás) têm o
+ * Content-Type da resposta forçado pra text/plain pelo próprio
+ * Supabase — uma página aqui nunca renderiza bonita, sempre aparece
+ * como código cru. O resultado vai na query string; quem mostra um
+ * aviso de verdade é o próprio app (toast em Assets.tsx). */
+function callbackRedirect(success: boolean, message: string) {
   const frontendUrl = Deno.env.get('FRONTEND_URL') ?? 'http://localhost:5173'
-  const target = `${frontendUrl}/assets`
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${success ? 'Conectado' : 'Erro ao conectar'}</title>
-<meta http-equiv="refresh" content="2;url=${target}">
-</head><body style="font-family: system-ui, sans-serif; padding: 2rem; background: #0B1220; color: #fff;">
-<p>${message}</p>
-<p><a href="${target}" style="color:#7C3AED;">Clique aqui se não for redirecionado automaticamente.</a></p>
-<script>setTimeout(function () { window.location.href = ${JSON.stringify(target)} }, 1800)</script>
-</body></html>`
-  return htmlResponse(html)
+  const target = new URL(`${frontendUrl}/assets`)
+  target.searchParams.set('integration', success ? 'connected' : 'error')
+  target.searchParams.set('message', message)
+  return new Response(null, { status: 302, headers: { ...corsHeaders, Location: target.toString() } })
 }
 
 function isProvider(value: string | null): value is Provider {
@@ -244,7 +241,7 @@ async function handleCallback(url: URL) {
   const code = url.searchParams.get('code')
   const oauthError = url.searchParams.get('error')
 
-  if (!state) return htmlResponse('<p>Parâmetro "state" ausente.</p>', 400)
+  if (!state) return callbackRedirect(false, 'Parâmetro "state" ausente.')
 
   const supabase = getServiceClient()
 
@@ -253,12 +250,12 @@ async function handleCallback(url: URL) {
     .select('id, provider')
     .eq('id', state)
     .maybeSingle()
-  if (connectionError) return htmlResponse(`<p>${connectionError.message}</p>`, 500)
-  if (!connection) return htmlResponse('<p>Conexão não encontrada (state inválido).</p>', 404)
+  if (connectionError) return callbackRedirect(false, connectionError.message)
+  if (!connection) return callbackRedirect(false, 'Conexão não encontrada (state inválido).')
 
   if (oauthError || !code) {
     await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connection.id)
-    return callbackLandingPage(false, `Conexão cancelada ou recusada${oauthError ? `: ${oauthError}` : ''}.`)
+    return callbackRedirect(false, `Conexão cancelada ou recusada${oauthError ? `: ${oauthError}` : ''}.`)
   }
 
   const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1${url.pathname}`
@@ -283,7 +280,7 @@ async function handleCallback(url: URL) {
     const shortTokenBody = await shortTokenRes.json()
     if (!shortTokenRes.ok) {
       await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connection.id)
-      return callbackLandingPage(false, `Não foi possível conectar: ${shortTokenBody.error?.message ?? 'erro desconhecido'}.`)
+      return callbackRedirect(false, `Não foi possível conectar: ${shortTokenBody.error?.message ?? 'erro desconhecido'}.`)
     }
 
     const longTokenUrl = new URL(META_TOKEN_URL)
@@ -296,7 +293,7 @@ async function handleCallback(url: URL) {
     const longTokenBody = await longTokenRes.json()
     if (!longTokenRes.ok) {
       await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connection.id)
-      return callbackLandingPage(
+      return callbackRedirect(
         false,
         `Não foi possível trocar pelo token de longa duração: ${longTokenBody.error?.message ?? 'erro desconhecido'}.`,
       )
@@ -320,7 +317,7 @@ async function handleCallback(url: URL) {
     const tokenBody = await tokenRes.json()
     if (!tokenRes.ok) {
       await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connection.id)
-      return callbackLandingPage(false, `Não foi possível conectar: ${tokenBody.error_description ?? tokenBody.error ?? 'erro desconhecido'}.`)
+      return callbackRedirect(false, `Não foi possível conectar: ${tokenBody.error_description ?? tokenBody.error ?? 'erro desconhecido'}.`)
     }
 
     accessToken = tokenBody.access_token as string
@@ -331,7 +328,7 @@ async function handleCallback(url: URL) {
   const { data: accessSecretId, error: accessSecretError } = await supabase.rpc('store_oauth_secret', { secret: accessToken })
   if (accessSecretError) {
     await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connection.id)
-    return callbackLandingPage(false, 'Não foi possível guardar o token com segurança.')
+    return callbackRedirect(false, 'Não foi possível guardar o token com segurança.')
   }
 
   const tokenUpsert: Record<string, unknown> = {
@@ -386,7 +383,7 @@ async function handleCallback(url: URL) {
 
   await supabase.from('digital_asset_connections').update({ status: 'connected' }).eq('id', connection.id)
 
-  return callbackLandingPage(true, 'Conectado! Redirecionando...')
+  return callbackRedirect(true, 'Integração conectada com sucesso.')
 }
 
 async function getValidAccessToken(supabase: SupabaseClient, connectionId: string, provider: Provider): Promise<string | null> {

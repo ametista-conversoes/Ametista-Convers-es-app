@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus, Search } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import { AssetCard } from '@/components/assets/AssetCard'
 import { AssetFormDialog } from '@/components/assets/AssetFormDialog'
 import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
@@ -17,6 +19,32 @@ export default function Assets() {
   const [clientFilter, setClientFilter] = useState(ALL_CLIENTS)
   const [deleteMode, setDeleteMode] = useState(false)
   const [search, setSearch] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // Volta do /callback da Edge Function "integrations" (Google/Meta) —
+  // ela redireciona pra cá com o resultado na query string, em vez de
+  // mostrar uma página própria (rotas sem autenticação têm o
+  // Content-Type forçado pro texto puro pelo Supabase, então nunca
+  // renderizaria bonita ali).
+  useEffect(() => {
+    const integration = searchParams.get('integration')
+    if (!integration) return
+    const message = searchParams.get('message')
+    if (integration === 'connected') {
+      toast.success(message ?? 'Integração conectada com sucesso.')
+    } else if (integration === 'error') {
+      toast.error(message ?? 'Não foi possível conectar a integração.')
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('integration')
+        next.delete('message')
+        return next
+      },
+      { replace: true },
+    )
+  }, [searchParams, setSearchParams])
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Carregando...</p>
