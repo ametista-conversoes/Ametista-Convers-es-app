@@ -269,7 +269,7 @@ Pedido pelo usuário depois da Fase 7 fechada. Dividida em sub-fases, uma de cad
 - **8.3 — Aba "Públicos-Alvo"** (fechada, ver abaixo)
 - **8.3b — Separar por formulário, busca, e correção do cache pós-sincronização** (fechada, ver abaixo)
 - **8.4 — Comunicação Persuasiva** (fechada, ver abaixo)
-- **8.4b — Chat de refinamento + persistir sugestões** (fechada, aguardando migração + reimplantação, ver abaixo)
+- **8.4b — Chat de refinamento + persistir sugestões** (fechada, testada ao vivo de ponta a ponta, ver abaixo)
 - 8.5 — Seção "Público-alvo" (resultado da 8.3, não da 8.4) dentro da Central de Informações do Cliente
 
 ### 8.1 — Detalhamento de Projeto/Campanha
@@ -343,4 +343,4 @@ Pedido pelo usuário depois da Fase 7 fechada. Dividida em sub-fases, uma de cad
 - [x] `CassieMessageForm.tsx` ganhou uma prop `placeholder` opcional (reaproveitado sem duplicar componente, com o texto pedido "Se quiser modificações ou melhorias, é só dizer"); componente novo `PersuasiveCopyThread.tsx` (bolhas de conversa, mesmo visual de `CassieChatThread.tsx`, sem os modos que só fazem sentido na Cassie principal)
 - [x] `npx tsc -b --noEmit`, `npm run test` (40/40) e `npm run test:e2e` (3/3, incluindo o teste que tinha falhado por instabilidade na rodada passada — confirmando que era mesmo ambiente, não código) limpos
 - [x] Testado ao vivo: com a tabela nova ainda não existindo (antes do usuário rodar a migração), a tela não quebra — só demora uns 7-9s a mais pra aparecer o botão porque o React Query tenta de novo sozinho antes de desistir (comportamento padrão, não é bug); confirmado por leitura direta do DOM, não só captura de tela (uma primeira verificação minha por print deu falso alarme de "sumiu", causado pela mesma demora)
-- **Pendente**: você precisa rodar a `migration-034-fase84b-persuasive-copy-chat.sql` e reimplantar a Edge Function `CASSIE` de novo (editando a função existente, não criando uma nova — ver o bug acima) — só depois disso dá pra testar o chat de ajuste com uma resposta real da OpenAI
+- [x] **Migração rodada e função reimplantada pelo usuário — confirmado ao vivo de ponta a ponta**: testei direto no servidor (sem passar pelo navegador) que a rota devolve `{"reply": ...}` (formato novo) e grava as duas mensagens (usuário + Cassie) em `persuasive_copy_messages`; pedido de ajuste ("deixe a headline 1 bem mais curta") voltou com a lista inteira atualizada, só a headline 1 mudou (de "Alcance a paz interior que busca" pra "Paz interior"), o resto igual — exatamente o comportamento pedido. Depois testei pela tela: a conversa gerada pelo teste direto no servidor já aparecia certinha ao abrir a aba; mandei um novo pedido pela caixa de chat ("adicione um emoji de coração em cada headline") e a resposta chegou; troquei de aba e voltei, e recarreguei a página inteira — a conversa continuou lá nas duas situações
