@@ -12,12 +12,14 @@ import {
   RefreshCw,
   Target,
   Upload,
+  UsersRound,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { NewProjectDialog } from '@/components/admin/NewProjectDialog'
 import { CassieChatThread } from '@/components/cassie/CassieChatThread'
 import { CassieHeader } from '@/components/cassie/CassieHeader'
 import { CassieMessageForm } from '@/components/cassie/CassieMessageForm'
+import { OptionBreakdownBarChart } from '@/components/charts/OptionBreakdownBarChart'
 import { ProjectDetailDialog } from '@/components/project/ProjectDetailDialog'
 import type { ManagerProjectRecord } from '@/hooks/useManagerPortalData'
 import { Badge } from '@/components/ui/badge'
@@ -46,6 +48,7 @@ import {
   useAllProjects,
   useAllSmartGoals,
   useAllTasks,
+  useAudienceInsights,
   useManagerClient,
   useRecomputeClientHealthScore,
   useToggleActivityChecklistItem,
@@ -84,6 +87,7 @@ export default function ClientDetail() {
   const { data: meetings } = useAllMeetings()
   const { data: alerts } = useAllAlerts()
   const { data: incidents } = useAllIncidents()
+  const { data: audienceInsights } = useAudienceInsights(id ?? null)
   const { data: activityItems } = useActivityChecklistItems()
   const toggleActivityItem = useToggleActivityChecklistItem()
   const updateStatus = useUpdateClientStatus()
@@ -548,6 +552,37 @@ export default function ClientDetail() {
           </Card>
         </div>
       </div>
+
+      {/* Público-Alvo (Fase 8.5) — síntese em % das perguntas fechadas
+          dos Google Forms conectados (mesmo cálculo/gráfico da aba
+          dedicada "Públicos-Alvo", Fase 8.3). Visão simples, sem
+          seletor de formulário/busca/agrupamento — só aparece se o
+          cliente já tiver alguma pergunta fechada sincronizada. */}
+      {(audienceInsights ?? []).length > 0 && (
+        <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
+          <CardHeader className="p-0">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <UsersRound className="h-4 w-4 text-purple-400" />
+              Público-Alvo
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="max-h-[560px] space-y-4 overflow-y-auto p-0 pt-4 pr-1">
+            {(audienceInsights ?? []).map((question) => (
+              <div key={question.questionId} className="rounded-lg bg-secondary/50 px-3 py-3">
+                <p className="text-sm font-medium text-foreground">{question.title}</p>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  {question.totalRespondents} resposta{question.totalRespondents === 1 ? '' : 's'}
+                </p>
+                {question.totalRespondents === 0 ? (
+                  <p className="text-sm text-muted-foreground">Ainda sem respostas.</p>
+                ) : (
+                  <OptionBreakdownBarChart data={question.options} />
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Cassie IA — conversa própria do gestor sobre esse cliente,
           separada da conversa que o próprio cliente tem com a Cassie.

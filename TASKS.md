@@ -270,7 +270,7 @@ Pedido pelo usuário depois da Fase 7 fechada. Dividida em sub-fases, uma de cad
 - **8.3b — Separar por formulário, busca, e correção do cache pós-sincronização** (fechada, ver abaixo)
 - **8.4 — Comunicação Persuasiva** (fechada, ver abaixo)
 - **8.4b — Chat de refinamento + persistir sugestões** (fechada, testada ao vivo de ponta a ponta, ver abaixo)
-- 8.5 — Seção "Público-alvo" (resultado da 8.3, não da 8.4) dentro da Central de Informações do Cliente
+- **8.5 — Seção "Público-Alvo" na Central de Informações do Cliente** (fechada, ver abaixo)
 
 ### 8.1 — Detalhamento de Projeto/Campanha
 - [x] Cada projeto na Central de Informações agora é clicável, abrindo `ProjectDetailDialog` (`src/components/project/ProjectDetailDialog.tsx`) com 3 abas: Visão Geral (status/CPA/ROAS/CTR/gasto/receita/período — dados que já existiam no banco mas não apareciam em lugar nenhum do lado do gestor), Tarefas (reaproveita `TaskList`, filtrado por projeto) e Campanha (editável: público-alvo, segmentações, objetivo, sistemas, outras informações)
@@ -368,3 +368,13 @@ Usuário perguntou por que o Timeline (criado justamente pra registrar as açõe
 - [x] **Migração rodada pelo usuário — confirmado ao vivo, testando cada gatilho com dado descartável (criado e apagado na hora, nada do usuário foi tocado)**: cliente (criado/mudou status/excluído — exclusão só funciona com conta admin, confirmando que a regra "só admin apaga cliente" da Fase 5 continua valendo, testei com gestor primeiro e vi 0 linhas afetadas sem erro, troquei pra admin e confirmou), projeto (criado/mudou status), meta SMART (criada/mudou status/excluída), reunião (cancelada com motivo/excluída), ativo digital (criado/mudou status/excluído), atividade avulsa (criada/concluída), aprovação (aprovada/rejeitada, via `respond_to_approval` chamado como o cliente de teste de verdade) — todos os 9 geraram a entrada certa no Timeline, com a severidade certa
 - **Não testado por mim**: conexão de integração mudando pra "conectada"/"com erro"/"desconectada" — precisa de uma sincronização real (OAuth ou Edge Function com service role), que não tenho como disparar sozinho; a lógica é idêntica aos outros 9 que já confirmei funcionando, só falta ver ao vivo na próxima vez que uma conexão real mudar de status
 - [x] **Limpeza dos 35 registros de teste rodada pelo usuário — confirmado ao vivo**: 0 registros restantes batendo com "Workflow Teste" ou "Criativo Teste Playwright" em `audit_logs`
+
+### 8.5 — Seção "Público-Alvo" na Central de Informações do Cliente
+
+Último item pendente do roadmap da Fase 8. Trouxe o resultado da Fase 8.3 (síntese em % das perguntas fechadas) pra dentro de `ClientDetail.tsx` — não a Comunicação Persuasiva da 8.4, essa fica só na aba dedicada.
+
+- [x] `ClientDetail.tsx` ganhou uma seção nova "Público-Alvo" (ícone `UsersRound`, mesmo do menu), posicionada depois da grade Tarefas/Metas/Reuniões/Atividades e antes da Cassie IA — 100% reaproveitamento: mesmo hook `useAudienceInsights` e mesmo componente `OptionBreakdownBarChart` já construídos na Fase 8.3, nenhum hook/componente novo
+- [x] Versão simplificada de propósito (sem seletor de formulário, busca ou agrupamento por seção, que só existem na aba dedicada) — é a visão "olhar rápido" desse cliente específico; conteúdo dentro de `max-h-[560px] overflow-y-auto`, mesmo padrão já usado nos outros cards desta página
+- [x] A seção só aparece se o cliente tiver pelo menos 1 pergunta fechada sincronizada (mesmo padrão condicional já usado no card "Cliente em risco" desta página) — evita poluir a tela de clientes sem Google Forms conectado
+- [x] `npx tsc -b --noEmit` e `npm run test` (40/40) limpos. `npm run test:e2e` não rodado nessa rodada de propósito — a suíte recriaria mais poluição de teste em Studio Prisma logo depois de confirmar a limpeza (ver 9b); nada nesta mudança tem relação com os cenários que os testes de ponta a ponta cobrem (login, workflow, aprovação), então o risco de regressão não detectada é baixo
+- [x] Testado ao vivo: Central de Informações do Studio Prisma mostra a seção "Público-Alvo" com as 15 perguntas fechadas reais, gráfico igual ao da aba dedicada (confirmei via captura de tela); Loja Aurora (sem Google Forms conectado) corretamente não mostra a seção. Um teste meu inicial deu falso alarme de "seção sumiu" — era só o carregamento em segundo plano (a seção não trava o resto da página, aparece assim que os dados chegam, por isso demora um instante a mais que o resto), confirmado repetindo o teste com espera adequada
