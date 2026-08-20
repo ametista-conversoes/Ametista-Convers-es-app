@@ -31,12 +31,16 @@
 //   admin/gestor — um cliente sempre conversa sobre o próprio client_id,
 //   ignorando qualquer client_id que venha no corpo.
 //
-//   POST .../CASSIE/persuasive-copy   { client_id: string, connection_id?: string }
-//   Fase 8.4 ("Comunicação Persuasiva", aba de Públicos-Alvo) — só
-//   admin/gestor; gera headlines/textos de anúncio a partir das
-//   respostas abertas (texto livre) dos Google Forms conectados do
-//   cliente. connection_id opcional restringe a um formulário só; sem
-//   ele, usa todos os Google Forms conectados do cliente.
+//   POST .../CASSIE/persuasive-copy   { client_id: string, connection_id?: string, message: string }
+//   Fase 8.4/8.4b ("Comunicação Persuasiva", aba de Públicos-Alvo) —
+//   só admin/gestor; conversa persistida (persuasive_copy_messages,
+//   mesmo espírito de cassie_messages) que gera/ajusta headlines e
+//   textos de anúncio a partir das respostas abertas (texto livre) dos
+//   Google Forms conectados do cliente. connection_id opcional
+//   restringe a um formulário só; sem ele, usa todos os Google Forms
+//   conectados do cliente (e a conversa fica separada por essa mesma
+//   combinação de cliente+formulário). O botão "Gerar sugestões com
+//   IA" do front-end manda uma message fixa por essa mesma rota.
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2'
 
@@ -393,14 +397,15 @@ async function fetchOpenTextAnswers(supabase: SupabaseClient, clientId: string, 
   return rows
 }
 
-const PERSUASIVE_COPY_SYSTEM_PROMPT = `Você é a Cassie, a assistente de IA da Ametista Conversões, uma agência de marketing de performance.
-Sua tarefa agora é ajudar o gestor a escrever anúncios melhores usando a linguagem real do público dele.
-Você vai receber respostas abertas reais de um formulário de captação de leads, cada uma junto da pergunta que a originou.
-Com base SÓ nessas respostas (não invente informação que não esteja lá), sugira:
+const PERSUASIVE_COPY_SYSTEM_PROMPT_BASE = `Você é a Cassie, a assistente de IA da Ametista Conversões, uma agência de marketing de performance.
+Sua tarefa é ajudar o gestor a escrever anúncios melhores usando a linguagem real do público dele, numa conversa com ida e volta.
+Você recebe respostas abertas reais de um formulário de captação de leads (cada uma junto da pergunta que a originou) como contexto abaixo.
+No primeiro pedido, com base SÓ nessas respostas (não invente informação que não esteja lá), sugira:
 1. 5 headlines curtos (até 60 caracteres cada) pra anúncio, numerados de 1 a 5
 2. 3 textos persuasivos mais longos (2 a 3 frases cada), numerados de 1 a 3
 Use palavras, expressões e dores que o próprio público usou nas respostas sempre que possível.
-Responda só com essas duas listas, em português do Brasil, sem introdução nem comentário extra. Formato exato:
+Se o gestor pedir um ajuste pontual (ex: "deixe a headline 3 mais direta"), aplique o ajuste e responda com a LISTA INTEIRA atualizada (headlines + textos), não só o item que mudou — pra sempre ficar claro qual é a versão mais recente, pronta pra copiar.
+Responda só com as duas listas, em português do Brasil, sem introdução nem comentário extra. Formato exato:
 HEADLINES:
 1. ...
 2. ...
@@ -413,6 +418,14 @@ TEXTOS:
 2. ...
 3. ...`
 
+const PERSUASIVE_COPY_HISTORY_LIMIT = 20
+
+/** Rota conversacional (Fase 8.4b) — cada chamada é uma mensagem numa
+ * conversa persistida em `persuasive_copy_messages`, escopada por
+ * quem pediu + cliente + formulário (mesmo padrão de `handleChat`
+ * com `cassie_messages`, só que sem o campo `mode`). O botão "Gerar
+ * sugestões com IA" do front-end manda uma mensagem fixa por essa
+ * mesma rota — não existe caminho especial pro primeiro pedido. */
 async function handlePersuasiveCopy(req: Request) {
   const auth = await requireCassieCaller(req)
   if (auth instanceof Response) return auth
@@ -420,13 +433,15 @@ async function handlePersuasiveCopy(req: Request) {
     return jsonResponse({ error: 'Só admin/gestor pode gerar sugestões de comunicação persuasiva.' }, 403)
   }
 
-  let body: { client_id?: string; connection_id?: string }
+  let body: { client_id?: string; connection_id?: string; message?: string }
   try {
     body = await req.json()
   } catch {
     return jsonResponse({ error: 'Corpo inválido' }, 400)
   }
   if (!body.client_id) return jsonResponse({ error: 'client_id é obrigatório' }, 400)
+  const message = body.message?.trim()
+  if (!message) return jsonResponse({ error: 'message é obrigatório' }, 400)
 
   const supabase = getServiceClient()
 
@@ -462,6 +477,27 @@ async function handlePersuasiveCopy(req: Request) {
     return jsonResponse({ error: 'A chave da OpenAI ainda não foi configurada nesta função (falta o segredo Openai_api_key).' }, 400)
   }
 
+  let historyQuery = supabase
+    .from('persuasive_copy_messages')
+    .select('role, content')
+    .eq('conversation_owner_id', auth.userId)
+    .eq('client_id', body.client_id)
+    .order('created_at', { ascending: false })
+    .limit(PERSUASIVE_COPY_HISTORY_LIMIT)
+  historyQuery = body.connection_id ? historyQuery.eq('connection_id', body.connection_id) : historyQuery.is('connection_id', null)
+  const { data: history, error: historyError } = await historyQuery
+  if (historyError) return jsonResponse({ error: historyError.message }, 500)
+  const orderedHistory = [...(history ?? [])].reverse()
+
+  const { error: insertUserError } = await supabase.from('persuasive_copy_messages').insert({
+    client_id: body.client_id,
+    connection_id: body.connection_id ?? null,
+    conversation_owner_id: auth.userId,
+    role: 'user',
+    content: message,
+  })
+  if (insertUserError) return jsonResponse({ error: insertUserError.message }, 500)
+
   const answersText = answers.map((a) => `Pergunta: "${a.title}"\nResposta: ${a.answerText}`).join('\n\n')
 
   const openaiRes = await fetch('https://api.openai.com/v1/responses', {
@@ -472,8 +508,8 @@ async function handlePersuasiveCopy(req: Request) {
     },
     body: JSON.stringify({
       model: OPENAI_MODEL,
-      instructions: PERSUASIVE_COPY_SYSTEM_PROMPT,
-      input: [{ role: 'user', content: answersText }],
+      instructions: `${PERSUASIVE_COPY_SYSTEM_PROMPT_BASE}\n\n--- Respostas abertas do público ---\n${answersText}`,
+      input: [...orderedHistory.map((m) => ({ role: m.role, content: m.content })), { role: 'user', content: message }],
     }),
   })
   const openaiBody = await openaiRes.json()
@@ -481,10 +517,19 @@ async function handlePersuasiveCopy(req: Request) {
     return jsonResponse({ error: openaiBody.error?.message ?? 'Erro ao consultar a API da OpenAI' }, 502)
   }
 
-  const suggestions = extractReplyText(openaiBody)
-  if (!suggestions) return jsonResponse({ error: 'A IA não conseguiu gerar sugestões.' }, 502)
+  const replyText = extractReplyText(openaiBody)
+  if (!replyText) return jsonResponse({ error: 'A IA não conseguiu gerar sugestões.' }, 502)
 
-  return jsonResponse({ suggestions })
+  const { error: insertReplyError } = await supabase.from('persuasive_copy_messages').insert({
+    client_id: body.client_id,
+    connection_id: body.connection_id ?? null,
+    conversation_owner_id: auth.userId,
+    role: 'assistant',
+    content: replyText,
+  })
+  if (insertReplyError) return jsonResponse({ error: insertReplyError.message }, 500)
+
+  return jsonResponse({ reply: replyText })
 }
 
 Deno.serve(async (req) => {

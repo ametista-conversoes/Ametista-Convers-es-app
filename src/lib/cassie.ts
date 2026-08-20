@@ -32,22 +32,22 @@ export async function sendCassieMessage({ clientId, message, mode }: SendCassieM
   return body.reply as string
 }
 
-interface GeneratePersuasiveCopyParams {
+interface SendPersuasiveCopyMessageParams {
   clientId: string
   connectionId?: string
+  message: string
 }
 
-/** Fase 8.4 ("Comunicação Persuasiva") — pede pra Cassie sugerir
- * headlines/textos de anúncio a partir das respostas abertas de
- * Google Forms do cliente. Chamada avulsa (sem histórico salvo), cada
- * clique gera um resultado novo. */
-export async function generatePersuasiveCopy({ clientId, connectionId }: GeneratePersuasiveCopyParams): Promise<string> {
+/** Fase 8.4/8.4b ("Comunicação Persuasiva") — chat persistido que pede
+ * pra Cassie gerar/ajustar headlines e textos de anúncio a partir das
+ * respostas abertas de Google Forms do cliente. */
+export async function sendPersuasiveCopyMessage({ clientId, connectionId, message }: SendPersuasiveCopyMessageParams): Promise<string> {
   const res = await fetch(`${FUNCTIONS_BASE}/persuasive-copy`, {
     method: 'POST',
     headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ client_id: clientId, connection_id: connectionId }),
+    body: JSON.stringify({ client_id: clientId, connection_id: connectionId, message }),
   })
   const body = await res.json()
   if (!res.ok) throw new Error(body.error ?? 'Não foi possível gerar sugestões.')
-  return body.suggestions as string
+  return body.reply as string
 }

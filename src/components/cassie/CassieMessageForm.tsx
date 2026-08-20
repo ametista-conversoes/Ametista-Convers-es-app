@@ -8,9 +8,10 @@ interface CassieMessageFormProps {
   onChange: (value: string) => void
   onSend: (message: string) => void
   sending: boolean
+  placeholder?: string
 }
 
-export function CassieMessageForm({ value, onChange, onSend, sending }: CassieMessageFormProps) {
+export function CassieMessageForm({ value, onChange, onSend, sending, placeholder }: CassieMessageFormProps) {
   function handleSubmit() {
     if (!value.trim()) return
     onSend(value.trim())
@@ -21,7 +22,7 @@ export function CassieMessageForm({ value, onChange, onSend, sending }: CassieMe
     <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
       <CardContent className="space-y-3 p-0">
         <Textarea
-          placeholder="Pergunte algo pra Cassie..."
+          placeholder={placeholder ?? 'Pergunte algo pra Cassie...'}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
