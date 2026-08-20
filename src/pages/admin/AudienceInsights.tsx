@@ -3,7 +3,9 @@ import { Search } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { OptionBreakdownBarChart } from '@/components/charts/OptionBreakdownBarChart'
+import { PersuasiveCopyPanel } from '@/components/audience/PersuasiveCopyPanel'
 import {
   useAllClients,
   useAllDigitalAssets,
@@ -13,12 +15,13 @@ import {
 
 const ALL_FORMS = 'all'
 
-/** "Públicos-Alvo" (Fase 8.3/8.3b) — síntese em % das perguntas
- * fechadas dos Google Forms conectados de um cliente. 100% dinâmico: a
- * lista de perguntas/opções vem inteira de `useAudienceInsights`, nada
- * fixo aqui — quantas perguntas/formulários existirem de verdade pro
- * cliente escolhido é o que aparece. Perguntas de texto livre ficam de
- * fora (Fase 8.4).
+/** "Públicos-Alvo" (Fase 8.3/8.3b/8.4). Duas abas, compartilhando o
+ * mesmo seletor de Cliente/Formulário no cabeçalho: "Perguntas
+ * Fechadas" (síntese em %, 100% dinâmica — a lista de perguntas/opções
+ * vem inteira de `useAudienceInsights`, nada fixo por formulário
+ * específico) e "Comunicação Persuasiva" (Fase 8.4 — palavras mais
+ * frequentes das perguntas abertas + sugestões de headline/texto via
+ * IA, em `PersuasiveCopyPanel`).
  *
  * Um cliente pode ter mais de um Google Forms conectado com propósitos
  * diferentes (formulário de cliente, de objeção, etc) — o seletor de
@@ -58,6 +61,8 @@ export default function AudienceInsights() {
         .filter((group) => group.questions.length > 0)
     : [{ connectionId: ALL_FORMS, label: '', questions: filteredInsights }]
 
+  const formConnectionIds = formFilter === ALL_FORMS ? clientForms.map((form) => form.connectionId) : [formFilter]
+
   function renderQuestionCard(question: (typeof filteredInsights)[number]) {
     return (
       <Card
@@ -89,17 +94,6 @@ export default function AudienceInsights() {
           <h1 className="text-2xl font-semibold text-foreground">Públicos-Alvo</h1>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {clientId && (
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar pergunta..."
-                className="w-48 pl-9"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-          )}
           {clientId && showFormSelect && (
             <Select value={formFilter} onValueChange={setFormFilter}>
               <SelectTrigger className="w-56">
@@ -141,27 +135,56 @@ export default function AudienceInsights() {
         <p className="text-sm text-muted-foreground">Escolha um cliente pra ver a síntese das respostas de formulário.</p>
       )}
 
-      {clientId && isLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
+      {clientId && (
+        <Tabs defaultValue="closed">
+          <TabsList>
+            <TabsTrigger value="closed">Perguntas Fechadas</TabsTrigger>
+            <TabsTrigger value="persuasive">Comunicação Persuasiva</TabsTrigger>
+          </TabsList>
 
-      {clientId && !isLoading && (insights ?? []).length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          Nenhuma pergunta fechada sincronizada ainda pra esse cliente. Conecte e sincronize um Google Forms em
-          "Integrações" pra começar.
-        </p>
+          <TabsContent value="closed" className="space-y-6">
+            <div className="relative w-full max-w-xs">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar pergunta..."
+                className="pl-9"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+
+            {isLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
+
+            {!isLoading && (insights ?? []).length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma pergunta fechada sincronizada ainda pra esse cliente. Conecte e sincronize um Google Forms em
+                "Integrações" pra começar.
+              </p>
+            )}
+
+            {!isLoading && (insights ?? []).length > 0 && filteredInsights.length === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhuma pergunta encontrada com esse filtro.</p>
+            )}
+
+            <div className="space-y-6">
+              {groups.map((group) => (
+                <div key={group.connectionId} className="space-y-4">
+                  {groupByForm && <h2 className="text-sm font-medium text-muted-foreground">{group.label}</h2>}
+                  <div className="space-y-4">{group.questions.map(renderQuestionCard)}</div>
+                </div>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="persuasive">
+            <PersuasiveCopyPanel
+              clientId={clientId}
+              connectionIds={formConnectionIds}
+              connectionId={formFilter === ALL_FORMS ? undefined : formFilter}
+            />
+          </TabsContent>
+        </Tabs>
       )}
-
-      {clientId && !isLoading && (insights ?? []).length > 0 && filteredInsights.length === 0 && (
-        <p className="text-sm text-muted-foreground">Nenhuma pergunta encontrada com esse filtro.</p>
-      )}
-
-      <div className="space-y-6">
-        {groups.map((group) => (
-          <div key={group.connectionId} className="space-y-4">
-            {groupByForm && <h2 className="text-sm font-medium text-muted-foreground">{group.label}</h2>}
-            <div className="space-y-4">{group.questions.map(renderQuestionCard)}</div>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }

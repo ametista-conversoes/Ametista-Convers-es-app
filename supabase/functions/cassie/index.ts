@@ -25,11 +25,18 @@
 //   Openai_api_key — gerada em platform.openai.com, colada direto aqui
 //                     (nunca no código, nunca no chat com o Claude).
 //
-// Rota:
+// Rotas:
 //   POST .../CASSIE/chat   { client_id?: string, message: string, mode: CassieMode }
 //   client_id só é obrigatório (e só é respeitado) quando quem chama é
 //   admin/gestor — um cliente sempre conversa sobre o próprio client_id,
 //   ignorando qualquer client_id que venha no corpo.
+//
+//   POST .../CASSIE/persuasive-copy   { client_id: string, connection_id?: string }
+//   Fase 8.4 ("Comunicação Persuasiva", aba de Públicos-Alvo) — só
+//   admin/gestor; gera headlines/textos de anúncio a partir das
+//   respostas abertas (texto livre) dos Google Forms conectados do
+//   cliente. connection_id opcional restringe a um formulário só; sem
+//   ele, usa todos os Google Forms conectados do cliente.
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2'
 
@@ -338,6 +345,148 @@ async function handleChat(req: Request) {
   return jsonResponse({ reply: replyText })
 }
 
+const OPEN_QUESTION_TYPES = ['text_short', 'text_paragraph']
+const PERSUASIVE_COPY_ANSWER_LIMIT = 50 // limita o tamanho/custo do prompt
+
+interface OpenAnswerRow {
+  title: string
+  answerText: string
+}
+
+/** Respostas de texto livre dos Google Forms conectados de um cliente
+ * (Fase 8.4, "Comunicação Persuasiva") — mesma lógica de junção do
+ * hook `useOpenTextAnswers` do front-end, só que rodando aqui pra
+ * montar o prompt sem confiar em texto de resposta mandado pelo
+ * cliente da API. */
+async function fetchOpenTextAnswers(supabase: SupabaseClient, clientId: string, connectionIds: string[]): Promise<OpenAnswerRow[]> {
+  const { data: questions } = await supabase
+    .from('form_questions')
+    .select('external_question_id, connection_id, title')
+    .in('connection_id', connectionIds)
+    .in('question_type', OPEN_QUESTION_TYPES)
+  if (!questions || questions.length === 0) return []
+
+  const titleByKey = new Map((questions as Array<{ connection_id: string; external_question_id: string; title: string }>).map((q) => [
+    `${q.connection_id}|${q.external_question_id}`,
+    q.title,
+  ]))
+
+  const { data: responses } = await supabase
+    .from('form_responses')
+    .select('connection_id, submitted_at, form_answers(external_question_id, answer_text)')
+    .eq('client_id', clientId)
+    .in('connection_id', connectionIds)
+    .order('submitted_at', { ascending: false })
+    .limit(PERSUASIVE_COPY_ANSWER_LIMIT)
+
+  const rows: OpenAnswerRow[] = []
+  for (const response of (responses ?? []) as Array<{
+    connection_id: string
+    form_answers: Array<{ external_question_id: string; answer_text: string | null }>
+  }>) {
+    for (const answer of response.form_answers) {
+      const title = titleByKey.get(`${response.connection_id}|${answer.external_question_id}`)
+      if (!title || !answer.answer_text?.trim()) continue
+      rows.push({ title, answerText: answer.answer_text })
+    }
+  }
+  return rows
+}
+
+const PERSUASIVE_COPY_SYSTEM_PROMPT = `Você é a Cassie, a assistente de IA da Ametista Conversões, uma agência de marketing de performance.
+Sua tarefa agora é ajudar o gestor a escrever anúncios melhores usando a linguagem real do público dele.
+Você vai receber respostas abertas reais de um formulário de captação de leads, cada uma junto da pergunta que a originou.
+Com base SÓ nessas respostas (não invente informação que não esteja lá), sugira:
+1. 5 headlines curtos (até 60 caracteres cada) pra anúncio, numerados de 1 a 5
+2. 3 textos persuasivos mais longos (2 a 3 frases cada), numerados de 1 a 3
+Use palavras, expressões e dores que o próprio público usou nas respostas sempre que possível.
+Responda só com essas duas listas, em português do Brasil, sem introdução nem comentário extra. Formato exato:
+HEADLINES:
+1. ...
+2. ...
+3. ...
+4. ...
+5. ...
+
+TEXTOS:
+1. ...
+2. ...
+3. ...`
+
+async function handlePersuasiveCopy(req: Request) {
+  const auth = await requireCassieCaller(req)
+  if (auth instanceof Response) return auth
+  if (auth.role !== 'admin' && auth.role !== 'gestor') {
+    return jsonResponse({ error: 'Só admin/gestor pode gerar sugestões de comunicação persuasiva.' }, 403)
+  }
+
+  let body: { client_id?: string; connection_id?: string }
+  try {
+    body = await req.json()
+  } catch {
+    return jsonResponse({ error: 'Corpo inválido' }, 400)
+  }
+  if (!body.client_id) return jsonResponse({ error: 'client_id é obrigatório' }, 400)
+
+  const supabase = getServiceClient()
+
+  let connectionIds: string[]
+  if (body.connection_id) {
+    connectionIds = [body.connection_id]
+  } else {
+    const { data: assets } = await supabase.from('digital_assets').select('id').eq('client_id', body.client_id)
+    const assetIds = ((assets ?? []) as Array<{ id: string }>).map((a) => a.id)
+    if (assetIds.length === 0) return jsonResponse({ error: 'Esse cliente não tem nenhum ativo digital cadastrado.' }, 400)
+
+    const { data: connections } = await supabase
+      .from('digital_asset_connections')
+      .select('id')
+      .eq('provider', 'google_forms')
+      .in('digital_asset_id', assetIds)
+    connectionIds = ((connections ?? []) as Array<{ id: string }>).map((c) => c.id)
+  }
+  if (connectionIds.length === 0) {
+    return jsonResponse({ error: 'Esse cliente não tem nenhum Google Forms conectado.' }, 400)
+  }
+
+  const answers = await fetchOpenTextAnswers(supabase, body.client_id, connectionIds)
+  if (answers.length === 0) {
+    return jsonResponse(
+      { error: 'Nenhuma resposta aberta sincronizada ainda pra esse cliente. Sincronize um Google Forms em "Integrações" primeiro.' },
+      400,
+    )
+  }
+
+  const openaiKey = Deno.env.get('Openai_api_key')
+  if (!openaiKey) {
+    return jsonResponse({ error: 'A chave da OpenAI ainda não foi configurada nesta função (falta o segredo Openai_api_key).' }, 400)
+  }
+
+  const answersText = answers.map((a) => `Pergunta: "${a.title}"\nResposta: ${a.answerText}`).join('\n\n')
+
+  const openaiRes = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${openaiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      instructions: PERSUASIVE_COPY_SYSTEM_PROMPT,
+      input: [{ role: 'user', content: answersText }],
+    }),
+  })
+  const openaiBody = await openaiRes.json()
+  if (!openaiRes.ok) {
+    return jsonResponse({ error: openaiBody.error?.message ?? 'Erro ao consultar a API da OpenAI' }, 502)
+  }
+
+  const suggestions = extractReplyText(openaiBody)
+  if (!suggestions) return jsonResponse({ error: 'A IA não conseguiu gerar sugestões.' }, 502)
+
+  return jsonResponse({ suggestions })
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -347,7 +496,8 @@ Deno.serve(async (req) => {
 
   try {
     if (req.method === 'POST' && url.pathname.endsWith('/chat')) return await handleChat(req)
-    return jsonResponse({ error: 'Rota não encontrada. Use /chat.' }, 404)
+    if (req.method === 'POST' && url.pathname.endsWith('/persuasive-copy')) return await handlePersuasiveCopy(req)
+    return jsonResponse({ error: 'Rota não encontrada. Use /chat ou /persuasive-copy.' }, 404)
   } catch (err) {
     return jsonResponse({ error: err instanceof Error ? err.message : 'Erro inesperado' }, 500)
   }

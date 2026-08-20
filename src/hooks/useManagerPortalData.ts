@@ -1023,6 +1023,51 @@ export function useAudienceInsights(clientId: string | null) {
   })
 }
 
+const OPEN_QUESTION_TYPES = ['text_short', 'text_paragraph']
+
+/** Respostas de texto livre dos Google Forms conectados de um cliente
+ * (Fase 8.4, "Comunicação Persuasiva") — mesma ideia de
+ * `useAudienceInsights`, mas pras perguntas abertas em vez das
+ * fechadas. `connectionIds` já vem filtrado pelo seletor de Formulário
+ * da própria página (`AudienceInsights.tsx`), não recalcula aqui. */
+export function useOpenTextAnswers(clientId: string | null, connectionIds: string[]) {
+  return useQuery({
+    queryKey: ['open-text-answers', clientId, connectionIds],
+    queryFn: async () => {
+      const { data: questions, error: questionsError } = await supabase
+        .from('form_questions')
+        .select('external_question_id, connection_id')
+        .in('connection_id', connectionIds)
+        .in('question_type', OPEN_QUESTION_TYPES)
+      if (questionsError) throw questionsError
+      if (!questions || questions.length === 0) return []
+
+      const openQuestionKeys = new Set(questions.map((q) => `${q.connection_id}|${q.external_question_id}`))
+
+      const { data: responses, error: responsesError } = await supabase
+        .from('form_responses')
+        .select('connection_id, form_answers(external_question_id, answer_text)')
+        .eq('client_id', clientId as string)
+        .in('connection_id', connectionIds)
+      if (responsesError) throw responsesError
+
+      const answers: string[] = []
+      for (const response of (responses ?? []) as unknown as Array<{
+        connection_id: string
+        form_answers: Array<{ external_question_id: string; answer_text: string | null }>
+      }>) {
+        for (const answer of response.form_answers) {
+          if (!answer.answer_text?.trim()) continue
+          if (!openQuestionKeys.has(`${response.connection_id}|${answer.external_question_id}`)) continue
+          answers.push(answer.answer_text)
+        }
+      }
+      return answers
+    },
+    enabled: !!clientId && connectionIds.length > 0,
+  })
+}
+
 export interface NewDigitalAssetInput {
   name: string
   client_id: string
