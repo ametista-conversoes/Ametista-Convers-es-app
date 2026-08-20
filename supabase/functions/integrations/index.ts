@@ -85,8 +85,13 @@ const META_SCOPE = 'ads_read' // só leitura de métricas — nada de gerenciar 
 // desde a Fase 6.2 (que até aqui nunca eram usados de verdade).
 const GOOGLE_FORMS_API_BASE = 'https://forms.googleapis.com/v1/forms'
 
+// Restrito ao domínio de produção (deploy na Vercel) — antes era '*'
+// (qualquer site podia chamar), trocado ao publicar o app de verdade.
+// Não afeta /callback (redirect direto do Google/Meta, não é chamada
+// de navegador sujeita a CORS) nem /forms-webhook (chamada servidor-a-
+// servidor do Google Apps Script, também não passa por CORS).
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://ametistaconversoesapp.vercel.app',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-secret',
 }
 
