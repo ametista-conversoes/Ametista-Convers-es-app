@@ -17,6 +17,7 @@ import {
   Target,
   TrendingUp,
   Users,
+  UsersRound,
   Workflow,
   type LucideIcon,
 } from 'lucide-react'
@@ -49,6 +50,7 @@ export const managerNavItems: NavItem[] = [
   { title: 'Incidentes e Alertas', href: '/incidents', icon: AlertTriangle },
   { title: 'Ativos Digitais', href: '/assets', icon: Boxes },
   { title: 'Integrações', href: '/integrations', icon: Plug },
+  { title: 'Públicos-Alvo', href: '/audiences', icon: UsersRound },
   { title: 'Timeline', href: '/timeline', icon: History },
   { title: 'Metas SMART', href: '/smart-goals', icon: Target },
   { title: 'Atividades', href: '/activities', icon: ListChecks },

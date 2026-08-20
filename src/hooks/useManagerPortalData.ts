@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
+import { aggregateAudienceInsights, type AudienceRawResponse } from '@/lib/audience-insights'
 import { severityRank } from '@/lib/status-styles'
 import { supabase } from '@/lib/supabase'
 
@@ -969,6 +970,56 @@ export function useFormResponses(connectionId: string | null) {
       return data as unknown as FormResponseRecord[]
     },
     enabled: !!connectionId,
+  })
+}
+
+const CLOSED_QUESTION_TYPES = ['choice_radio', 'choice_checkbox', 'choice_dropdown', 'scale', 'grid_row']
+
+/** Síntese em % das perguntas fechadas dos Google Forms conectados de
+ * um cliente (Fase 8.3, "Públicos-Alvo") — 100% dinâmico: junta as
+ * perguntas fechadas de TODOS os formulários conectados do cliente (0,
+ * 1 ou vários), sem nenhuma lista de perguntas/opções fixa no código.
+ * A agregação em si (`aggregateAudienceInsights`) é uma função pura em
+ * `src/lib/audience-insights.ts`, coberta por teste automatizado. */
+export function useAudienceInsights(clientId: string | null) {
+  return useQuery({
+    queryKey: ['audience-insights', clientId],
+    queryFn: async () => {
+      const { data: assets, error: assetsError } = await supabase
+        .from('digital_assets')
+        .select('id')
+        .eq('client_id', clientId as string)
+      if (assetsError) throw assetsError
+      const assetIds = (assets ?? []).map((a) => a.id)
+      if (assetIds.length === 0) return []
+
+      const { data: connections, error: connectionsError } = await supabase
+        .from('digital_asset_connections')
+        .select('id')
+        .eq('provider', 'google_forms')
+        .in('digital_asset_id', assetIds)
+      if (connectionsError) throw connectionsError
+      const connectionIds = (connections ?? []).map((c) => c.id)
+      if (connectionIds.length === 0) return []
+
+      const { data: questions, error: questionsError } = await supabase
+        .from('form_questions')
+        .select('id, connection_id, external_question_id, title, question_type, position')
+        .in('connection_id', connectionIds)
+        .in('question_type', CLOSED_QUESTION_TYPES)
+        .order('position', { ascending: true })
+      if (questionsError) throw questionsError
+      if (!questions || questions.length === 0) return []
+
+      const { data: responses, error: responsesError } = await supabase
+        .from('form_responses')
+        .select('id, connection_id, form_answers(external_question_id, answer_text, answer_values)')
+        .eq('client_id', clientId as string)
+      if (responsesError) throw responsesError
+
+      return aggregateAudienceInsights(questions, (responses ?? []) as unknown as AudienceRawResponse[])
+    },
+    enabled: !!clientId,
   })
 }
 

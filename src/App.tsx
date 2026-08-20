@@ -21,6 +21,7 @@ import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import Settings from '@/pages/Settings'
 import Assets from '@/pages/admin/Assets'
 import Activities from '@/pages/admin/Activities'
+import AudienceInsights from '@/pages/admin/AudienceInsights'
 import ClientComments from '@/pages/admin/ClientComments'
 import ClientDetail from '@/pages/admin/ClientDetail'
 import Clients from '@/pages/admin/Clients'
@@ -64,6 +65,7 @@ const managerPagesReady: Record<string, ComponentType> = {
   '/timeline': Timeline,
   '/assets': Assets,
   '/integrations': Integrations,
+  '/audiences': AudienceInsights,
   '/smart-goals': SmartGoals,
   '/activities': Activities,
   '/client-comments': ClientComments,

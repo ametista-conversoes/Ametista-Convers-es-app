@@ -6,6 +6,7 @@
 export const CHART_COLORS = {
   investimento: '#7C3AED', // roxo primário da marca
   receita: '#199E70', // verde-azulado, lê como "positivo/crescimento"
+  respostas: '#7C3AED', // roxo primário — % de respondentes por opção (Públicos-Alvo, Fase 8.3)
 } as const
 
 export const CHART_GRID_COLOR = '#1A2540'

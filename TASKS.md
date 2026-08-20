@@ -266,7 +266,7 @@
 Pedido pelo usuário depois da Fase 7 fechada. Dividida em sub-fases, uma de cada vez:
 - **8.1 — Detalhamento de Projeto/Campanha** (fechada, ver abaixo)
 - **8.2 — Sincronização estruturada do Google Forms** (fechada, testada com conexão real, ver abaixo)
-- **8.3 — Aba "Públicos-Alvo"** (em andamento, ver abaixo)
+- **8.3 — Aba "Públicos-Alvo"** (fechada, ver abaixo)
 - 8.4 — Comunicação Persuasiva (extração de palavras mais frequentes das respostas abertas + IA gerando headlines/textos)
 - 8.5 — Seção "Público-alvo" (resultado da 8.3, não da 8.4) dentro da Central de Informações do Cliente
 
@@ -304,3 +304,13 @@ Pedido pelo usuário depois da Fase 7 fechada. Dividida em sub-fases, uma de cad
     - `npx tsc -b --noEmit`, `npm run test` (25/25) e `npm run test:e2e` (3/3) limpos
     - Edge Function reimplantada e **confirmada ao vivo**: `curl -D -` direto na rota devolveu `302 Found` com `Location: .../assets?integration=error&message=...` (corpo vazio) em vez do HTML antigo — o redirect está funcionando de verdade no ambiente do usuário
   - **Nota adiada pelo usuário**: o problema da marca do Google ainda mostrando o domínio técnico (em vez de "Ametista Conversões") continua sem solução — ele conferiu a página Branding e não achou o botão de verificação. Decisão do usuário: só resolver isso quando o app estiver perto de terminar, não é prioridade agora
+
+### 8.3 — Aba "Públicos-Alvo" (síntese em % das perguntas fechadas)
+- [x] Nova página `/audiences` no Portal Gestor ("Públicos-Alvo" no menu, ícone `UsersRound`) — escolhe um cliente e mostra um card por pergunta **fechada** (múltipla escolha, caixa de seleção, lista suspensa, escala, linha de grade) de todos os Google Forms conectados daquele cliente, com um gráfico de barras horizontais mostrando a % de cada opção. Perguntas de texto livre ficam de fora (isso é a Fase 8.4)
+- [x] **100% dinâmico, nada fixo por formulário** (pedido explícito do usuário): a página não sabe nada sobre nenhum formulário específico — junta as perguntas fechadas de quantos Google Forms o cliente tiver conectado (0, 1 ou vários), na ordem original de cada formulário; se não tiver nenhum conectado, mostra uma mensagem direcionando pra "Integrações" em vez de aparecer vazio sem explicação
+- [x] Cálculo em `src/lib/audience-insights.ts` (`aggregateAudienceInsights`, função pura, sem depender do Supabase) — pra cada pergunta, conta quantas respostas distintas a responderam e quantas vezes cada valor de opção apareceu; pergunta de caixa de seleção pode somar mais de 100% (uma resposta conta em mais de uma opção), comportamento esperado, não é bug
+- [x] **Testado com 7 testes automatizados novos** (`audience-insights.test.ts`) cobrindo exatamente o que o usuário pediu pra garantir: pergunta sem resposta, escolha única somando 100%, caixa de seleção somando mais de 100%, resposta sem `answer_values` caindo pro `answer_text`, resposta vazia não contando como respondente, dois formulários diferentes com o mesmo id de pergunta não se misturando, e uma lista de N perguntas sem limite fixo — não dava pra inserir resposta de teste direto no banco pra conferir visualmente (as tabelas de resposta só aceitam escrita da Edge Function, por design da Fase 8.2), então a matemática foi garantida por teste automatizado em vez de dado fabricado à mão
+- [x] Gráfico novo `src/components/charts/OptionBreakdownBarChart.tsx` (barras horizontais, mesmo padrão visual de `SpendRevenueBarChart.tsx` — cores/grade/tooltip do `chart-colors.ts`, que ganhou a entrada `respostas`) — horizontal porque os rótulos das opções são frases inteiras, não cabem em rótulo vertical; altura dinâmica conforme o número de opções
+- [x] Testado ao vivo como gestor: item "Públicos-Alvo" aparece no menu; cliente com o Google Forms real conectado (Studio Prisma, 23 perguntas sincronizadas, 15 fechadas) mostra as 15 perguntas certas, cada uma "Ainda sem respostas" (nenhuma resposta de verdade ainda); cliente sem nenhum Google Forms conectado mostra a mensagem direcionando pra Integrações; nenhum cliente escolhido mostra a mensagem pedindo pra escolher
+- [x] `npx tsc -b --noEmit`, `npm run test` (32/32) e `npm run test:e2e` (3/3) limpos
+- **Pendente pra ver o gráfico com dado de verdade**: precisa de pelo menos uma resposta real no formulário conectado do Studio Prisma + "Sincronizar agora" em Integrações — a matemática já está garantida por teste, isso é só a conferência visual final
