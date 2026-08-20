@@ -18,26 +18,41 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAllClients, useCreateSmartGoal } from '@/hooks/useManagerPortalData'
+import { getTodayIsoDate } from '@/lib/format'
 import { smartGoalMetricLabels, smartGoalStatusLabels } from '@/lib/status-styles'
 
 const METRIC_OTHER = 'other'
+const TODAY = getTodayIsoDate()
 
-const newGoalSchema = z.object({
-  title: z.string().min(2, 'Digite um título'),
-  clientId: z.string().min(1, 'Escolha um cliente'),
-  metricType: z.string().optional(),
-  metricTypeOther: z.string().optional(),
-  targetValue: z
-    .string()
-    .min(1, 'Digite o valor alvo')
-    .refine((value) => !Number.isNaN(Number(value)) && Number(value) >= 0, 'Digite um número válido'),
-  currentValue: z
-    .string()
-    .optional()
-    .refine((value) => !value || (!Number.isNaN(Number(value)) && Number(value) >= 0), 'Digite um número válido'),
-  targetDate: z.string().optional(),
-  status: z.enum(['on_track', 'at_risk', 'off_track', 'completed']),
-})
+const newGoalSchema = z
+  .object({
+    title: z.string().min(2, 'Digite um título'),
+    clientId: z.string().min(1, 'Escolha um cliente'),
+    metricType: z.string().optional(),
+    metricTypeOther: z.string().optional(),
+    targetValue: z
+      .string()
+      .min(1, 'Digite o valor alvo')
+      .refine((value) => !Number.isNaN(Number(value)) && Number(value) >= 0, 'Digite um número válido'),
+    currentValue: z
+      .string()
+      .optional()
+      .refine((value) => !value || (!Number.isNaN(Number(value)) && Number(value) >= 0), 'Digite um número válido'),
+    targetDate: z.string().optional(),
+    status: z.enum(['on_track', 'at_risk', 'off_track', 'completed']),
+  })
+  .refine(
+    (values) => {
+      const target = Number(values.targetValue)
+      const current = values.currentValue?.trim() ? Number(values.currentValue) : 0
+      return Number.isNaN(target) || target !== current
+    },
+    { message: 'meta com valor alvo igual a atual, meta inválida', path: ['currentValue'] },
+  )
+  .refine((values) => !values.targetDate?.trim() || values.targetDate >= TODAY, {
+    message: 'O prazo não pode ser no passado',
+    path: ['targetDate'],
+  })
 
 type NewGoalValues = z.infer<typeof newGoalSchema>
 
@@ -222,7 +237,7 @@ export function NewSmartGoalDialog() {
                 <FormItem>
                   <FormLabel>Prazo (opcional)</FormLabel>
                   <FormControl>
-                    <DatePicker value={field.value} onChange={field.onChange} />
+                    <DatePicker value={field.value} onChange={field.onChange} minDate={TODAY} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

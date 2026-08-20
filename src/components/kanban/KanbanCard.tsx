@@ -39,7 +39,7 @@ export function KanbanCard({ task, deleteMode }: KanbanCardProps) {
       className={cn(
         'space-y-2 rounded-lg border border-[#1A2540] bg-[#131C31] p-3 text-sm hover:border-purple-600/30',
         !deleteMode && 'cursor-grab active:cursor-grabbing',
-        isOverdue && 'opacity-60 grayscale-[0.5]',
+        isOverdue && 'opacity-60 grayscale-[0.5] border-red-500/40',
       )}
     >
       <div className="flex items-start justify-between gap-2">

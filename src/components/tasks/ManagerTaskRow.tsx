@@ -37,7 +37,7 @@ export function ManagerTaskRow({ task, showClientName, deleteMode }: ManagerTask
     <div
       className={cn(
         'flex flex-wrap items-center gap-3 rounded-lg bg-secondary/50 px-3 py-2',
-        isOverdue && 'opacity-60 grayscale-[0.5]',
+        isOverdue && 'opacity-60 grayscale-[0.5] border border-red-500/40',
       )}
     >
       <div className="min-w-0 flex-1">
