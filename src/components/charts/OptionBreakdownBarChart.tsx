@@ -28,7 +28,7 @@ export function OptionBreakdownBarChart({ data }: OptionBreakdownBarChartProps) 
 
   return (
     <ResponsiveContainer width="100%" height={height} debounce={50}>
-      <BarChart data={data} layout="vertical" margin={{ left: 8, right: 24 }}>
+      <BarChart data={data} layout="vertical" margin={{ left: 8, right: 48 }}>
         <CartesianGrid stroke={CHART_GRID_COLOR} horizontal={false} />
         <XAxis
           type="number"

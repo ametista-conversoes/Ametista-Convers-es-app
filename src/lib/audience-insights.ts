@@ -6,6 +6,7 @@ export interface AudienceOptionBreakdown {
 
 export interface AudienceQuestionInsight {
   questionId: string
+  connectionId: string
   title: string
   questionType: string
   totalRespondents: number
@@ -79,6 +80,7 @@ export function aggregateAudienceInsights(
 
     return {
       questionId: question.id,
+      connectionId: question.connection_id,
       title: question.title,
       questionType: question.question_type,
       totalRespondents,

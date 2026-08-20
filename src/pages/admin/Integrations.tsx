@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { ListChecks, Plug, RefreshCw, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -16,6 +17,7 @@ const ALL_CLIENTS = 'all'
 const SYNCABLE_PROVIDERS = ['google_ads', 'meta_ads', 'google_forms']
 
 export default function Integrations() {
+  const queryClient = useQueryClient()
   const { data: clients } = useAllClients()
   const { data: assets, isLoading } = useAllDigitalAssets()
   const { data: connections } = useDigitalAssetConnections()
@@ -45,6 +47,9 @@ export default function Integrations() {
           ? `Sincronizado — ${result.syncedQuestions ?? 0} pergunta(s) e ${result.syncedResponses} resposta(s) atualizadas.`
           : `Sincronizado — ${result.syncedDays ?? 0} dia(s) de métricas atualizados.`
       toast.success(message)
+      queryClient.invalidateQueries({ queryKey: ['digital-asset-connections'] })
+      queryClient.invalidateQueries({ queryKey: ['form-responses'] })
+      queryClient.invalidateQueries({ queryKey: ['audience-insights'] })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Não foi possível sincronizar.')
     } finally {

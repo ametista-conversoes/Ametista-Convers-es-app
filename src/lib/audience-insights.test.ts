@@ -101,6 +101,17 @@ describe('aggregateAudienceInsights', () => {
     expect(questionB.options).toEqual([{ label: 'Opção B', count: 1, percentage: 100 }])
   })
 
+  it('cada pergunta carrega o connectionId do formulário de onde veio', () => {
+    const questions = [
+      makeQuestion({ id: 'question-a', connection_id: CONNECTION_A, external_question_id: 'q1' }),
+      makeQuestion({ id: 'question-b', connection_id: CONNECTION_B, external_question_id: 'q1' }),
+    ]
+    const result = aggregateAudienceInsights(questions, [])
+
+    expect(result.find((r) => r.questionId === 'question-a')?.connectionId).toBe(CONNECTION_A)
+    expect(result.find((r) => r.questionId === 'question-b')?.connectionId).toBe(CONNECTION_B)
+  })
+
   it('múltiplas perguntas de vários formulários do mesmo cliente aparecem todas juntas, sem limite fixo', () => {
     const questions = Array.from({ length: 5 }, (_, i) =>
       makeQuestion({ id: `q-${i}`, external_question_id: `ext-${i}`, title: `Pergunta ${i}` }),

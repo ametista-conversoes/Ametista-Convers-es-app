@@ -1,19 +1,85 @@
 import { useState } from 'react'
+import { Search } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { OptionBreakdownBarChart } from '@/components/charts/OptionBreakdownBarChart'
-import { useAllClients, useAudienceInsights } from '@/hooks/useManagerPortalData'
+import {
+  useAllClients,
+  useAllDigitalAssets,
+  useAudienceInsights,
+  useDigitalAssetConnections,
+} from '@/hooks/useManagerPortalData'
 
-/** "Públicos-Alvo" (Fase 8.3) — síntese em % das perguntas fechadas dos
- * Google Forms conectados de um cliente. 100% dinâmico: a lista de
- * perguntas/opções vem inteira de `useAudienceInsights`, nada fixo
- * aqui — quantas perguntas/formulários existirem de verdade pro
+const ALL_FORMS = 'all'
+
+/** "Públicos-Alvo" (Fase 8.3/8.3b) — síntese em % das perguntas
+ * fechadas dos Google Forms conectados de um cliente. 100% dinâmico: a
+ * lista de perguntas/opções vem inteira de `useAudienceInsights`, nada
+ * fixo aqui — quantas perguntas/formulários existirem de verdade pro
  * cliente escolhido é o que aparece. Perguntas de texto livre ficam de
- * fora (Fase 8.4). */
+ * fora (Fase 8.4).
+ *
+ * Um cliente pode ter mais de um Google Forms conectado com propósitos
+ * diferentes (formulário de cliente, de objeção, etc) — o seletor de
+ * "Formulário" e o agrupamento por seção usam o nome do Ativo Digital
+ * (`asset.name`) pra distinguir, reaproveitando os mesmos hooks já
+ * usados em `Integrations.tsx` (não precisa de campo novo). */
 export default function AudienceInsights() {
   const { data: clients } = useAllClients()
+  const { data: assets } = useAllDigitalAssets()
+  const { data: connections } = useDigitalAssetConnections()
   const [clientId, setClientId] = useState('')
+  const [formFilter, setFormFilter] = useState(ALL_FORMS)
+  const [search, setSearch] = useState('')
   const { data: insights, isLoading } = useAudienceInsights(clientId || null)
+
+  const clientForms = (connections ?? [])
+    .filter((connection) => connection.provider === 'google_forms')
+    .map((connection) => {
+      const asset = (assets ?? []).find((a) => a.id === connection.digital_asset_id)
+      return asset && asset.client_id === clientId ? { connectionId: connection.id, label: asset.name } : null
+    })
+    .filter((form): form is { connectionId: string; label: string } => !!form)
+
+  const term = search.trim().toLowerCase()
+  const filteredInsights = (insights ?? []).filter(
+    (question) =>
+      (formFilter === ALL_FORMS || question.connectionId === formFilter) &&
+      (!term || question.title.toLowerCase().includes(term)),
+  )
+
+  const showFormSelect = clientForms.length > 1
+  const groupByForm = showFormSelect && formFilter === ALL_FORMS
+
+  const groups = groupByForm
+    ? clientForms
+        .map((form) => ({ ...form, questions: filteredInsights.filter((q) => q.connectionId === form.connectionId) }))
+        .filter((group) => group.questions.length > 0)
+    : [{ connectionId: ALL_FORMS, label: '', questions: filteredInsights }]
+
+  function renderQuestionCard(question: (typeof filteredInsights)[number]) {
+    return (
+      <Card
+        key={question.questionId}
+        className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6"
+      >
+        <CardHeader className="p-0">
+          <CardTitle className="text-base font-medium">{question.title}</CardTitle>
+          <CardDescription>
+            {question.totalRespondents} resposta{question.totalRespondents === 1 ? '' : 's'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0 pt-4">
+          {question.totalRespondents === 0 ? (
+            <p className="text-sm text-muted-foreground">Ainda sem respostas.</p>
+          ) : (
+            <OptionBreakdownBarChart data={question.options} />
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -22,18 +88,53 @@ export default function AudienceInsights() {
           <p className="text-sm text-muted-foreground">Portal Gestor</p>
           <h1 className="text-2xl font-semibold text-foreground">Públicos-Alvo</h1>
         </div>
-        <Select value={clientId} onValueChange={setClientId}>
-          <SelectTrigger className="w-56">
-            <SelectValue placeholder="Escolha um cliente" />
-          </SelectTrigger>
-          <SelectContent>
-            {(clients ?? []).map((client) => (
-              <SelectItem key={client.id} value={client.id}>
-                {client.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-3">
+          {clientId && (
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar pergunta..."
+                className="w-48 pl-9"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          )}
+          {clientId && showFormSelect && (
+            <Select value={formFilter} onValueChange={setFormFilter}>
+              <SelectTrigger className="w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_FORMS}>Todos os formulários</SelectItem>
+                {clientForms.map((form) => (
+                  <SelectItem key={form.connectionId} value={form.connectionId}>
+                    {form.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Select
+            value={clientId}
+            onValueChange={(value) => {
+              setClientId(value)
+              setFormFilter(ALL_FORMS)
+              setSearch('')
+            }}
+          >
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="Escolha um cliente" />
+            </SelectTrigger>
+            <SelectContent>
+              {(clients ?? []).map((client) => (
+                <SelectItem key={client.id} value={client.id}>
+                  {client.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {!clientId && (
@@ -49,26 +150,16 @@ export default function AudienceInsights() {
         </p>
       )}
 
-      <div className="space-y-4">
-        {(insights ?? []).map((question) => (
-          <Card
-            key={question.questionId}
-            className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6"
-          >
-            <CardHeader className="p-0">
-              <CardTitle className="text-base font-medium">{question.title}</CardTitle>
-              <CardDescription>
-                {question.totalRespondents} resposta{question.totalRespondents === 1 ? '' : 's'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0 pt-4">
-              {question.totalRespondents === 0 ? (
-                <p className="text-sm text-muted-foreground">Ainda sem respostas.</p>
-              ) : (
-                <OptionBreakdownBarChart data={question.options} />
-              )}
-            </CardContent>
-          </Card>
+      {clientId && !isLoading && (insights ?? []).length > 0 && filteredInsights.length === 0 && (
+        <p className="text-sm text-muted-foreground">Nenhuma pergunta encontrada com esse filtro.</p>
+      )}
+
+      <div className="space-y-6">
+        {groups.map((group) => (
+          <div key={group.connectionId} className="space-y-4">
+            {groupByForm && <h2 className="text-sm font-medium text-muted-foreground">{group.label}</h2>}
+            <div className="space-y-4">{group.questions.map(renderQuestionCard)}</div>
+          </div>
         ))}
       </div>
     </div>
