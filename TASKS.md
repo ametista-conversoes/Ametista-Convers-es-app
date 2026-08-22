@@ -404,3 +404,24 @@ Usuário decidiu: hospedagem na Vercel, repositório já existente no GitHub (`a
   - Primeira tentativa de correção: tornar o repositório público no GitHub (a mensagem de erro da Vercel citava "Hobby Plan does not support collaboration for **private** repositories") — não resolveu sozinho, o bloqueio continuou
   - [x] **Resolvido**: usuário trocou a credencial salva (removeu a entrada no Gerenciador de Credenciais do Windows) e fez login de novo com a conta certa ao rodar `git push` — o deploy automático voltou a funcionar. Confirmado ao vivo: `manifest.webmanifest`, os ícones e o service worker agora respondem com o conteúdo real (não mais o HTML da rota antiga); login em produção funciona; service worker registrado com sucesso (`navigator.serviceWorker.getRegistrations()` confirmado via Playwright); sem erros no console
 - **App publicado, instalável, e com deploy automático funcionando de ponta a ponta**: `https://ametistaconversoesapp.vercel.app`
+
+## Fase 11 — Notificações, limpeza do admin, planos da Cassie
+
+Pedido do usuário em 4 partes, uma etapa por vez, ordem escolhida por ele: (11a) tirar o Portal Cliente de dentro da conta admin → (11b) planos da Cassie → (11c) sistema de notificações (o maior, decidido que vai ser push de verdade, funcionando mesmo com o site fechado, parecido com notificação de WhatsApp/celular — vai precisar de infraestrutura nova, aviso antes de instalar qualquer dependência).
+
+### 11a — Remover o Portal Cliente de dentro da conta admin
+
+- [x] `Sidebar.tsx`: `showClientSection` deixou de incluir `role === 'admin'` — agora só aparece pra quem realmente é `cliente`. Login como admin não tinha uma "própria" conta de cliente, então a seção não tinha função (só links pra páginas sem contexto de cliente nenhum)
+- [x] Mesmo componente (`SidebarContent`) é usado no menu lateral (desktop) e na gaveta mobile — os dois corrigidos de uma vez só
+- [x] `npx tsc -b --noEmit` limpo, `npm run test` (40/40 passando)
+
+### 11b — Planos da Cassie (pendente)
+
+- [ ] Plano "Dominação" hoje libera só 3 dos 4 modos da Cassie (falta "auditora") — corrigir pra liberar os 4
+- [ ] Entregar ao usuário uma tabela clara explicando a diferença funcional entre os 4 modos (assistente/analista/consultora/auditora), incluindo se algum cobre "relatórios"
+
+### 11c — Sistema de notificações (pendente)
+
+- [ ] Gatilhos: incidentes, alertas, cliente em risco, pausa de emergência pedida pelo cliente, lembrete de reunião (1h antes e 15min antes), meta atrasada
+- [ ] Notificação push real (funciona com o site fechado), visual parecido com notificação nativa (ícone, título, prévia, hora) — igual ao exemplo do usuário (WhatsApp Desktop/celular)
+- [ ] Vai exigir infraestrutura nova (chaves VAPID, autorização do navegador, provavelmente uma dependência nova) e um mecanismo de checagem por tempo (lembretes de reunião e metas atrasadas não disparam por uma simples inserção na tabela) — planejar em detalhe quando chegar a vez

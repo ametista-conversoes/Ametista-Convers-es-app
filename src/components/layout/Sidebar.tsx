@@ -56,7 +56,7 @@ interface SidebarProps {
 
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { role } = useAuth()
-  const showClientSection = role === 'cliente' || role === 'admin'
+  const showClientSection = role === 'cliente'
   const showManagerSection = role === 'gestor' || role === 'admin'
 
   const { data: lastSeen } = useNavLastSeen()
