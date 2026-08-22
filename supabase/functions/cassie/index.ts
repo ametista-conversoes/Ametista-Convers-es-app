@@ -69,12 +69,13 @@ type CassieMode = 'assistente' | 'analista' | 'consultora' | 'auditora'
 const CASSIE_MODES: CassieMode[] = ['assistente', 'analista', 'consultora', 'auditora']
 
 // Quantos modos cada plano libera pro cliente (Fase 7 — especificação
-// original). Admin/gestor sempre veem os 4, independente de plano,
+// original; Fase 11b — Dominação passou a liberar os 4, antes faltava
+// "auditora"). Admin/gestor sempre veem os 4, independente de plano,
 // porque não estão presos ao plano de um cliente específico.
 const PLAN_MODES: Record<string, CassieMode[]> = {
   validacao: ['assistente'],
   escala: ['assistente', 'analista'],
-  dominacao: ['assistente', 'analista', 'consultora'],
+  dominacao: ['assistente', 'analista', 'consultora', 'auditora'],
 }
 
 function allowedModes(role: string, plan: string | null): CassieMode[] {

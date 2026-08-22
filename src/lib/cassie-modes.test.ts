@@ -10,8 +10,8 @@ describe('getAllowedCassieModes', () => {
     expect(getAllowedCassieModes('cliente', 'escala')).toEqual(['assistente', 'analista'])
   })
 
-  it('cliente no plano Dominação tem Assistente + Analista + Consultora (sem Auditora)', () => {
-    expect(getAllowedCassieModes('cliente', 'dominacao')).toEqual(['assistente', 'analista', 'consultora'])
+  it('cliente no plano Dominação tem os 4 modos (Assistente, Analista, Consultora e Auditora)', () => {
+    expect(getAllowedCassieModes('cliente', 'dominacao')).toEqual(['assistente', 'analista', 'consultora', 'auditora'])
   })
 
   it('cliente sem plano definido cai no padrão (só Assistente)', () => {

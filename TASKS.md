@@ -415,10 +415,11 @@ Pedido do usuário em 4 partes, uma etapa por vez, ordem escolhida por ele: (11a
 - [x] Mesmo componente (`SidebarContent`) é usado no menu lateral (desktop) e na gaveta mobile — os dois corrigidos de uma vez só
 - [x] `npx tsc -b --noEmit` limpo, `npm run test` (40/40 passando)
 
-### 11b — Planos da Cassie (pendente)
+### 11b — Planos da Cassie
 
-- [ ] Plano "Dominação" hoje libera só 3 dos 4 modos da Cassie (falta "auditora") — corrigir pra liberar os 4
-- [ ] Entregar ao usuário uma tabela clara explicando a diferença funcional entre os 4 modos (assistente/analista/consultora/auditora), incluindo se algum cobre "relatórios"
+- [x] Plano "Dominação" liberava só 3 dos 4 modos da Cassie (faltava "auditora") — corrigido nos dois lugares: `src/lib/cassie-modes.ts` (só decide o que mostra no seletor) e `supabase/functions/cassie/index.ts` (quem realmente vale, tem que ser reimplantada no painel do Supabase pra valer em produção)
+- [x] `npx tsc -b --noEmit` limpo; `npm run test` (40/40 — 1 teste existente ajustado pra nova regra do plano Dominação)
+- [x] Entregue ao usuário a tabela explicando a diferença funcional entre os 4 modos
 
 ### 11c — Sistema de notificações (pendente)
 

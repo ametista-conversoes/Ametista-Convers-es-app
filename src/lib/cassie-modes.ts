@@ -17,7 +17,7 @@ export const CASSIE_MODE_INFO: Record<CassieMode, { label: string; description: 
 const PLAN_MODES: Record<string, CassieMode[]> = {
   validacao: ['assistente'],
   escala: ['assistente', 'analista'],
-  dominacao: ['assistente', 'analista', 'consultora'],
+  dominacao: ['assistente', 'analista', 'consultora', 'auditora'],
 }
 
 export function getAllowedCassieModes(role: string, plan: string | null): CassieMode[] {
