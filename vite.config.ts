@@ -10,6 +10,13 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico'],
+      workbox: {
+        // Injeta o listener de notificação push (public/push-worker.js)
+        // dentro do sw.js gerado — evita trocar de estratégia pra
+        // injectManifest, que precisaria reescrever à mão o
+        // pré-cache que já funciona em produção desde a Fase 10b.
+        importScripts: ['push-worker.js'],
+      },
       manifest: {
         name: 'Ametista Conversões',
         short_name: 'Ametista',

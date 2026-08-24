@@ -10,6 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/contexts/AuthContext'
 import { useUpdateProfile } from '@/hooks/useClientPortalData'
+import { PushNotificationsCard } from './PushNotificationsCard'
 
 const userSettingsSchema = z.object({
   fullName: z.string().min(2, 'Digite seu nome completo'),
@@ -97,6 +98,8 @@ export function UserSettingsTab() {
           </Form>
         </CardContent>
       </Card>
+
+      <PushNotificationsCard />
 
       <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
         <CardContent className="flex items-center justify-between gap-3 p-0">
