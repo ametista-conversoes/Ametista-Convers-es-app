@@ -56,7 +56,7 @@ import {
   useUpdateClientStatus,
 } from '@/hooks/useManagerPortalData'
 import { CASSIE_MODES, type CassieMode } from '@/lib/cassie-modes'
-import { formatDate, formatDateTime, formatFullDate } from '@/lib/format'
+import { formatDate, formatDateTime } from '@/lib/format'
 import { getClientRiskDetails } from '@/lib/client-risk'
 import { uploadClientLogo } from '@/lib/storage'
 import {
@@ -480,7 +480,7 @@ export default function ClientDetail() {
                     <Progress value={percent} className="mt-1" />
                     <p className="mt-1 text-xs text-muted-foreground">
                       {current} de {target} ({percent}%)
-                      {goal.target_date ? ` · Prazo: ${formatFullDate(goal.target_date)}` : ''}
+                      {goal.target_date ? ` · Prazo: ${formatDate(goal.target_date)}` : ''}
                     </p>
                   </div>
                 )

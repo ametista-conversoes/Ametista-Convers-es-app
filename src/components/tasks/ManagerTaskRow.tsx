@@ -11,7 +11,7 @@ import {
 import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
 import type { ManagerTaskRecord } from '@/hooks/useManagerPortalData'
 import { useDeleteManagerTask, useUpdateTaskStatus } from '@/hooks/useManagerPortalData'
-import { formatFullDate, getTodayIsoDate } from '@/lib/format'
+import { formatDate, getTodayIsoDate } from '@/lib/format'
 import { taskPriorityLabels, taskStatusLabels, taskStatusStyles } from '@/lib/status-styles'
 import { cn } from '@/lib/utils'
 
@@ -45,7 +45,7 @@ export function ManagerTaskRow({ task, showClientName, deleteMode }: ManagerTask
         <p className="text-xs text-muted-foreground">
           {showClientName && (task.client?.name ?? 'Sem cliente')}
           {task.category ? ` · ${task.category}` : ''}
-          {task.due_date ? ` · Prazo: ${formatFullDate(task.due_date)}` : ''}
+          {task.due_date ? ` · Prazo: ${formatDate(task.due_date)}` : ''}
         </p>
       </div>
 

@@ -1,9 +1,14 @@
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const numberFormatter = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 })
 const decimalFormatter = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-const dateFormatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' })
-const fullDateFormatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+const dateFormatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+})
 
 export function formatCurrency(value: number | null | undefined): string {
   if (value === null || value === undefined) return '—'
@@ -35,11 +40,6 @@ function parseLocalDate(value: string): Date {
 export function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
   return dateFormatter.format(parseLocalDate(value))
-}
-
-export function formatFullDate(value: string | null | undefined): string {
-  if (!value) return '—'
-  return fullDateFormatter.format(parseLocalDate(value))
 }
 
 export function formatDateTime(value: string | null | undefined): string {

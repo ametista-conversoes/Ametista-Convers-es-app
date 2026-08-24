@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress'
 import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
 import type { ManagerSmartGoalRecord } from '@/hooks/useManagerPortalData'
 import { useDeleteSmartGoal } from '@/hooks/useManagerPortalData'
-import { formatFullDate, getGoalDeadlineStatus } from '@/lib/format'
+import { formatDate, getGoalDeadlineStatus } from '@/lib/format'
 import {
   goalDeadlineStatusLabels,
   goalDeadlineStatusStyles,
@@ -62,7 +62,7 @@ export function SmartGoalCard({ goal, deleteMode }: SmartGoalCardProps) {
           <Progress value={percent} />
           <p className="mt-1 text-xs text-muted-foreground">
             {current} de {target} ({percent}%)
-            {goal.target_date ? ` · Prazo: ${formatFullDate(goal.target_date)}` : ''}
+            {goal.target_date ? ` · Prazo: ${formatDate(goal.target_date)}` : ''}
           </p>
         </div>
 
