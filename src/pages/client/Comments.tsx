@@ -1,6 +1,7 @@
 import { ChatThread } from '@/components/comments/ChatThread'
 import { CommentGuidelines } from '@/components/comments/CommentGuidelines'
 import { NewCommentForm } from '@/components/comments/NewCommentForm'
+import { UnlinkedClientNotice } from '@/components/shared/UnlinkedClientNotice'
 import { useAuth } from '@/contexts/AuthContext'
 import { useComments } from '@/hooks/useClientPortalData'
 import { useMarkNavSeen } from '@/hooks/useNavSeen'
@@ -11,11 +12,7 @@ export default function Comments() {
   const { data: comments, isLoading } = useComments()
 
   if (!clientId) {
-    return (
-      <div className="rounded-xl border border-[#1A2540] bg-[#131C31] p-6 text-sm text-muted-foreground">
-        Esta conta não está vinculada a nenhum cliente, então não há Comentários para mostrar.
-      </div>
-    )
+    return <UnlinkedClientNotice page="Comentários" />
   }
 
   if (isLoading) {

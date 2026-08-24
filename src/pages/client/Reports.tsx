@@ -3,6 +3,7 @@ import { PerformanceTrendChart } from '@/components/charts/PerformanceTrendChart
 import { SpendRevenueBarChart } from '@/components/charts/SpendRevenueBarChart'
 import { FinancialSummaryCard } from '@/components/dashboard/FinancialSummaryCard'
 import { KpiCard } from '@/components/dashboard/KpiCard'
+import { UnlinkedClientNotice } from '@/components/shared/UnlinkedClientNotice'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/contexts/AuthContext'
@@ -18,11 +19,7 @@ export default function Reports() {
   const { data: snapshots, isLoading: loadingSnapshots } = usePerformanceSnapshots()
 
   if (!clientId) {
-    return (
-      <div className="rounded-xl border border-[#1A2540] bg-[#131C31] p-6 text-sm text-muted-foreground">
-        Esta conta não está vinculada a nenhum cliente, então não há Relatórios para mostrar.
-      </div>
-    )
+    return <UnlinkedClientNotice page="Relatórios" />
   }
 
   if (loadingClient || loadingProjects || loadingSnapshots) {

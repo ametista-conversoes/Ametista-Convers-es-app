@@ -1,5 +1,6 @@
 import { GoalsProgressCard } from '@/components/dashboard/GoalsProgressCard'
 import { ProjectInfoCards } from '@/components/project/ProjectInfoCards'
+import { UnlinkedClientNotice } from '@/components/shared/UnlinkedClientNotice'
 import { TaskList } from '@/components/tasks/TaskList'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClient, useProjects, useSmartGoals, useTasks } from '@/hooks/useClientPortalData'
@@ -12,11 +13,7 @@ export default function Project() {
   const { data: goals } = useSmartGoals()
 
   if (!clientId) {
-    return (
-      <div className="rounded-xl border border-[#1A2540] bg-[#131C31] p-6 text-sm text-muted-foreground">
-        Esta conta não está vinculada a nenhum cliente, então não há um Projeto para mostrar.
-      </div>
-    )
+    return <UnlinkedClientNotice page="um Projeto" />
   }
 
   if (loadingClient || loadingProjects) {

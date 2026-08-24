@@ -1,5 +1,6 @@
 import { EmergencyMeetingDialog } from '@/components/meetings/EmergencyMeetingDialog'
 import { MeetingList } from '@/components/meetings/MeetingList'
+import { UnlinkedClientNotice } from '@/components/shared/UnlinkedClientNotice'
 import { useAuth } from '@/contexts/AuthContext'
 import { useUpcomingMeetings } from '@/hooks/useClientPortalData'
 import { useMarkNavSeen } from '@/hooks/useNavSeen'
@@ -10,11 +11,7 @@ export default function Meetings() {
   const { data: meetings, isLoading } = useUpcomingMeetings()
 
   if (!clientId) {
-    return (
-      <div className="rounded-xl border border-[#1A2540] bg-[#131C31] p-6 text-sm text-muted-foreground">
-        Esta conta não está vinculada a nenhum cliente, então não há Reuniões para mostrar.
-      </div>
-    )
+    return <UnlinkedClientNotice page="Reuniões" />
   }
 
   if (isLoading) {

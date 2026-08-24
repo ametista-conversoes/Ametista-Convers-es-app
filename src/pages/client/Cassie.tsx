@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { CassieChatThread } from '@/components/cassie/CassieChatThread'
 import { CassieHeader } from '@/components/cassie/CassieHeader'
 import { CassieMessageForm } from '@/components/cassie/CassieMessageForm'
+import { UnlinkedClientNotice } from '@/components/shared/UnlinkedClientNotice'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClient } from '@/hooks/useClientPortalData'
 import { useCassieDraft } from '@/hooks/useCassieDraft'
@@ -28,11 +29,7 @@ export default function Cassie() {
   }, [client?.plan])
 
   if (!clientId) {
-    return (
-      <div className="rounded-xl border border-[#1A2540] bg-[#131C31] p-6 text-sm text-muted-foreground">
-        Esta conta não está vinculada a nenhum cliente, então não há Cassie para mostrar.
-      </div>
-    )
+    return <UnlinkedClientNotice page="Cassie" />
   }
 
   if (isLoading) {

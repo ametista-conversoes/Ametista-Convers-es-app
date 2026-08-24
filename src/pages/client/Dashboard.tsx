@@ -7,6 +7,7 @@ import { HealthScoreGauge } from '@/components/dashboard/HealthScoreGauge'
 import { KpiCard } from '@/components/dashboard/KpiCard'
 import { NotificationsCard } from '@/components/dashboard/NotificationsCard'
 import { UpcomingMeetingsCard } from '@/components/dashboard/UpcomingMeetingsCard'
+import { UnlinkedClientNotice } from '@/components/shared/UnlinkedClientNotice'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   useAlerts,
@@ -30,12 +31,7 @@ export default function Dashboard() {
   const { data: alerts } = useAlerts()
 
   if (!clientId) {
-    return (
-      <div className="rounded-xl border border-[#1A2540] bg-[#131C31] p-6 text-sm text-muted-foreground">
-        Esta conta não está vinculada a nenhum cliente, então não há um Dashboard para mostrar. Esta tela é do
-        Portal do Cliente.
-      </div>
-    )
+    return <UnlinkedClientNotice page="um Dashboard" />
   }
 
   if (loadingClient || loadingProjects) {

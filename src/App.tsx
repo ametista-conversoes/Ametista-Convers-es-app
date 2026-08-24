@@ -10,13 +10,13 @@ import Register from '@/pages/auth/Register'
 import ResetPassword from '@/pages/auth/ResetPassword'
 import Cassie from '@/pages/client/Cassie'
 import Comments from '@/pages/client/Comments'
-import Dashboard from '@/pages/client/Dashboard'
 import Files from '@/pages/client/Files'
 import Meetings from '@/pages/client/Meetings'
 import Performance from '@/pages/client/Performance'
 import Project from '@/pages/client/Project'
 import Reports from '@/pages/client/Reports'
 import Tasks from '@/pages/client/Tasks'
+import Home from '@/pages/Home'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import Settings from '@/pages/Settings'
 import Assets from '@/pages/admin/Assets'
@@ -41,7 +41,7 @@ import Workflows from '@/pages/admin/Workflows'
 // com a página de exemplo até as próximas sub-fases da Fase 4.
 // "/settings" é compartilhada pelos 3 papéis (ver Sidebar.tsx).
 const clientPagesReady: Record<string, ComponentType> = {
-  '/': Dashboard,
+  '/': Home,
   '/performance': Performance,
   '/project': Project,
   '/reports': Reports,

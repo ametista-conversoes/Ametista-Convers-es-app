@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { NewTaskDialog } from '@/components/tasks/NewTaskDialog'
 import { TaskList } from '@/components/tasks/TaskList'
 import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
+import { UnlinkedClientNotice } from '@/components/shared/UnlinkedClientNotice'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/contexts/AuthContext'
 import { useDeleteTask, useSetTaskStatus, useTasks } from '@/hooks/useClientPortalData'
@@ -23,11 +24,7 @@ export default function Tasks() {
   const [deleteMode, setDeleteMode] = useState(false)
 
   if (!clientId) {
-    return (
-      <div className="rounded-xl border border-[#1A2540] bg-[#131C31] p-6 text-sm text-muted-foreground">
-        Esta conta não está vinculada a nenhum cliente, então não há Tarefas para mostrar.
-      </div>
-    )
+    return <UnlinkedClientNotice page="Tarefas" />
   }
 
   if (isLoading) {
