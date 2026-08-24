@@ -44,7 +44,7 @@ export default function ClientComments() {
 
       {clientId && !isLoading && (
         <>
-          <ChatThread comments={comments ?? []} />
+          <ChatThread key={clientId} comments={comments ?? []} unreadTrackingKey={`comments:${clientId}`} />
           <NewManagerCommentForm clientId={clientId} />
         </>
       )}

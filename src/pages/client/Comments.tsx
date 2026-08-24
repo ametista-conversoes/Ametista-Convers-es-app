@@ -29,7 +29,7 @@ export default function Comments() {
         <CommentGuidelines />
       </div>
 
-      <ChatThread comments={comments ?? []} />
+      <ChatThread comments={comments ?? []} unreadTrackingKey={`comments:${clientId}`} />
       <NewCommentForm />
     </div>
   )
