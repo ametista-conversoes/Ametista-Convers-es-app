@@ -1263,6 +1263,8 @@ export interface ManagerCommentRecord {
   author_name: string | null
   author_role: string | null
   created_at: string
+  audio_url: string | null
+  audio_duration_seconds: number | null
 }
 
 export function useClientComments(clientId: string | null) {
@@ -1286,7 +1288,19 @@ export function useCreateManagerComment() {
   const { user, fullName, role } = useAuth()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ clientId, title, content }: { clientId: string; title: string; content: string }) => {
+    mutationFn: async ({
+      clientId,
+      title,
+      content,
+      audioUrl,
+      audioDurationSeconds,
+    }: {
+      clientId: string
+      title: string | null
+      content: string
+      audioUrl?: string
+      audioDurationSeconds?: number
+    }) => {
       const { error } = await supabase.from('comments').insert({
         title,
         content,
@@ -1296,6 +1310,8 @@ export function useCreateManagerComment() {
         author_id: user?.id,
         author_name: fullName,
         author_role: role,
+        audio_url: audioUrl ?? null,
+        audio_duration_seconds: audioDurationSeconds ?? null,
       })
       if (error) throw error
     },

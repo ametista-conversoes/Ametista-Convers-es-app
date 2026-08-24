@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { differenceInCalendarDays, format, isToday, isYesterday } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { MessageSquare } from 'lucide-react'
+import { AudioMessageBubble } from '@/components/comments/AudioMessageBubble'
 import { useAuth } from '@/contexts/AuthContext'
 import type { ManagerCommentRecord } from '@/hooks/useManagerPortalData'
 import { useMarkNavSeen, useNavLastSeen } from '@/hooks/useNavSeen'
@@ -88,7 +89,13 @@ export function ChatThread({ comments, unreadTrackingKey }: ChatThreadProps) {
                 }`}
               >
                 {comment.title && <p className="text-sm font-semibold">{comment.title}</p>}
-                <p className="mt-0.5 text-sm">{comment.content}</p>
+                {comment.audio_url ? (
+                  <div className="mt-0.5">
+                    <AudioMessageBubble audioPath={comment.audio_url} durationSeconds={comment.audio_duration_seconds} />
+                  </div>
+                ) : (
+                  <p className="mt-0.5 text-sm">{comment.content}</p>
+                )}
                 <p className="mt-1 text-right text-xs text-muted-foreground/70">
                   {comment.author_name ?? 'Alguém'} · {formatDateTime(comment.created_at)}
                 </p>

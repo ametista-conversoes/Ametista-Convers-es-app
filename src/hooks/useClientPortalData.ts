@@ -95,6 +95,8 @@ export interface CommentRecord {
   author_name: string | null
   author_role: string | null
   created_at: string
+  audio_url: string | null
+  audio_duration_seconds: number | null
 }
 
 export interface FileItemRecord {
@@ -315,7 +317,17 @@ export function useCreateComment() {
   const { clientId, user, fullName, role } = useAuth()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ title, content }: { title: string; content: string }) => {
+    mutationFn: async ({
+      title,
+      content,
+      audioUrl,
+      audioDurationSeconds,
+    }: {
+      title: string | null
+      content: string
+      audioUrl?: string
+      audioDurationSeconds?: number
+    }) => {
       const { error } = await supabase.from('comments').insert({
         title,
         content,
@@ -325,6 +337,8 @@ export function useCreateComment() {
         author_id: user?.id,
         author_name: fullName,
         author_role: role,
+        audio_url: audioUrl ?? null,
+        audio_duration_seconds: audioDurationSeconds ?? null,
       })
       if (error) throw error
     },
