@@ -785,6 +785,22 @@ export function useSetDefaultActivityTemplate() {
   })
 }
 
+/** Diferente de "marcar como padrão" (que zera os outros via RPC — só
+ * pode haver 1), desmarcar é um update direto e simples: a policy
+ * "admin_full_activity_templates" já libera isso pra admin. */
+export function useUnsetDefaultActivityTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (templateId: string) => {
+      const { error } = await supabase.from('activity_templates').update({ is_default: false }).eq('id', templateId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activity-templates'] })
+    },
+  })
+}
+
 // Atividades (Fase 6.6.2) — itens já instanciados por cliente, exibidos
 // na aba "Atividades" e na Central de Informações do Cliente.
 export interface ActivityChecklistItemRecord {

@@ -1,10 +1,14 @@
-import { ListChecks, Pencil, Star, Workflow as WorkflowIcon } from 'lucide-react'
+import { ListChecks, Pencil, Star, StarOff, Workflow as WorkflowIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
 import type { ActivityTemplateRecord } from '@/hooks/useManagerPortalData'
-import { useDeleteActivityTemplate, useSetDefaultActivityTemplate } from '@/hooks/useManagerPortalData'
+import {
+  useDeleteActivityTemplate,
+  useSetDefaultActivityTemplate,
+  useUnsetDefaultActivityTemplate,
+} from '@/hooks/useManagerPortalData'
 import { ActivityTemplateFormDialog } from './ActivityTemplateFormDialog'
 
 interface ActivityTemplateCardProps {
@@ -20,6 +24,7 @@ interface ActivityTemplateCardProps {
 export function ActivityTemplateCard({ template, deleteMode, canEdit, linkedWorkflowNames }: ActivityTemplateCardProps) {
   const deleteTemplate = useDeleteActivityTemplate()
   const setDefault = useSetDefaultActivityTemplate()
+  const unsetDefault = useUnsetDefaultActivityTemplate()
 
   return (
     <Card className="flex flex-col rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
@@ -68,18 +73,31 @@ export function ActivityTemplateCard({ template, deleteMode, canEdit, linkedWork
             </li>
           ))}
         </ul>
-        {canEdit && !template.is_default && (
+        {canEdit && (
           <div className="mt-auto pt-2">
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full"
-              disabled={setDefault.isPending}
-              onClick={() => setDefault.mutate(template.id)}
-            >
-              <Star className="h-4 w-4" />
-              Marcar como padrão
-            </Button>
+            {template.is_default ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={unsetDefault.isPending}
+                onClick={() => unsetDefault.mutate(template.id)}
+              >
+                <StarOff className="h-4 w-4" />
+                Remover como padrão
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                disabled={setDefault.isPending}
+                onClick={() => setDefault.mutate(template.id)}
+              >
+                <Star className="h-4 w-4" />
+                Marcar como padrão
+              </Button>
+            )}
           </div>
         )}
       </CardContent>
