@@ -1,9 +1,8 @@
-import { CalendarClock, DollarSign, Gauge, MousePointerClick, Target, TrendingUp } from 'lucide-react'
+import { DollarSign, Gauge, MousePointerClick, Target, TrendingUp } from 'lucide-react'
 import { PerformanceTrendChart } from '@/components/charts/PerformanceTrendChart'
 import { SpendRevenueBarChart } from '@/components/charts/SpendRevenueBarChart'
 import { FinancialSummaryCard } from '@/components/dashboard/FinancialSummaryCard'
 import { KpiCard } from '@/components/dashboard/KpiCard'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/contexts/AuthContext'
@@ -11,7 +10,6 @@ import { useClient, usePerformanceSnapshots, useProjects } from '@/hooks/useClie
 import { formatCurrency, formatMultiplier, formatPercent } from '@/lib/format'
 import { kpiDescriptions } from '@/lib/kpi-descriptions'
 import { aggregateProjectKpis, averageCtr, buildTrendSeries, groupByChannel } from '@/lib/metrics'
-import { clientStatusLabels, clientStatusStyles, planLabels } from '@/lib/status-styles'
 
 export default function Reports() {
   const { clientId } = useAuth()
@@ -49,7 +47,6 @@ export default function Reports() {
           <TabsTrigger value="traffic">Performance de Tráfego</TabsTrigger>
           <TabsTrigger value="financial">Financeiro</TabsTrigger>
           <TabsTrigger value="channels">Distribuição &amp; Canais</TabsTrigger>
-          <TabsTrigger value="billing">Clientes &amp; Mensalidades</TabsTrigger>
         </TabsList>
 
         <TabsContent value="traffic" className="space-y-4">
@@ -110,45 +107,6 @@ export default function Reports() {
               ) : (
                 <SpendRevenueBarChart data={channelData} />
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="billing" className="space-y-4">
-          <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
-            <CardHeader className="p-0">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <CalendarClock className="h-4 w-4 text-purple-400" />
-                Plano e mensalidade
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 p-0 pt-4 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Cliente</span>
-                <span className="font-medium text-foreground">{client?.name}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Empresa</span>
-                <span className="font-medium text-foreground">{client?.company ?? '—'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Plano</span>
-                <span className="font-medium text-foreground">
-                  {client?.plan ? (planLabels[client.plan] ?? client.plan) : '—'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Mensalidade</span>
-                <span className="font-medium text-foreground">{formatCurrency(client?.monthly_fee ?? null)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Status</span>
-                {client && (
-                  <Badge className={clientStatusStyles[client.status]}>
-                    {clientStatusLabels[client.status] ?? client.status}
-                  </Badge>
-                )}
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
