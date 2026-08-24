@@ -4,12 +4,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/contexts/AuthContext'
-import { useUpdateProfile } from '@/hooks/useClientPortalData'
+import { useClient, useUpdateProfile } from '@/hooks/useClientPortalData'
+import { planLabels, planStyles } from '@/lib/status-styles'
 import { PushNotificationsCard } from './PushNotificationsCard'
 
 const userSettingsSchema = z.object({
@@ -20,9 +22,10 @@ const userSettingsSchema = z.object({
 type UserSettingsValues = z.infer<typeof userSettingsSchema>
 
 export function UserSettingsTab() {
-  const { user, fullName, phone, signOut } = useAuth()
+  const { user, role, fullName, phone, signOut } = useAuth()
   const navigate = useNavigate()
   const updateProfile = useUpdateProfile()
+  const { data: client } = useClient()
 
   const form = useForm<UserSettingsValues>({
     resolver: zodResolver(userSettingsSchema),
@@ -62,6 +65,13 @@ export function UserSettingsTab() {
                 <span className="text-muted-foreground">E-mail: </span>
                 <span className="font-medium text-foreground">{user?.email}</span>
               </div>
+
+              {role === 'cliente' && client?.plan && (
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Plano: </span>
+                  <Badge className={planStyles[client.plan] ?? ''}>{planLabels[client.plan] ?? client.plan}</Badge>
+                </div>
+              )}
 
               <FormField
                 control={form.control}

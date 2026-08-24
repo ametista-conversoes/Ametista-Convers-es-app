@@ -1,5 +1,6 @@
 import { LogOut, Menu, User as UserIcon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -10,6 +11,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/contexts/AuthContext'
+import { useClient } from '@/hooks/useClientPortalData'
+import { planLabels, planStyles } from '@/lib/status-styles'
 
 interface TopBarProps {
   onMenuClick: () => void
@@ -24,6 +27,7 @@ const roleLabels: Record<string, string> = {
 export function TopBar({ onMenuClick }: TopBarProps) {
   const { user, role, signOut } = useAuth()
   const navigate = useNavigate()
+  const { data: client } = useClient()
 
   async function handleSignOut() {
     await signOut()
@@ -57,7 +61,14 @@ export function TopBar({ onMenuClick }: TopBarProps) {
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel className="font-normal">
             <p className="truncate text-sm font-medium text-foreground">{user?.email}</p>
-            <p className="text-xs text-muted-foreground">{role ? roleLabels[role] : '—'}</p>
+            <div className="mt-1 flex items-center gap-1.5">
+              <p className="text-xs text-muted-foreground">{role ? roleLabels[role] : '—'}</p>
+              {role === 'cliente' && client?.plan && (
+                <Badge className={`px-1.5 py-0 text-[10px] ${planStyles[client.plan] ?? ''}`}>
+                  {planLabels[client.plan] ?? client.plan}
+                </Badge>
+              )}
+            </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
