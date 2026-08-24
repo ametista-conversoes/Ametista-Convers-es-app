@@ -11,8 +11,9 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
 import type { TaskRecord } from '@/hooks/useClientPortalData'
-import { formatDate } from '@/lib/format'
+import { formatDate, getTodayIsoDate } from '@/lib/format'
 import { taskPriorityLabels, taskStatusLabels, taskStatusStyles } from '@/lib/status-styles'
+import { cn } from '@/lib/utils'
 import { TaskDetailDialog } from './TaskDetailDialog'
 
 const CHANGEABLE_STATUSES = ['backlog', 'todo', 'in_progress', 'review'] as const
@@ -54,10 +55,14 @@ export function TaskList({
         {tasks.map((task) => {
           const isDone = task.status === 'done'
           const isUpdating = updatingTaskId === task.id
+          const isOverdue = task.status !== 'done' && !!task.due_date && task.due_date < getTodayIsoDate()
           return (
             <div
               key={task.id}
-              className="flex cursor-pointer items-center gap-3 rounded-lg bg-secondary/50 px-3 py-2"
+              className={cn(
+                'flex cursor-pointer items-center gap-3 rounded-lg bg-secondary/50 px-3 py-2',
+                isOverdue && 'opacity-60 grayscale-[0.5] border border-red-500/40',
+              )}
               onClick={() => setSelectedTask(task)}
             >
               {interactive && (
