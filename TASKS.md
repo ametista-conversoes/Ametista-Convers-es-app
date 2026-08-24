@@ -473,3 +473,15 @@ Plano completo em 5 sub-etapas (11c.1 a 11c.5), uma por vez. Decisões já tomad
 - [x] Dados descartáveis de todos os testes apagados; confirmado que apagar cliente é restrito à conta admin (gestor não tem essa permissão — RLS funcionando como esperado)
 
 **Fase 11c concluída — sistema de notificações push funcionando de ponta a ponta em produção.**
+
+## Roadmap — Fase 12 a 18 (levantamento grande pós-testes do usuário)
+
+Depois de testar bastante o app publicado, o usuário trouxe 23 pedidos numa mensagem só. Investigado com agentes de exploração antes de planejar qualquer coisa (respostas registradas na conversa, não repetidas aqui). Dividido em fases, ordem confirmada pelo usuário — do mais rápido pro mais trabalhoso:
+
+- **Fase 12** — correções rápidas: workflow padrão não desmarca ao editar (3); datas sem ano em toda parte (6); comentários sem espelhamento tipo WhatsApp (7); plano do cliente ao lado do papel no menu do usuário (8); confirmação ao clicar em Sair (9); apagar reunião concluída, não só cancelada (11); tarefas do cliente sem cinza/borda vermelha quando atrasadas (13); tirar aba "Clientes & Mensalidades" de Relatórios, redundante com Configurações (21)
+- **Fase 13** — conta e papel: corrigir rota `/` pra não jogar admin/gestor na tela de "conta não vinculada" (2 — bug real, achado pelo usuário); mensagem melhor pro cliente sem vínculo avisar o admin (1)
+- **Fase 14** — workflows: aplicar workflow como padrão do cliente (não só do projeto), escolhendo entre tarefas do projeto ou do kanban do cliente (4)
+- **Fase 15** — projetos múltiplos: mostrar todos os projetos de um cliente (hoje só mostra 1, mesmo tendo vários) (5)
+- **Fase 16** — comentários parte 2: separadores de data tipo WhatsApp/não lidas (10); regra de cancelar x apagar reunião (quem cancela não é quem apaga) (12); planejamento (só especificação, sem implementar ainda) de áudio nos comentários (15)
+- **Fase 17** — arquivos: nova categoria "Áudio" (17); limite de tamanho de arquivo — **bloqueado até o usuário assinar o Supabase Pro** (plano grátis: 50MB/arquivo e 1GB no total; usuário quer subir arquivos de 200MB a 1,5GB, impossível no plano grátis) (16)
+- **Fase 18** — relatórios: mesclar Performance + Relatórios (são quase duplicados — achado na investigação) removendo a aba redundante (22, junto com 21); métricas mais úteis que CTR (impressões, cliques, leads, taxa de conversão) (19); "Gasto" e "Lucro" no resumo financeiro (20); sincronizar Health Score (a aba Performance usa um cálculo diferente/abandonado do Dashboard) (23); explicado que canais por plataforma (Facebook/Instagram separados, YouTube, pixel/tag) não existe hoje — só Google Ads e Meta Ads (Facebook+Instagram juntos) — é integração nova, fora de escopo por ora (18)
