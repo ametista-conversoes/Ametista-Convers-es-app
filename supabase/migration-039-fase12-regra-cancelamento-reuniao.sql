@@ -45,10 +45,11 @@ end;
 $$;
 
 -- =========================================================
--- 3. Cliente só apaga reunião cancelada PELO GESTOR (nunca a que ele
---    mesmo cancelou) — admin/gestor continuam com acesso total via
---    "admin_gestor_full_meetings" já existente; a regra "gestor não
---    apaga o que ele mesmo cancelou" fica só no front, já que a
+-- 3. Cliente só apaga reunião cancelada PELA AGÊNCIA (admin OU gestor
+--    — os dois lados da agência, nunca a que ele mesmo cancelou).
+--    admin/gestor continuam com acesso total via
+--    "admin_gestor_full_meetings" já existente; a regra "agência não
+--    apaga o que ela mesma cancelou" fica só no front, já que a
 --    política de admin/gestor é de propósito ampla (igual outras
 --    tabelas do app).
 -- =========================================================
@@ -59,5 +60,5 @@ create policy "cliente_apaga_propria_reuniao_cancelada" on public.meetings for d
     public.current_user_role() = 'cliente'
     and client_id = public.current_user_client_id()
     and status = 'cancelled'
-    and cancelled_by_role = 'gestor'
+    and cancelled_by_role in ('gestor', 'admin')
   );
