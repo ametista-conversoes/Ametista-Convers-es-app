@@ -25,10 +25,29 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   return bytes
 }
 
+/** `navigator.serviceWorker.ready` normalmente resolve rápido, mas em
+ * alguns navegadores/perfis (visto na prática) pode nunca resolver —
+ * sem esse limite, a tela de Configurações ficava presa em
+ * "Verificando..." pra sempre, sem nenhum jeito de sair daquilo. */
+function serviceWorkerReadyWithTimeout(ms = 8000): Promise<ServiceWorkerRegistration> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Tempo esgotado esperando o service worker ficar pronto')), ms)
+    navigator.serviceWorker.ready.then((registration) => {
+      clearTimeout(timer)
+      resolve(registration)
+    }, reject)
+  })
+}
+
 export async function getCurrentPushSubscription(): Promise<PushSubscription | null> {
   if (!isPushSupported()) return null
-  const registration = await navigator.serviceWorker.ready
-  return registration.pushManager.getSubscription()
+  try {
+    const registration = await serviceWorkerReadyWithTimeout()
+    return await registration.pushManager.getSubscription()
+  } catch (err) {
+    console.warn('Não foi possível checar a inscrição de push:', err)
+    return null
+  }
 }
 
 /** Pede permissão, assina no navegador e salva a inscrição — upsert por
@@ -40,7 +59,7 @@ export async function subscribeToPush(userId: string): Promise<void> {
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') throw new Error('Permissão de notificação negada')
 
-  const registration = await navigator.serviceWorker.ready
+  const registration = await serviceWorkerReadyWithTimeout()
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
