@@ -421,8 +421,17 @@ Pedido do usuário em 4 partes, uma etapa por vez, ordem escolhida por ele: (11a
 - [x] `npx tsc -b --noEmit` limpo; `npm run test` (40/40 — 1 teste existente ajustado pra nova regra do plano Dominação)
 - [x] Entregue ao usuário a tabela explicando a diferença funcional entre os 4 modos
 
-### 11c — Sistema de notificações (pendente)
+### 11c — Sistema de notificações push
 
-- [ ] Gatilhos: incidentes, alertas, cliente em risco, pausa de emergência pedida pelo cliente, lembrete de reunião (1h antes e 15min antes), meta atrasada
-- [ ] Notificação push real (funciona com o site fechado), visual parecido com notificação nativa (ícone, título, prévia, hora) — igual ao exemplo do usuário (WhatsApp Desktop/celular)
-- [ ] Vai exigir infraestrutura nova (chaves VAPID, autorização do navegador, provavelmente uma dependência nova) e um mecanismo de checagem por tempo (lembretes de reunião e metas atrasadas não disparam por uma simples inserção na tabela) — planejar em detalhe quando chegar a vez
+Plano completo em 5 sub-etapas (11c.1 a 11c.5), uma por vez. Decisões já tomadas: biblioteca `web-push` aprovada (só dentro da Edge Function, via `npm:web-push` do Deno — nunca no front); contato VAPID = `mailto:ametistaconversoes@gmail.com` (e-mail de trabalho da agência, fica só num segredo servidor-a-servidor); checagem por tempo a cada 1 minuto (pg_cron).
+
+#### 11c.1 — Tabelas, RLS e funções de detecção
+
+- [x] `supabase/migration-037-fase11c-notificacoes-tabelas.sql`: `push_subscriptions` (por usuário/aparelho, RLS igual ao padrão já usado em `nav_last_seen`) e `push_notification_log` (dedup — evita mandar a mesma notificação 2x; RLS ligado sem nenhuma policy, só a service role mexe, mesmo padrão de `oauth_tokens`)
+- [x] `compute_at_risk_client_ids()` — tradução pra SQL da mesma regra de "cliente em risco" que já existia só no front-end (`src/lib/client-risk.ts`), necessária porque o cron não tem navegador aberto pra rodar a versão em TypeScript
+- [x] `detect_new_at_risk_clients()`, `detect_new_overdue_goals()`, `detect_new_meeting_reminders_1h()`, `detect_new_meeting_reminders_15m()` — cada uma insere+devolve só o que é NOVO (usando `unique(kind, entity_id)` + `on conflict do nothing`), pra não repetir notificação a cada minuto enquanto a condição persiste
+- [x] 2 gatilhos de limpeza (`AFTER UPDATE` em `meetings`/`smart_goals`) que apagam o registro de dedup quando a reunião é remarcada ou o prazo da meta muda — evita ficar bloqueado de notificar de novo numa mudança legítima
+- [x] **Bug real encontrado e corrigido**: as 4 funções de detecção davam erro "column reference is ambiguous" — o nome de retorno da função (`entity_id`) colidia com o nome da coluna de verdade usada dentro do `on conflict (kind, entity_id)`. Corrigido renomeando o retorno pra `id` (o `RETURN QUERY` do PL/pgSQL casa por posição/tipo, não por nome, então não muda o resultado)
+- [x] Testado ao vivo com dados descartáveis no Studio Prisma: incidente crítico → cliente aparece em `detect_new_at_risk_clients()` → apagado → some; meta com prazo vencido → aparece em `detect_new_overdue_goals()`, não repete numa 2ª chamada; reunião daqui 10min → aparece nos dois lembretes (1h e 15min); reunião remarcada pra longe e de volta pra dentro da janela → dispara de novo (confirma que o gatilho de limpeza funciona); conta `cliente` não consegue chamar nenhuma das funções nem ler `push_notification_log` (RLS bloqueando certo); conta `cliente` não consegue inserir `push_subscriptions` pra outro usuário, só pra si mesma
+
+#### 11c.2 a 11c.5 — pendentes (Edge Function, gatilhos de incidente/alerta + cron, front-end, teste de ponta a ponta)
