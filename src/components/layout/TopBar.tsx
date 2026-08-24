@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { LogOut, Menu, User as UserIcon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +30,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
   const { user, role, signOut } = useAuth()
   const navigate = useNavigate()
   const { data: client } = useClient()
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   async function handleSignOut() {
     await signOut()
@@ -71,12 +74,29 @@ export function TopBar({ onMenuClick }: TopBarProps) {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
+          <DropdownMenuItem onClick={() => setConfirmOpen(true)} className="text-destructive focus:text-destructive">
             <LogOut className="h-4 w-4" />
             Sair
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sair da sua conta?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Você vai precisar entrar de novo pra acessar o app neste dispositivo.</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleSignOut}>
+              Sair
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </header>
   )
 }

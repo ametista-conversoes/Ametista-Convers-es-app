@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { LogOut, User as UserIcon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -7,6 +8,7 @@ import { z } from 'zod'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/contexts/AuthContext'
@@ -26,6 +28,7 @@ export function UserSettingsTab() {
   const navigate = useNavigate()
   const updateProfile = useUpdateProfile()
   const { data: client } = useClient()
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const form = useForm<UserSettingsValues>({
     resolver: zodResolver(userSettingsSchema),
@@ -117,10 +120,28 @@ export function UserSettingsTab() {
             <p className="text-sm font-medium text-foreground">Sair da conta</p>
             <p className="text-xs text-muted-foreground">Encerra a sessão neste dispositivo.</p>
           </div>
-          <Button variant="destructive" onClick={handleSignOut}>
-            <LogOut className="h-4 w-4" />
-            Sair
-          </Button>
+          <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <DialogTrigger asChild>
+              <Button variant="destructive">
+                <LogOut className="h-4 w-4" />
+                Sair
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Sair da sua conta?</DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">Você vai precisar entrar de novo pra acessar o app neste dispositivo.</p>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button variant="destructive" onClick={handleSignOut}>
+                  Sair
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </CardContent>
       </Card>
     </div>
