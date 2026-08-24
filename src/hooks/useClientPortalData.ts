@@ -62,6 +62,7 @@ export interface MeetingRecord {
   meeting_link: string | null
   status: string
   cancellation_reason: string | null
+  cancelled_by_role: string | null
   is_emergency: boolean
   created_at: string
 }

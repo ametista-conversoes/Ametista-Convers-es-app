@@ -80,7 +80,8 @@ export function ManagerMeetingList({ meetings }: ManagerMeetingListProps) {
                   />
                 </>
               )}
-              {meeting.status === 'cancelled' && (
+              {(meeting.status === 'completed' ||
+                (meeting.status === 'cancelled' && meeting.cancelled_by_role === 'cliente')) && (
                 <DeleteItemButton
                   label={`a reunião "${meeting.title}"`}
                   onDelete={() => deleteMeeting.mutateAsync(meeting.id)}

@@ -55,7 +55,7 @@ export function MeetingList({ meetings }: MeetingListProps) {
                   onCancel={(reason) => cancelMeeting.mutateAsync({ meetingId: meeting.id, reason })}
                 />
               )}
-              {meeting.status === 'cancelled' && (
+              {meeting.status === 'cancelled' && meeting.cancelled_by_role === 'gestor' && (
                 <DeleteItemButton
                   label={`a reunião "${meeting.title}"`}
                   onDelete={() => deleteMeeting.mutateAsync(meeting.id)}

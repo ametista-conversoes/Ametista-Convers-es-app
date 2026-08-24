@@ -1293,6 +1293,7 @@ export interface ManagerMeetingRecord {
   meeting_link: string | null
   status: string
   cancellation_reason: string | null
+  cancelled_by_role: string | null
   client: { name: string } | null
 }
 
