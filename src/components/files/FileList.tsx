@@ -16,7 +16,7 @@ interface FileListProps {
   deleteMode?: boolean
 }
 
-const CATEGORY_ORDER: FileCategory[] = ['image', 'video', 'document', 'other']
+const CATEGORY_ORDER: FileCategory[] = ['image', 'video', 'audio', 'document', 'other']
 
 export function FileList({ files, deleteMode }: FileListProps) {
   const [openingId, setOpeningId] = useState<string | null>(null)
