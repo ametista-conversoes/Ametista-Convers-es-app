@@ -21,6 +21,7 @@ import { CassieHeader } from '@/components/cassie/CassieHeader'
 import { CassieMessageForm } from '@/components/cassie/CassieMessageForm'
 import { OptionBreakdownBarChart } from '@/components/charts/OptionBreakdownBarChart'
 import { ProjectDetailDialog } from '@/components/project/ProjectDetailDialog'
+import { ApplyWorkflowDialog } from '@/components/workflows/ApplyWorkflowDialog'
 import type { ManagerProjectRecord } from '@/hooks/useManagerPortalData'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -404,7 +405,10 @@ export default function ClientDetail() {
             <FolderKanban className="h-4 w-4 text-purple-400" />
             Projetos
           </CardTitle>
-          <NewProjectDialog clientId={client.id} />
+          <div className="flex items-center gap-2">
+            <ApplyWorkflowDialog lockedClientId={client.id} />
+            <NewProjectDialog clientId={client.id} />
+          </div>
         </CardHeader>
         <CardContent className="space-y-2 p-0 pt-4">
           {clientProjects.length === 0 && <p className="text-sm text-muted-foreground">Nenhum projeto ainda.</p>}

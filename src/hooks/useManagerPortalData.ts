@@ -17,6 +17,7 @@ export interface ManagerClientRecord {
   logo_url: string | null
   renewal_date: string | null
   internal_notes: string | null
+  default_workflow_template_id: string | null
 }
 
 export interface ManagerIncidentRecord {
@@ -508,7 +509,7 @@ export function useApplyWorkflow() {
       activityTemplateIds,
     }: {
       clientId: string
-      projectId: string
+      projectId: string | null
       workflowName: string
       steps: { title: string; category: string }[]
       activityTemplateIds?: string[]
@@ -526,6 +527,25 @@ export function useApplyWorkflow() {
       queryClient.invalidateQueries({ queryKey: ['manager-tasks'] })
       queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
       queryClient.invalidateQueries({ queryKey: ['activity-checklist-items'] })
+    },
+  })
+}
+
+/** Só uma pré-seleção de conveniência (Fase 14) — não aplica nada
+ * sozinho, só lembra qual workflow costuma ser usado nesse cliente. */
+export function useSetClientDefaultWorkflow() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ clientId, workflowTemplateId }: { clientId: string; workflowTemplateId: string }) => {
+      const { error } = await supabase
+        .from('clients')
+        .update({ default_workflow_template_id: workflowTemplateId })
+        .eq('id', clientId)
+      if (error) throw error
+    },
+    onSuccess: (_data, { clientId }) => {
+      queryClient.invalidateQueries({ queryKey: ['manager-clients'] })
+      queryClient.invalidateQueries({ queryKey: ['manager-client', clientId] })
     },
   })
 }
