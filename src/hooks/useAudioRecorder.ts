@@ -41,7 +41,11 @@ export function useAudioRecorder() {
       if (timerRef.current) clearInterval(timerRef.current)
     }
 
-    recorder.start()
+    // Com timeslice, o navegador entrega pedaços do áudio a cada 250ms em
+    // vez de guardar tudo pra só entregar de uma vez no stop() — sem
+    // isso, algumas combinações de Windows/driver de áudio produzem um
+    // arquivo final sem som, mesmo a gravação tendo captado direito.
+    recorder.start(250)
     setStatus('recording')
     setSeconds(0)
     timerRef.current = setInterval(() => {
