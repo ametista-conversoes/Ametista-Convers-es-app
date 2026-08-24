@@ -459,4 +459,17 @@ Plano completo em 5 sub-etapas (11c.1 a 11c.5), uma por vez. Decisões já tomad
 - [x] `npx tsc -b --noEmit`, `npm run test` (40/40) e `npm run build` limpos; confirmado que `dist/sw.js` importa `push-worker.js` e que o arquivo foi copiado pro `dist/`
 - [x] Tentei automatizar o teste de assinatura via Playwright e descobri 2 coisas específicas de ambiente de teste (não são bugs do app): o Chrome desliga a Push API de propósito em contexto "anônimo" (o padrão do Playwright) — só funciona com um perfil persistente de verdade; e mesmo assim a ativação de notificação de verdade (autorizar no navegador, confirmar que chega o cartão do sistema operacional) não dá pra automatizar de forma confiável — isso precisa ser feito manualmente pelo usuário, num navegador de verdade, na 11c.5
 
-#### 11c.5 — pendente (ativação real pelo usuário + teste de ponta a ponta com os 6 tipos de notificação)
+#### 11c.5 — Ativação real + teste de ponta a ponta
+
+- [x] **Bug real encontrado pelo usuário**: o card de notificações ficava preso em "Verificando..." pra sempre num PC específico — causa: nenhum service worker registrado ali (visível em DevTools > Application > Service Workers, painel vazio), provavelmente cache antigo do navegador de antes da Fase 10b existir. Ctrl+Shift+R (atualização forçada) resolveu. De qualquer forma, corrigido também no código (Fase 11c.4b): `navigator.serviceWorker.ready` agora tem limite de 8s, então o card nunca mais trava pra sempre, mesmo se acontecer de novo por outro motivo
+- [x] Usuário ativou notificações de verdade em 2 aparelhos: conta admin no PC, conta cliente (vinculada à "Loja Aurora") no celular
+- [x] **Testado ao vivo, com o site minimizado/fechado, os 6 tipos de notificação — todos confirmados chegando como cartão nativo do sistema operacional**:
+  1. Incidente criado → PC (admin/gestor)
+  2. Alerta criado → PC (admin/gestor) e celular (cliente afetado)
+  3. Cliente ficou em risco → PC (admin/gestor)
+  4. Meta atrasada → PC (admin/gestor)
+  5. Reunião em 1 hora → PC e celular (reunião testada a 10min de distância, cai nas duas janelas ao mesmo tempo)
+  6. Reunião em 15 minutos → PC e celular (mesma reunião de teste)
+- [x] Dados descartáveis de todos os testes apagados; confirmado que apagar cliente é restrito à conta admin (gestor não tem essa permissão — RLS funcionando como esperado)
+
+**Fase 11c concluída — sistema de notificações push funcionando de ponta a ponta em produção.**
