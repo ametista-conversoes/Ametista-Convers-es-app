@@ -34,9 +34,29 @@ export const kpiDescriptions = {
     'Cálculo: média do CTR de todos os projetos.',
 
   healthScoreMedio:
-    'Health Score = Nota de saúde do projeto\n\n' +
-    'Pontuação de 0 a 100 que resume o desempenho geral do projeto (performance, financeiro, entrega e relacionamento).\n\n' +
-    'Cálculo: média do Health Score de todos os projetos.',
+    'Health Score = Nota de saúde do cliente\n\n' +
+    'Pontuação de 0 a 100 que resume o desempenho geral (performance, financeiro, entrega e relacionamento) — a mesma nota mostrada no Dashboard.\n\n' +
+    'Cálculo: recalculada automaticamente todo dia a partir de metas, tarefas, aprovações, reuniões, incidentes e alertas.',
+
+  impressoes:
+    'Impressões = Quantas vezes os anúncios foram exibidos\n\n' +
+    'Total de vezes que os anúncios apareceram para alguém nas plataformas conectadas.\n\n' +
+    'Cálculo: soma das impressões sincronizadas de todos os retratos diários.',
+
+  cliques:
+    'Cliques = Quantas vezes os anúncios foram clicados\n\n' +
+    'Total de cliques recebidos pelos anúncios nas plataformas conectadas.\n\n' +
+    'Cálculo: soma dos cliques sincronizados de todos os retratos diários.',
+
+  cpc:
+    'CPC = Custo por Clique\n\n' +
+    'Quanto custa, em média, cada clique recebido nos anúncios. Quanto menor, mais barato o tráfego.\n\n' +
+    'Cálculo: investimento em mídia ÷ número de cliques, no mesmo período.',
+
+  taxaConversao:
+    'Taxa de Conversão = Percentual de cliques que viraram resultado\n\n' +
+    'De cada clique recebido, quantos viraram uma conversão (venda, lead, cadastro) reportada pela plataforma de anúncios.\n\n' +
+    'Cálculo: conversões sincronizadas ÷ cliques, no mesmo período.',
 
   // ---------- Portal Gestor (Dashboard Executivo) ----------
   mrrTotal:

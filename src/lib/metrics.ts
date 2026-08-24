@@ -2,6 +2,13 @@ import type { PerformanceSnapshotRecord, ProjectRecord } from '@/hooks/useClient
 import type { ChannelBreakdown } from '@/components/charts/SpendRevenueBarChart'
 import type { TrendPoint } from '@/components/charts/PerformanceTrendChart'
 
+export interface SnapshotTraffic {
+  impressions: number
+  clicks: number
+  cpc: number | null
+  conversionRate: number | null
+}
+
 export interface AggregatedKpis {
   spend: number
   revenue: number
@@ -38,12 +45,6 @@ export function averageCtr(projects: ProjectRecord[]): number | null {
   return withCtr.reduce((sum, p) => sum + (p.ctr ?? 0), 0) / withCtr.length
 }
 
-export function averageHealthScore(projects: ProjectRecord[]): number | null {
-  const withScore = projects.filter((p) => typeof p.health_score === 'number')
-  if (withScore.length === 0) return null
-  return withScore.reduce((sum, p) => sum + (p.health_score ?? 0), 0) / withScore.length
-}
-
 /** Agrupa investimento/receita dos projetos por canal, para o gráfico de barras. */
 export function groupByChannel(projects: ProjectRecord[]): ChannelBreakdown[] {
   const byChannel = new Map<string, ChannelBreakdown>()
@@ -71,4 +72,25 @@ export function buildTrendSeries(snapshots: PerformanceSnapshotRecord[]): TrendP
     byDate.set(snapshot.snapshot_date, existing)
   }
   return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date))
+}
+
+/**
+ * Impressões/cliques/CPC/taxa de conversão somados a partir dos retratos
+ * diários (vêm de integrações reais, Google Ads/Meta Ads) — spend usado no
+ * CPC é somado dos mesmos snapshots, não do total acumulado do projeto,
+ * pra ficar na mesma base de cálculo. Sem cliques, CPC e taxa de conversão
+ * ficam null (cliente sem integração conectada ainda).
+ */
+export function aggregateSnapshotTraffic(snapshots: PerformanceSnapshotRecord[]): SnapshotTraffic {
+  const impressions = snapshots.reduce((sum, s) => sum + (s.impressions ?? 0), 0)
+  const clicks = snapshots.reduce((sum, s) => sum + (s.clicks ?? 0), 0)
+  const conversions = snapshots.reduce((sum, s) => sum + (s.conversions ?? 0), 0)
+  const spend = snapshots.reduce((sum, s) => sum + (s.spend ?? 0), 0)
+
+  return {
+    impressions,
+    clicks,
+    cpc: clicks > 0 ? spend / clicks : null,
+    conversionRate: clicks > 0 ? (conversions / clicks) * 100 : null,
+  }
 }

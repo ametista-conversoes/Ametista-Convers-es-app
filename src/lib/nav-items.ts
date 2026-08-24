@@ -15,7 +15,6 @@ import {
   Settings,
   Sparkles,
   Target,
-  TrendingUp,
   Users,
   UsersRound,
   Workflow,
@@ -30,7 +29,6 @@ export interface NavItem {
 
 export const clientNavItems: NavItem[] = [
   { title: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { title: 'Performance', href: '/performance', icon: TrendingUp },
   { title: 'Projeto', href: '/project', icon: FolderKanban },
   { title: 'Tarefas', href: '/tasks', icon: CheckSquare },
   { title: 'Arquivos', href: '/files', icon: FileText },

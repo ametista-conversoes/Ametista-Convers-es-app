@@ -12,7 +12,6 @@ import Cassie from '@/pages/client/Cassie'
 import Comments from '@/pages/client/Comments'
 import Files from '@/pages/client/Files'
 import Meetings from '@/pages/client/Meetings'
-import Performance from '@/pages/client/Performance'
 import Project from '@/pages/client/Project'
 import Reports from '@/pages/client/Reports'
 import Tasks from '@/pages/client/Tasks'
@@ -42,7 +41,6 @@ import Workflows from '@/pages/admin/Workflows'
 // "/settings" é compartilhada pelos 3 papéis (ver Sidebar.tsx).
 const clientPagesReady: Record<string, ComponentType> = {
   '/': Home,
-  '/performance': Performance,
   '/project': Project,
   '/reports': Reports,
   '/tasks': Tasks,
@@ -94,6 +92,10 @@ function App() {
               />
             )
           })}
+          {/* "/performance" virou uma aba de "/reports" na Fase 18 (páginas
+              quase duplicadas) — mesmo padrão de redirecionamento do
+              "/alerts" e "/onboarding" abaixo. */}
+          <Route path="/performance" element={<Navigate to="/reports" replace />} />
 
           <Route element={<RoleRoute allowedRoles={['admin', 'gestor']} />}>
             {managerNavItems.map((item) => {

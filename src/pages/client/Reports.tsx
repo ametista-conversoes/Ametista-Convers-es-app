@@ -1,4 +1,14 @@
-import { DollarSign, Gauge, MousePointerClick, Target, TrendingUp } from 'lucide-react'
+import {
+  Activity,
+  CheckCircle2,
+  DollarSign,
+  Eye,
+  Gauge,
+  MousePointerClick,
+  Percent,
+  Target,
+  TrendingUp,
+} from 'lucide-react'
 import { PerformanceTrendChart } from '@/components/charts/PerformanceTrendChart'
 import { SpendRevenueBarChart } from '@/components/charts/SpendRevenueBarChart'
 import { FinancialSummaryCard } from '@/components/dashboard/FinancialSummaryCard'
@@ -8,9 +18,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClient, usePerformanceSnapshots, useProjects } from '@/hooks/useClientPortalData'
-import { formatCurrency, formatMultiplier, formatPercent } from '@/lib/format'
+import { formatCurrency, formatMultiplier, formatNumber, formatPercent } from '@/lib/format'
 import { kpiDescriptions } from '@/lib/kpi-descriptions'
-import { aggregateProjectKpis, averageCtr, buildTrendSeries, groupByChannel } from '@/lib/metrics'
+import { aggregateProjectKpis, aggregateSnapshotTraffic, averageCtr, buildTrendSeries, groupByChannel } from '@/lib/metrics'
 
 export default function Reports() {
   const { clientId } = useAuth()
@@ -27,10 +37,12 @@ export default function Reports() {
   }
 
   const projectList = projects ?? []
+  const snapshotList = snapshots ?? []
   const kpis = aggregateProjectKpis(projectList)
   const ctr = averageCtr(projectList)
+  const traffic = aggregateSnapshotTraffic(snapshotList)
   const channelData = groupByChannel(projectList)
-  const trendData = buildTrendSeries(snapshots ?? [])
+  const trendData = buildTrendSeries(snapshotList)
 
   return (
     <div className="space-y-6">
@@ -56,6 +68,25 @@ export default function Reports() {
                 description={kpiDescriptions.ctrMedio}
               />
               <KpiCard label="ROAS" value={formatMultiplier(kpis.roas)} icon={Gauge} description={kpiDescriptions.roas} />
+              <KpiCard
+                label="Impressões"
+                value={formatNumber(traffic.impressions)}
+                icon={Eye}
+                description={kpiDescriptions.impressoes}
+              />
+              <KpiCard
+                label="Cliques"
+                value={formatNumber(traffic.clicks)}
+                icon={MousePointerClick}
+                description={kpiDescriptions.cliques}
+              />
+              <KpiCard label="CPC" value={formatCurrency(traffic.cpc)} icon={Target} description={kpiDescriptions.cpc} />
+              <KpiCard
+                label="Taxa de Conversão"
+                value={formatPercent(traffic.conversionRate)}
+                icon={Percent}
+                description={kpiDescriptions.taxaConversao}
+              />
             </div>
           </div>
           <Card className="min-w-0 overflow-hidden rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
@@ -88,6 +119,18 @@ export default function Reports() {
                 description={kpiDescriptions.receita}
               />
               <KpiCard label="CPA" value={formatCurrency(kpis.cpa)} icon={Target} description={kpiDescriptions.cpa} />
+              <KpiCard
+                label="Conversões"
+                value={formatNumber(kpis.conversions)}
+                icon={CheckCircle2}
+                description={kpiDescriptions.conversoes}
+              />
+              <KpiCard
+                label="Health Score"
+                value={formatNumber(client?.health_score ?? null)}
+                icon={Activity}
+                description={kpiDescriptions.healthScoreMedio}
+              />
             </div>
           </div>
           <FinancialSummaryCard monthlyFee={client?.monthly_fee ?? null} spend={kpis.spend} revenue={kpis.revenue} />

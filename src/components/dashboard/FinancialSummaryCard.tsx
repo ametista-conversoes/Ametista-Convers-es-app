@@ -1,6 +1,7 @@
 import { Wallet } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 interface FinancialSummaryCardProps {
   monthlyFee: number | null
@@ -9,9 +10,13 @@ interface FinancialSummaryCardProps {
 }
 
 export function FinancialSummaryCard({ monthlyFee, spend, revenue }: FinancialSummaryCardProps) {
+  const totalCost = spend + (monthlyFee ?? 0)
+  const profit = revenue - totalCost
+
   const rows = [
-    { label: 'Mensalidade da agência', value: monthlyFee },
     { label: 'Investimento em mídia', value: spend },
+    { label: 'Mensalidade da agência', value: monthlyFee },
+    { label: 'Gasto total', value: totalCost },
     { label: 'Receita gerada', value: revenue },
   ]
 
@@ -30,6 +35,12 @@ export function FinancialSummaryCard({ monthlyFee, spend, revenue }: FinancialSu
             <span className="font-medium text-foreground">{formatCurrency(row.value)}</span>
           </div>
         ))}
+        <div className="flex items-center justify-between border-t border-[#1A2540] pt-3 text-sm">
+          <span className="text-muted-foreground">Lucro</span>
+          <span className={cn('font-semibold', profit >= 0 ? 'text-emerald-400' : 'text-destructive')}>
+            {formatCurrency(profit)}
+          </span>
+        </div>
         <p className="pt-2 text-xs text-muted-foreground/70">
           Os valores exibidos são estimativas com base nos dados reportados pelas plataformas de anúncio e podem
           apresentar pequenas variações em relação aos valores oficiais de faturamento.

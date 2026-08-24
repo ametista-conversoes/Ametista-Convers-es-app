@@ -128,6 +128,10 @@ export interface PerformanceSnapshotRecord {
   revenue: number | null
   roas: number | null
   ctr: number | null
+  channel: string | null
+  clicks: number | null
+  impressions: number | null
+  conversions: number | null
 }
 
 export function useClient() {

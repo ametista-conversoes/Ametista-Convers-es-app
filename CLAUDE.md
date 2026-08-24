@@ -43,7 +43,7 @@ Filosofia: centralizar a operação, não substituir ferramentas que já existem
 
 ```
 Públicas: /login, /register, /forgot-password, /reset-password
-Portal cliente: /, /performance, /project, /tasks, /files, /comments, /meetings, /cassie, /reports, /settings
+Portal cliente: /, /project, /tasks, /files, /comments, /meetings, /cassie, /reports, /settings
 Portal gestor: /admin, /clients, /kanban, /workflows, /incidents, /assets, /alerts, /timeline, /smart-goals, /onboarding
 ```
 
