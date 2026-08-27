@@ -6,12 +6,12 @@ import { cn } from '@/lib/utils'
 interface FinancialSummaryCardProps {
   monthlyFee: number | null
   spend: number
-  revenue: number
+  revenue: number | null
 }
 
 export function FinancialSummaryCard({ monthlyFee, spend, revenue }: FinancialSummaryCardProps) {
   const totalCost = spend + (monthlyFee ?? 0)
-  const profit = revenue - totalCost
+  const profit = revenue != null ? revenue - totalCost : null
 
   const rows = [
     { label: 'Investimento em mídia', value: spend },
@@ -37,7 +37,7 @@ export function FinancialSummaryCard({ monthlyFee, spend, revenue }: FinancialSu
         ))}
         <div className="flex items-center justify-between border-t border-[#1A2540] pt-3 text-sm">
           <span className="text-muted-foreground">Lucro</span>
-          <span className={cn('font-semibold', profit >= 0 ? 'text-emerald-400' : 'text-destructive')}>
+          <span className={cn('font-semibold', profit == null ? 'text-foreground' : profit >= 0 ? 'text-emerald-400' : 'text-destructive')}>
             {formatCurrency(profit)}
           </span>
         </div>

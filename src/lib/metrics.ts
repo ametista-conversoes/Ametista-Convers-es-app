@@ -2,15 +2,26 @@ import type { PerformanceSnapshotRecord, ProjectRecord } from '@/hooks/useClient
 import type { ChannelBreakdown } from '@/components/charts/SpendRevenueBarChart'
 import type { TrendPoint } from '@/components/charts/PerformanceTrendChart'
 
-/** Soma a Receita digitada à mão nos projetos — nenhuma plataforma de
- * anúncio reporta faturamento, então é a única fonte que existe. */
-export function sumProjectRevenue(projects: ProjectRecord[]): number {
-  return projects.reduce((sum, p) => sum + (p.revenue ?? 0), 0)
+/**
+ * Receita estimada a partir de Leads reais — nenhuma plataforma de
+ * anúncio reporta faturamento, então a Receita é calculada em 2 passos
+ * a partir de duas premissas de negócio editáveis por cliente (Central
+ * de Informações do Cliente): Vendas = Leads ÷ leadsToClose, Receita =
+ * Vendas × averageTicket. `null` sem `leadsToClose`/`averageTicket`
+ * configurados (evita divisão por zero).
+ */
+export function computeRevenueFromLeads(
+  leads: number,
+  leadsToClose: number | null,
+  averageTicket: number | null,
+): number | null {
+  if (!leadsToClose || leadsToClose <= 0 || averageTicket == null) return null
+  const sales = leads / leadsToClose
+  return sales * averageTicket
 }
 
-/** ROAS cruza a Receita manual (projetos) com o Investimento real
- * (snapshots) — bases diferentes, mas é o melhor cálculo possível sem
- * as plataformas de anúncio reportarem faturamento. */
+/** ROAS cruza a Receita (calculada a partir de Leads) com o Investimento
+ * real (snapshots). */
 export function computeRoas(revenue: number, spend: number): number | null {
   return spend > 0 ? revenue / spend : null
 }

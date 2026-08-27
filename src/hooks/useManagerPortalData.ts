@@ -18,6 +18,8 @@ export interface ManagerClientRecord {
   renewal_date: string | null
   internal_notes: string | null
   default_workflow_template_id: string | null
+  leads_to_close: number | null
+  average_ticket: number | null
 }
 
 export interface ManagerIncidentRecord {
@@ -127,6 +129,8 @@ export interface UpdateClientDetailsInput {
   logo_url: string | null
   renewal_date: string | null
   internal_notes: string | null
+  leads_to_close: number | null
+  average_ticket: number | null
 }
 
 export function useUpdateClientDetails() {

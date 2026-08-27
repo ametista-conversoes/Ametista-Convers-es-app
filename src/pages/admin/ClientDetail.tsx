@@ -111,6 +111,8 @@ export default function ClientDetail() {
   const [phone, setPhone] = useState<string | null>(null)
   const [renewalDate, setRenewalDate] = useState<string | null>(null)
   const [notes, setNotes] = useState<string | null>(null)
+  const [leadsToClose, setLeadsToClose] = useState<string | null>(null)
+  const [averageTicket, setAverageTicket] = useState<string | null>(null)
   const [savingDetails, setSavingDetails] = useState(false)
 
   if (isLoading) {
@@ -133,6 +135,8 @@ export default function ClientDetail() {
   const phoneValue = phone ?? client.phone ?? ''
   const renewalDateValue = renewalDate ?? client.renewal_date ?? ''
   const notesValue = notes ?? client.internal_notes ?? ''
+  const leadsToCloseValue = leadsToClose ?? (client.leads_to_close != null ? String(client.leads_to_close) : '')
+  const averageTicketValue = averageTicket ?? (client.average_ticket != null ? String(client.average_ticket) : '')
 
   async function handleLogoChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -151,6 +155,8 @@ export default function ClientDetail() {
         logo_url: url,
         renewal_date: client.renewal_date,
         internal_notes: client.internal_notes,
+        leads_to_close: client.leads_to_close,
+        average_ticket: client.average_ticket,
       })
       toast.success('Logo atualizada.')
     } catch {
@@ -175,6 +181,8 @@ export default function ClientDetail() {
         logo_url: client.logo_url,
         renewal_date: renewalDateValue.trim() ? renewalDateValue : null,
         internal_notes: notesValue.trim() ? notesValue.trim() : null,
+        leads_to_close: leadsToCloseValue.trim() ? Number(leadsToCloseValue) : null,
+        average_ticket: averageTicketValue.trim() ? Number(averageTicketValue) : null,
       })
       toast.success('Dados do cliente atualizados.')
     } catch {
@@ -309,6 +317,30 @@ export default function ClientDetail() {
                   placeholder="0,00"
                   value={monthlyFeeValue}
                   onChange={(e) => setMonthlyFee(e.target.value)}
+                  className="h-8 w-32"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="shrink-0 text-muted-foreground">Leads p/ fechar 1 venda</span>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  placeholder="Ex: 10"
+                  value={leadsToCloseValue}
+                  onChange={(e) => setLeadsToClose(e.target.value)}
+                  className="h-8 w-32"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="shrink-0 text-muted-foreground">Ticket médio</span>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0,00"
+                  value={averageTicketValue}
+                  onChange={(e) => setAverageTicket(e.target.value)}
                   className="h-8 w-32"
                 />
               </div>

@@ -9,14 +9,14 @@ export const kpiDescriptions = {
     'Cálculo: soma do gasto sincronizado dos últimos 30 dias. Sem integração conectada, aparece "—".',
 
   receita:
-    'Receita = Faturamento informado pela agência\n\n' +
-    'Nenhuma plataforma de anúncio reporta faturamento — esse valor é digitado manualmente na Central de Informações de cada projeto.\n\n' +
-    'Cálculo: soma da receita registrada em cada projeto do cliente.',
+    'Receita = Faturamento estimado a partir dos Leads reais\n\n' +
+    'Nenhuma plataforma de anúncio reporta faturamento, então a Receita é calculada em 2 passos: Vendas = Leads ÷ "Leads p/ fechar 1 venda", depois Receita = Vendas × "Ticket médio" — as duas premissas são editadas na Central de Informações do Cliente. Sem elas configuradas, aparece "—".\n\n' +
+    'Cálculo: (Conversões dos últimos 30 dias ÷ Leads p/ fechar) × Ticket médio.',
 
   roas:
     'ROAS = Retorno sobre Investimento em Anúncios (Return on Ad Spend)\n\n' +
-    'Mostra quanto foi gerado em receita para cada real investido em anúncios. Um ROAS de 4x significa que cada R$ 1 investido gerou R$ 4 em receita. Cruza um valor manual (Receita) com um valor sincronizado automaticamente (Investimento).\n\n' +
-    'Cálculo: Receita informada ÷ Investimento dos últimos 30 dias.',
+    'Mostra quanto foi gerado em receita para cada real investido em anúncios. Um ROAS de 4x significa que cada R$ 1 investido gerou R$ 4 em receita. Cruza a Receita estimada (a partir de Leads) com o Investimento real sincronizado.\n\n' +
+    'Cálculo: Receita estimada ÷ Investimento dos últimos 30 dias.',
 
   cpa:
     'CPA = Custo por Aquisição\n\n' +

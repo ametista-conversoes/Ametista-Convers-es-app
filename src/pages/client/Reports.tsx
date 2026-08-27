@@ -20,7 +20,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useClient, usePerformanceSnapshots, useProjects } from '@/hooks/useClientPortalData'
 import { formatCurrency, formatMultiplier, formatNumber, formatPercent } from '@/lib/format'
 import { kpiDescriptions } from '@/lib/kpi-descriptions'
-import { aggregateSnapshotKpis, buildTrendSeries, computeRoas, groupByChannel, sumProjectRevenue } from '@/lib/metrics'
+import { aggregateSnapshotKpis, buildTrendSeries, computeRevenueFromLeads, computeRoas, groupByChannel } from '@/lib/metrics'
 
 export default function Reports() {
   const { clientId } = useAuth()
@@ -39,8 +39,8 @@ export default function Reports() {
   const projectList = projects ?? []
   const snapshotList = snapshots ?? []
   const kpis = aggregateSnapshotKpis(snapshotList)
-  const revenue = sumProjectRevenue(projectList)
-  const roas = computeRoas(revenue, kpis.spend)
+  const revenue = computeRevenueFromLeads(kpis.conversions, client?.leads_to_close ?? null, client?.average_ticket ?? null)
+  const roas = revenue != null ? computeRoas(revenue, kpis.spend) : null
   const channelData = groupByChannel(projectList)
   const trendData = buildTrendSeries(snapshotList)
 

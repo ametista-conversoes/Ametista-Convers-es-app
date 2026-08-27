@@ -18,13 +18,15 @@ export interface ClientRecord {
   phone: string | null
   logo_url: string | null
   renewal_date: string | null
+  leads_to_close: number | null
+  average_ticket: number | null
 }
 
 // Colunas explícitas (sem "*"): "internal_notes" é uma observação
 // interna da agência e nunca deve trafegar pra sessão do próprio
 // cliente, mesmo que nada exiba isso na tela dele hoje.
 const CLIENT_SAFE_COLUMNS =
-  'id, name, company, email, status, plan, monthly_fee, health_score, health_performance, health_financial, health_delivery, health_relationship, phone, logo_url, renewal_date'
+  'id, name, company, email, status, plan, monthly_fee, health_score, health_performance, health_financial, health_delivery, health_relationship, phone, logo_url, renewal_date, leads_to_close, average_ticket'
 
 export interface ProjectRecord {
   id: string

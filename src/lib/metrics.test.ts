@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { aggregateSnapshotKpis, computeRoas, sumProjectRevenue } from '@/lib/metrics'
-import type { PerformanceSnapshotRecord, ProjectRecord } from '@/hooks/useClientPortalData'
+import { aggregateSnapshotKpis, computeRevenueFromLeads, computeRoas } from '@/lib/metrics'
+import type { PerformanceSnapshotRecord } from '@/hooks/useClientPortalData'
 
 function makeSnapshot(overrides: Partial<PerformanceSnapshotRecord> = {}): PerformanceSnapshotRecord {
   return {
@@ -21,27 +21,6 @@ function makeSnapshot(overrides: Partial<PerformanceSnapshotRecord> = {}): Perfo
 
 function daysAgo(days: number): string {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-}
-
-function makeProject(overrides: Partial<ProjectRecord> = {}): ProjectRecord {
-  return {
-    id: crypto.randomUUID(),
-    title: 'Projeto',
-    status: 'active',
-    health_score: null,
-    cpa: null,
-    roas: null,
-    ctr: null,
-    spend: null,
-    revenue: null,
-    channel: null,
-    start_date: null,
-    end_date: null,
-    objective: null,
-    icp: null,
-    segment: null,
-    ...overrides,
-  }
 }
 
 describe('aggregateSnapshotKpis', () => {
@@ -97,14 +76,23 @@ describe('aggregateSnapshotKpis', () => {
   })
 })
 
-describe('sumProjectRevenue', () => {
-  it('soma a receita registrada manualmente em cada projeto, ignorando quem não tem', () => {
-    const projects = [makeProject({ revenue: 1000 }), makeProject({ revenue: null }), makeProject({ revenue: 500 })]
-    expect(sumProjectRevenue(projects)).toBe(1500)
+describe('computeRevenueFromLeads', () => {
+  it('vendas = leads ÷ leads-para-fechar, receita = vendas × ticket médio', () => {
+    // 100 leads, 10 leads fecham 1 venda = 10 vendas × R$200 = R$2000
+    expect(computeRevenueFromLeads(100, 10, 200)).toBeCloseTo(2000)
   })
 
-  it('sem projetos, zero', () => {
-    expect(sumProjectRevenue([])).toBe(0)
+  it('sem "leads para fechar" configurado, fica null (evita divisão por zero)', () => {
+    expect(computeRevenueFromLeads(100, null, 200)).toBeNull()
+    expect(computeRevenueFromLeads(100, 0, 200)).toBeNull()
+  })
+
+  it('sem "ticket médio" configurado, fica null', () => {
+    expect(computeRevenueFromLeads(100, 10, null)).toBeNull()
+  })
+
+  it('sem leads, vendas e receita ficam zero (não null — as premissas estão configuradas)', () => {
+    expect(computeRevenueFromLeads(0, 10, 200)).toBe(0)
   })
 })
 
