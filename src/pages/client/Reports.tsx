@@ -20,7 +20,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useClient, usePerformanceSnapshots, useProjects } from '@/hooks/useClientPortalData'
 import { formatCurrency, formatMultiplier, formatNumber, formatPercent } from '@/lib/format'
 import { kpiDescriptions } from '@/lib/kpi-descriptions'
-import { aggregateProjectKpis, aggregateSnapshotTraffic, averageCtr, buildTrendSeries, groupByChannel } from '@/lib/metrics'
+import { aggregateSnapshotKpis, buildTrendSeries, computeRoas, groupByChannel, sumProjectRevenue } from '@/lib/metrics'
 
 export default function Reports() {
   const { clientId } = useAuth()
@@ -38,9 +38,9 @@ export default function Reports() {
 
   const projectList = projects ?? []
   const snapshotList = snapshots ?? []
-  const kpis = aggregateProjectKpis(projectList)
-  const ctr = averageCtr(projectList)
-  const traffic = aggregateSnapshotTraffic(snapshotList)
+  const kpis = aggregateSnapshotKpis(snapshotList)
+  const revenue = sumProjectRevenue(projectList)
+  const roas = computeRoas(revenue, kpis.spend)
   const channelData = groupByChannel(projectList)
   const trendData = buildTrendSeries(snapshotList)
 
@@ -63,27 +63,27 @@ export default function Reports() {
             <div className="content-grid gap-4">
               <KpiCard
                 label="CTR médio"
-                value={formatPercent(ctr)}
+                value={formatPercent(kpis.ctr)}
                 icon={MousePointerClick}
                 description={kpiDescriptions.ctrMedio}
               />
-              <KpiCard label="ROAS" value={formatMultiplier(kpis.roas)} icon={Gauge} description={kpiDescriptions.roas} />
+              <KpiCard label="ROAS" value={formatMultiplier(roas)} icon={Gauge} description={kpiDescriptions.roas} />
               <KpiCard
                 label="Impressões"
-                value={formatNumber(traffic.impressions)}
+                value={formatNumber(kpis.impressions)}
                 icon={Eye}
                 description={kpiDescriptions.impressoes}
               />
               <KpiCard
                 label="Cliques"
-                value={formatNumber(traffic.clicks)}
+                value={formatNumber(kpis.clicks)}
                 icon={MousePointerClick}
                 description={kpiDescriptions.cliques}
               />
-              <KpiCard label="CPC" value={formatCurrency(traffic.cpc)} icon={Target} description={kpiDescriptions.cpc} />
+              <KpiCard label="CPC" value={formatCurrency(kpis.cpc)} icon={Target} description={kpiDescriptions.cpc} />
               <KpiCard
                 label="Taxa de Conversão"
-                value={formatPercent(traffic.conversionRate)}
+                value={formatPercent(kpis.conversionRate)}
                 icon={Percent}
                 description={kpiDescriptions.taxaConversao}
               />
@@ -114,7 +114,7 @@ export default function Reports() {
               />
               <KpiCard
                 label="Receita"
-                value={formatCurrency(kpis.revenue)}
+                value={formatCurrency(revenue)}
                 icon={TrendingUp}
                 description={kpiDescriptions.receita}
               />
@@ -133,7 +133,7 @@ export default function Reports() {
               />
             </div>
           </div>
-          <FinancialSummaryCard monthlyFee={client?.monthly_fee ?? null} spend={kpis.spend} revenue={kpis.revenue} />
+          <FinancialSummaryCard monthlyFee={client?.monthly_fee ?? null} spend={kpis.spend} revenue={revenue} />
         </TabsContent>
 
         <TabsContent value="channels" className="space-y-4">

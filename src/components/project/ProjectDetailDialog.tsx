@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Check, Pencil, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
@@ -14,6 +15,7 @@ import { ManagerTaskRow } from '@/components/tasks/ManagerTaskRow'
 import type { ManagerProjectRecord, ManagerTaskRecord } from '@/hooks/useManagerPortalData'
 import { useCampaignPerformance, useUpdateProject } from '@/hooks/useManagerPortalData'
 import { formatCurrency, formatDate, formatMultiplier, formatPercent } from '@/lib/format'
+import { computeRoas } from '@/lib/metrics'
 import { segmentationOptionGroups } from '@/lib/segmentation-options'
 import { projectStatusLabels, projectStatusStyles } from '@/lib/status-styles'
 import { useForm } from 'react-hook-form'
@@ -38,6 +40,8 @@ interface CampaignFormValues {
 export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDetailDialogProps) {
   const updateProject = useUpdateProject()
   const [deleteMode, setDeleteMode] = useState(false)
+  const [editingRevenue, setEditingRevenue] = useState(false)
+  const [revenueDraft, setRevenueDraft] = useState('')
 
   const form = useForm<CampaignFormValues>({
     defaultValues: {
@@ -64,7 +68,24 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
       external_campaign_id: project.external_campaign_id,
       external_campaign_name: project.external_campaign_name,
     })
+    setEditingRevenue(false)
   }, [project, form])
+
+  async function handleSaveRevenue() {
+    if (!project) return
+    const parsed = revenueDraft.trim() === '' ? null : Number(revenueDraft.replace(',', '.'))
+    if (parsed !== null && Number.isNaN(parsed)) {
+      toast.error('Digite um número válido.')
+      return
+    }
+    try {
+      await updateProject.mutateAsync({ id: project.id, revenue: parsed })
+      toast.success('Receita atualizada.')
+      setEditingRevenue(false)
+    } catch {
+      toast.error('Não foi possível salvar a receita.')
+    }
+  }
 
   async function onSubmit(values: CampaignFormValues) {
     if (!project) return
@@ -90,6 +111,7 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
   const linkedCampaignId = project?.external_campaign_id ?? null
   const linkedConnectionId = project?.external_connection_id ?? null
   const campaignPerformance = useCampaignPerformance(linkedConnectionId, linkedCampaignId)
+  const effectiveSpend = linkedCampaignId ? (campaignPerformance.data?.spend ?? null) : (project?.spend ?? null)
 
   return (
     <Dialog open={!!project} onOpenChange={onOpenChange}>
@@ -120,7 +142,7 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                 {linkedCampaignId && (
                   <p className="text-xs text-muted-foreground">
                     CPA, CTR e gasto abaixo vêm da campanha vinculada ({project.external_campaign_name}), últimos 30 dias.
-                    ROAS e receita continuam manuais — os provedores de anúncio não reportam receita nessa sincronização.
+                    Receita continua manual — os provedores de anúncio não reportam faturamento nessa sincronização.
                   </p>
                 )}
 
@@ -133,7 +155,7 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">ROAS</p>
-                    <p className="text-foreground">{formatMultiplier(project.roas)}</p>
+                    <p className="text-foreground">{formatMultiplier(computeRoas(project.revenue ?? 0, effectiveSpend ?? 0))}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">CTR</p>
@@ -143,13 +165,55 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Gasto</p>
-                    <p className="text-foreground">
-                      {formatCurrency(linkedCampaignId ? (campaignPerformance.data?.spend ?? null) : project.spend)}
-                    </p>
+                    <p className="text-foreground">{formatCurrency(effectiveSpend)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Receita</p>
-                    <p className="text-foreground">{formatCurrency(project.revenue)}</p>
+                    {editingRevenue ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          autoFocus
+                          value={revenueDraft}
+                          onChange={(e) => setRevenueDraft(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleSaveRevenue()}
+                          className="h-7 text-sm"
+                        />
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 shrink-0"
+                          disabled={updateProject.isPending}
+                          onClick={handleSaveRevenue}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 shrink-0"
+                          disabled={updateProject.isPending}
+                          onClick={() => setEditingRevenue(false)}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="group flex items-center gap-1.5 text-foreground"
+                        onClick={() => {
+                          setRevenueDraft(project.revenue != null ? String(project.revenue) : '')
+                          setEditingRevenue(true)
+                        }}
+                      >
+                        {formatCurrency(project.revenue)}
+                        <Pencil className="h-3 w-3 text-muted-foreground/50 group-hover:text-purple-400" />
+                      </button>
+                    )}
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Período</p>

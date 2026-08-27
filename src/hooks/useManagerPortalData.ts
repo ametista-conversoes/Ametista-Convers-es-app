@@ -351,14 +351,15 @@ export function useCreateProject() {
 
 export interface UpdateProjectCampaignInput {
   id: string
-  icp: string | null
-  segmentations: string[]
-  objective: string | null
-  systems: string | null
-  description: string | null
-  external_connection_id: string | null
-  external_campaign_id: string | null
-  external_campaign_name: string | null
+  icp?: string | null
+  segmentations?: string[]
+  objective?: string | null
+  systems?: string | null
+  description?: string | null
+  external_connection_id?: string | null
+  external_campaign_id?: string | null
+  external_campaign_name?: string | null
+  revenue?: number | null
 }
 
 export function useUpdateProject() {

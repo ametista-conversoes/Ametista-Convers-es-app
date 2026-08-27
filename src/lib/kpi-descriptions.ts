@@ -5,33 +5,33 @@ export const kpiDescriptions = {
   // ---------- Portal Cliente (Dashboard, Performance, Relatórios) ----------
   investimento:
     'Investimento = Valor total aplicado em mídia paga\n\n' +
-    'Quanto foi gasto em anúncios nas plataformas conectadas no período.\n\n' +
-    'Cálculo: soma do investimento de todos os projetos.',
+    'Quanto foi gasto em anúncios nas plataformas conectadas (Google Ads/Meta Ads), sincronizado automaticamente.\n\n' +
+    'Cálculo: soma do gasto sincronizado dos últimos 30 dias. Sem integração conectada, aparece "—".',
 
   receita:
-    'Receita = Faturamento gerado pelas campanhas\n\n' +
-    'Valor total de vendas/conversões atribuídas às campanhas de marketing no período.\n\n' +
-    'Cálculo: soma da receita de todos os projetos.',
+    'Receita = Faturamento informado pela agência\n\n' +
+    'Nenhuma plataforma de anúncio reporta faturamento — esse valor é digitado manualmente na Central de Informações de cada projeto.\n\n' +
+    'Cálculo: soma da receita registrada em cada projeto do cliente.',
 
   roas:
     'ROAS = Retorno sobre Investimento em Anúncios (Return on Ad Spend)\n\n' +
-    'Mostra quanto foi gerado em receita para cada real investido em anúncios. Um ROAS de 4x significa que cada R$ 1 investido gerou R$ 4 em receita.\n\n' +
-    'Cálculo: receita total ÷ investimento total.',
+    'Mostra quanto foi gerado em receita para cada real investido em anúncios. Um ROAS de 4x significa que cada R$ 1 investido gerou R$ 4 em receita. Cruza um valor manual (Receita) com um valor sincronizado automaticamente (Investimento).\n\n' +
+    'Cálculo: Receita informada ÷ Investimento dos últimos 30 dias.',
 
   cpa:
     'CPA = Custo por Aquisição\n\n' +
-    'Quanto custa, em média, conseguir uma conversão (venda, lead, etc.). Quanto menor, mais eficiente a campanha.\n\n' +
-    'Cálculo: investimento total ÷ número de conversões.',
+    'Quanto custa, em média, conseguir uma conversão (venda, lead, etc.), segundo o que a própria plataforma de anúncio reportou. Quanto menor, mais eficiente a campanha.\n\n' +
+    'Cálculo: Investimento ÷ Conversões, ambos sincronizados dos últimos 30 dias.',
 
   conversoes:
     'Conversões = Número de resultados gerados\n\n' +
-    'Quantidade de ações desejadas (vendas, leads, cadastros) atribuídas às campanhas.\n\n' +
-    'Cálculo: investimento ÷ CPA de cada projeto, somado.',
+    'Quantidade de ações (vendas, leads, cadastros) que a própria plataforma de anúncio atribuiu às campanhas.\n\n' +
+    'Cálculo: soma das conversões sincronizadas dos últimos 30 dias.',
 
   ctrMedio:
     'CTR = Taxa de Cliques (Click-Through Rate)\n\n' +
     'Percentual de pessoas que clicaram no anúncio em relação a quantas o visualizaram — indica o quão atrativo é o criativo.\n\n' +
-    'Cálculo: média do CTR de todos os projetos.',
+    'Cálculo: cliques ÷ impressões dos últimos 30 dias, sincronizados automaticamente.',
 
   healthScoreMedio:
     'Health Score = Nota de saúde do cliente\n\n' +

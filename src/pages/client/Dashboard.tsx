@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import {
   useAlerts,
   useClient,
+  usePerformanceSnapshots,
   useProjects,
   useSmartGoals,
   useTasks,
@@ -19,12 +20,13 @@ import {
 } from '@/hooks/useClientPortalData'
 import { formatCurrency, formatMultiplier, formatNumber } from '@/lib/format'
 import { kpiDescriptions } from '@/lib/kpi-descriptions'
-import { aggregateProjectKpis } from '@/lib/metrics'
+import { aggregateSnapshotKpis, computeRoas, sumProjectRevenue } from '@/lib/metrics'
 
 export default function Dashboard() {
   const { clientId } = useAuth()
   const { data: client, isLoading: loadingClient } = useClient()
   const { data: projects, isLoading: loadingProjects } = useProjects()
+  const { data: snapshots, isLoading: loadingSnapshots } = usePerformanceSnapshots()
   const { data: tasks } = useTasks()
   const { data: meetings } = useUpcomingMeetings()
   const { data: goals } = useSmartGoals()
@@ -34,11 +36,13 @@ export default function Dashboard() {
     return <UnlinkedClientNotice page="um Dashboard" />
   }
 
-  if (loadingClient || loadingProjects) {
+  if (loadingClient || loadingProjects || loadingSnapshots) {
     return <p className="text-sm text-muted-foreground">Carregando...</p>
   }
 
-  const kpis = aggregateProjectKpis(projects ?? [])
+  const kpis = aggregateSnapshotKpis(snapshots ?? [])
+  const revenue = sumProjectRevenue(projects ?? [])
+  const roas = computeRoas(revenue, kpis.spend)
 
   return (
     <div className="space-y-6">
@@ -60,11 +64,11 @@ export default function Dashboard() {
           />
           <KpiCard
             label="Receita"
-            value={formatCurrency(kpis.revenue)}
+            value={formatCurrency(revenue)}
             icon={TrendingUp}
             description={kpiDescriptions.receita}
           />
-          <KpiCard label="ROAS" value={formatMultiplier(kpis.roas)} icon={Gauge} description={kpiDescriptions.roas} />
+          <KpiCard label="ROAS" value={formatMultiplier(roas)} icon={Gauge} description={kpiDescriptions.roas} />
           <KpiCard label="CPA" value={formatCurrency(kpis.cpa)} icon={Target} description={kpiDescriptions.cpa} />
           <KpiCard
             label="Conversões"
@@ -88,7 +92,7 @@ export default function Dashboard() {
           />
           <UpcomingMeetingsCard meetings={meetings ?? []} />
           <AssignedTasksCard tasks={tasks ?? []} />
-          <FinancialSummaryCard monthlyFee={client?.monthly_fee ?? null} spend={kpis.spend} revenue={kpis.revenue} />
+          <FinancialSummaryCard monthlyFee={client?.monthly_fee ?? null} spend={kpis.spend} revenue={revenue} />
           <GoalsProgressCard goals={goals ?? []} />
           <NotificationsCard alerts={alerts ?? []} />
         </div>
