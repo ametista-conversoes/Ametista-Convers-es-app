@@ -50,6 +50,36 @@ export async function syncIntegration(connectionId: string): Promise<SyncIntegra
   return body
 }
 
+export interface GoogleAdsAccount {
+  id: string
+  name: string | null
+  loginCustomerId: string
+}
+
+/** Lista as contas de anúncio reais do Google Ads que uma conexão
+ * enxerga (Fase 20) — nunca inclui conta gerenciadora/MCC, só usada
+ * quando `handleCallback` não conseguiu escolher sozinho (0 ou mais de
+ * 1 conta encontrada). */
+export async function listGoogleAdsAccounts(connectionId: string): Promise<GoogleAdsAccount[]> {
+  const search = new URLSearchParams({ connection_id: connectionId })
+  const res = await fetch(`${FUNCTIONS_BASE}/accounts?${search.toString()}`, { headers: await authHeaders() })
+  const body = await res.json()
+  if (!res.ok) throw new Error(body.error ?? 'Não foi possível buscar as contas de anúncios.')
+  return body.accounts as GoogleAdsAccount[]
+}
+
+/** Grava qual conta de anúncios do Google Ads usar numa conexão, depois
+ * de escolhida numa lista (Fase 20). */
+export async function selectGoogleAdsAccount(connectionId: string, account: GoogleAdsAccount): Promise<void> {
+  const res = await fetch(`${FUNCTIONS_BASE}/select-account`, {
+    method: 'POST',
+    headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ connection_id: connectionId, customer_id: account.id, login_customer_id: account.loginCustomerId }),
+  })
+  const body = await res.json()
+  if (!res.ok) throw new Error(body.error ?? 'Não foi possível salvar a conta escolhida.')
+}
+
 export interface ExternalCampaign {
   id: string
   name: string

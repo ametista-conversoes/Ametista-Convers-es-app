@@ -38,6 +38,14 @@
 //   GET  .../integrations/connect?provider=meta_ads&digital_asset_id=...
 //   GET  .../integrations/callback?state=...&code=...          (aberta pelo Google/Meta)
 //   GET  .../integrations/campaigns?connection_id=...           (vincular projeto a uma campanha — Fase 8.1b)
+//   GET  .../integrations/accounts?connection_id=...             (Fase 20: lista as contas de anúncio
+//                                          reais do Google Ads acessíveis por uma conexão — nunca
+//                                          inclui conta gerenciadora/MCC, só contas-cliente de verdade)
+//   POST .../integrations/select-account  { connection_id, customer_id, login_customer_id }
+//                                          (Fase 20: grava qual conta de anúncios do Google Ads usar,
+//                                          quando handleCallback não conseguiu escolher sozinho por
+//                                          existir mais de uma opção — ex: conta gerenciadora com
+//                                          várias contas-cliente por baixo)
 //   POST .../integrations/sync            { connection_id }     (botão "Sincronizar agora" — Google
 //                                          Ads/Meta Ads sincroniza métricas; Google Forms sincroniza
 //                                          perguntas+respostas estruturadas via forms.googleapis.com,
@@ -57,7 +65,7 @@ type Provider = (typeof PROVIDERS)[number]
 
 const GOOGLE_AUTHORIZE_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
-const GOOGLE_ADS_API_VERSION = 'v17' // conferir se ainda é a versão suportada quando for testar de verdade — a Google descontinua versões antigas com o tempo
+const GOOGLE_ADS_API_VERSION = 'v25' // Fase 20 (achado ao vivo): v17 já tinha sido desativada pelo Google — conferir de novo em developers.google.com/google-ads/api/docs/sunset-dates se for testar depois de muito tempo parado
 
 // Nomes REAIS dos secrets no painel do Supabase (Fase 8.2b) — o
 // usuário já tinha criado os 3 com esses nomes antes de eu documentar
@@ -242,11 +250,47 @@ async function handleConnect(req: Request, url: URL) {
 
   const { data: asset, error: assetError } = await supabase
     .from('digital_assets')
-    .select('id')
+    .select('id, client_id')
     .eq('id', digitalAssetId)
     .maybeSingle()
   if (assetError) return dbErrorResponse('handleConnect: buscar ativo digital', assetError)
   if (!asset) return jsonResponse({ error: 'Ativo digital não encontrado' }, 404)
+
+  // Fase 20 (achado ao vivo): a mesma conta real de Google Ads/Meta Ads
+  // conectada em 2 ativos digitais diferentes do mesmo cliente duplicava
+  // dado sincronizado (campaign_performance_snapshots repetido por
+  // conexão, entre outros). Só permite 1 conexão "connected" de cada
+  // provedor por cliente — reconectar o MESMO ativo (mesma linha) continua
+  // liberado, só bloqueia um ativo digital *diferente* do mesmo cliente.
+  if (provider === 'google_ads' || provider === 'meta_ads') {
+    const { data: siblingAssets, error: siblingAssetsError } = await supabase
+      .from('digital_assets')
+      .select('id')
+      .eq('client_id', asset.client_id)
+      .neq('id', digitalAssetId)
+    if (siblingAssetsError) return dbErrorResponse('handleConnect: buscar ativos do cliente', siblingAssetsError)
+    const siblingAssetIds = ((siblingAssets ?? []) as Array<{ id: string }>).map((a) => a.id)
+
+    if (siblingAssetIds.length > 0) {
+      const { data: existingConnection, error: existingConnectionError } = await supabase
+        .from('digital_asset_connections')
+        .select('id')
+        .eq('provider', provider)
+        .eq('status', 'connected')
+        .in('digital_asset_id', siblingAssetIds)
+        .maybeSingle()
+      if (existingConnectionError) return dbErrorResponse('handleConnect: checar conexão existente do cliente', existingConnectionError)
+      if (existingConnection) {
+        const providerLabel = provider === 'google_ads' ? 'Google Ads' : 'Meta Ads'
+        return jsonResponse(
+          {
+            error: `Esse cliente já tem uma conexão de ${providerLabel} ativa em outro ativo digital. Desconecte a outra antes de conectar uma nova — só 1 conexão de ${providerLabel} por cliente é permitida.`,
+          },
+          409,
+        )
+      }
+    }
+  }
 
   const upsertPayload: Record<string, unknown> = { digital_asset_id: digitalAssetId, provider, status: 'disconnected' }
   if (provider === 'google_forms') upsertPayload.external_account_id = extractFormId(formIdInput as string)
@@ -389,29 +433,38 @@ async function handleCallback(url: URL) {
     if (refreshSecretId) tokenUpsert.refresh_token_secret_id = refreshSecretId
   }
 
-  await supabase.from('oauth_tokens').upsert(tokenUpsert, { onConflict: 'connection_id' })
+  const { error: tokenUpsertError } = await supabase.from('oauth_tokens').upsert(tokenUpsert, { onConflict: 'connection_id' })
+  if (tokenUpsertError) {
+    console.error('[integrations] handleCallback: guardar oauth_tokens:', tokenUpsertError)
+    await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connection.id)
+    return callbackRedirect(false, 'Não foi possível salvar a conexão. Tente novamente.')
+  }
 
   // Descobre qual conta de anúncios essa conta do Google/Meta enxerga,
   // e já grava — não derruba a conexão se isso falhar (dá pra tentar
   // de novo na primeira sincronização).
   if (connection.provider === 'google_ads') {
     try {
-      const customersRes = await fetch(
-        `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers:listAccessibleCustomers`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'developer-token': Deno.env.get(GOOGLE_ADS_DEVELOPER_TOKEN_ENV) ?? '',
-          },
-        },
-      )
-      const customersBody = await customersRes.json()
-      const firstResourceName = customersBody.resourceNames?.[0] as string | undefined
-      if (firstResourceName) {
-        const customerId = firstResourceName.split('/')[1]
-        await supabase.from('digital_asset_connections').update({ external_account_id: customerId }).eq('id', connection.id)
+      // Fase 20 (achado ao vivo): nunca escolhe sozinho quando há mais de
+      // 1 conta real disponível (ex: conta gerenciadora com várias
+      // contas-cliente por baixo) — só resolve automático quando é
+      // inequívoco (a conta mais comum: sem MCC nenhuma, só 1 opção). Com
+      // 0 ou 2+ contas, fica "conectado" mas sem `external_account_id" —
+      // o gestor escolhe manualmente depois (rota /accounts).
+      const accounts = await discoverGoogleAdsClientAccounts(accessToken)
+      if (accounts.length === 1) {
+        await supabase
+          .from('digital_asset_connections')
+          .update({ external_account_id: accounts[0].customerId, login_customer_id: accounts[0].loginCustomerId })
+          .eq('id', connection.id)
+      } else {
+        console.error(
+          `[integrations] handleCallback: ${accounts.length} contas de Google Ads encontradas — precisa escolha manual:`,
+          accounts,
+        )
       }
-    } catch {
+    } catch (err) {
+      console.error('[integrations] handleCallback: erro inesperado ao descobrir conta do Google Ads:', err)
       // segue sem quebrar a conexão — ver comentário acima
     }
   } else if (connection.provider === 'meta_ads') {
@@ -420,18 +473,96 @@ async function handleCallback(url: URL) {
         `https://graph.facebook.com/${META_GRAPH_API_VERSION}/me/adaccounts?fields=id,name&access_token=${encodeURIComponent(accessToken)}`,
       )
       const adAccountsBody = await adAccountsRes.json()
+      if (!adAccountsRes.ok) {
+        console.error('[integrations] handleCallback: listar ad accounts do Meta falhou:', adAccountsBody)
+      }
       const firstAccountId = adAccountsBody.data?.[0]?.id as string | undefined
       if (firstAccountId) {
         await supabase.from('digital_asset_connections').update({ external_account_id: firstAccountId }).eq('id', connection.id)
+      } else if (adAccountsRes.ok) {
+        console.error('[integrations] handleCallback: listar ad accounts do Meta ok mas sem nenhuma conta acessível:', adAccountsBody)
       }
-    } catch {
+    } catch (err) {
+      console.error('[integrations] handleCallback: erro inesperado ao descobrir conta do Meta Ads:', err)
       // segue sem quebrar a conexão — ver comentário acima
     }
   }
 
-  await supabase.from('digital_asset_connections').update({ status: 'connected' }).eq('id', connection.id)
+  const { error: statusUpdateError } = await supabase
+    .from('digital_asset_connections')
+    .update({ status: 'connected' })
+    .eq('id', connection.id)
+  if (statusUpdateError) {
+    console.error('[integrations] handleCallback: marcar conexão como conectada:', statusUpdateError)
+    return callbackRedirect(false, 'Não foi possível concluir a conexão. Tente novamente.')
+  }
 
   return callbackRedirect(true, 'Integração conectada com sucesso.')
+}
+
+function googleAdsHeaders(accessToken: string, loginCustomerId?: string | null): Record<string, string> {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${accessToken}`,
+    'developer-token': Deno.env.get(GOOGLE_ADS_DEVELOPER_TOKEN_ENV) ?? '',
+    'Content-Type': 'application/json',
+  }
+  if (loginCustomerId) headers['login-customer-id'] = loginCustomerId
+  return headers
+}
+
+type GoogleAdsClientAccount = { customerId: string; loginCustomerId: string; name: string | null }
+
+/** Descobre as contas de anúncio REAIS que a conta do Google logada
+ * enxerga — nunca inclui uma conta gerenciadora (MCC), essas só servem
+ * de ponte (`login-customer-id`), não têm campanha nem métrica
+ * própria e por isso nunca são uma opção escolhível. Pra cada raiz que
+ * `listAccessibleCustomers` devolve, consulta `customer_client` usando
+ * essa raiz como `login-customer-id` — isso devolve tanto a própria
+ * conta (se não for gerenciadora — caso mais comum, conta avulsa sem
+ * MCC nenhuma) quanto todas as contas-cliente reais por baixo dela (se
+ * for uma gerenciadora). Usada tanto na descoberta automática
+ * (`handleCallback`) quanto na escolha manual (`/accounts`). */
+async function discoverGoogleAdsClientAccounts(accessToken: string): Promise<GoogleAdsClientAccount[]> {
+  const rootsRes = await fetch(`https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers:listAccessibleCustomers`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'developer-token': Deno.env.get(GOOGLE_ADS_DEVELOPER_TOKEN_ENV) ?? '',
+    },
+  })
+  const rootsBody = await rootsRes.json()
+  if (!rootsRes.ok) {
+    console.error('[integrations] discoverGoogleAdsClientAccounts: listAccessibleCustomers falhou:', rootsBody)
+    return []
+  }
+  const rootIds = ((rootsBody.resourceNames ?? []) as string[]).map((name) => name.split('/')[1]).filter(Boolean)
+
+  const found = new Map<string, GoogleAdsClientAccount>()
+  for (const rootId of rootIds) {
+    const gaqlQuery = `
+      SELECT customer_client.id, customer_client.descriptive_name, customer_client.manager, customer_client.status
+      FROM customer_client
+      WHERE customer_client.status = 'ENABLED'
+    `
+    const clientsRes = await fetch(
+      `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${rootId}/googleAds:search`,
+      { method: 'POST', headers: googleAdsHeaders(accessToken, rootId), body: JSON.stringify({ query: gaqlQuery }) },
+    )
+    const clientsBody = await clientsRes.json()
+    if (!clientsRes.ok) {
+      console.error(`[integrations] discoverGoogleAdsClientAccounts: customer_client falhou pra raiz ${rootId}:`, clientsBody)
+      continue
+    }
+    for (const row of (clientsBody.results ?? []) as Array<{
+      customerClient?: { id?: string; descriptiveName?: string; manager?: boolean }
+    }>) {
+      const client = row.customerClient
+      if (!client?.id || client.manager) continue // nunca inclui conta gerenciadora/MCC
+      if (!found.has(client.id)) {
+        found.set(client.id, { customerId: client.id, loginCustomerId: rootId, name: client.descriptiveName ?? null })
+      }
+    }
+  }
+  return Array.from(found.values())
 }
 
 async function getValidAccessToken(supabase: SupabaseClient, connectionId: string, provider: Provider): Promise<string | null> {
@@ -515,6 +646,7 @@ type SyncableConnection = {
   id: string
   provider: Provider
   external_account_id: string | null
+  login_customer_id: string | null
   digital_assets: { client_id: string } | { client_id: string }[]
 }
 
@@ -555,11 +687,7 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
       `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${connection.external_account_id}/googleAds:search`,
       {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'developer-token': Deno.env.get(GOOGLE_ADS_DEVELOPER_TOKEN_ENV) ?? '',
-          'Content-Type': 'application/json',
-        },
+        headers: googleAdsHeaders(accessToken, connection.login_customer_id),
         body: JSON.stringify({ query: gaqlQuery }),
       },
     )
@@ -941,7 +1069,7 @@ async function handleSync(req: Request) {
 
   const { data: connection, error: connectionError } = await supabase
     .from('digital_asset_connections')
-    .select('id, provider, external_account_id, digital_assets(client_id)')
+    .select('id, provider, external_account_id, login_customer_id, digital_assets(client_id)')
     .eq('id', body.connection_id)
     .maybeSingle()
   if (connectionError) return dbErrorResponse('handleSync: buscar conexão', connectionError)
@@ -972,7 +1100,7 @@ async function handleListCampaigns(req: Request, url: URL) {
 
   const { data: connection, error: connectionError } = await supabase
     .from('digital_asset_connections')
-    .select('id, provider, external_account_id')
+    .select('id, provider, external_account_id, login_customer_id')
     .eq('id', connectionId)
     .maybeSingle()
   if (connectionError) return dbErrorResponse('handleListCampaigns: buscar conexão', connectionError)
@@ -996,15 +1124,7 @@ async function handleListCampaigns(req: Request, url: URL) {
     `
     const searchRes = await fetch(
       `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${connection.external_account_id}/googleAds:search`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'developer-token': Deno.env.get(GOOGLE_ADS_DEVELOPER_TOKEN_ENV) ?? '',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query: gaqlQuery }),
-      },
+      { method: 'POST', headers: googleAdsHeaders(accessToken, connection.login_customer_id), body: JSON.stringify({ query: gaqlQuery }) },
     )
     const searchBody = await searchRes.json()
     if (!searchRes.ok) {
@@ -1058,7 +1178,7 @@ async function handleSyncAll(req: Request) {
 
   const { data: connections, error: connectionsError } = await supabase
     .from('digital_asset_connections')
-    .select('id, provider, external_account_id, digital_assets(client_id)')
+    .select('id, provider, external_account_id, login_customer_id, digital_assets(client_id)')
     .eq('status', 'connected')
     .in('provider', ['google_ads', 'meta_ads', 'google_forms'])
   if (connectionsError) return dbErrorResponse('handleSyncAll: buscar conexões', connectionsError)
@@ -1129,6 +1249,78 @@ async function handleFormsWebhook(req: Request) {
   return jsonResponse({ ok: true })
 }
 
+/** Lista as contas de anúncio reais do Google Ads que uma conexão
+ * enxerga (Fase 20) — usada quando `handleCallback` não conseguiu
+ * escolher sozinho (0 ou mais de 1 conta encontrada). Nunca inclui
+ * conta gerenciadora/MCC (ver `discoverGoogleAdsClientAccounts`). */
+async function handleListGoogleAdsAccounts(req: Request, url: URL) {
+  const auth = await requireAdminOrGestor(req)
+  if (auth instanceof Response) return auth
+
+  const connectionId = url.searchParams.get('connection_id')
+  if (!connectionId) return jsonResponse({ error: 'connection_id é obrigatório' }, 400)
+
+  const supabase = getServiceClient()
+
+  const { data: connection, error: connectionError } = await supabase
+    .from('digital_asset_connections')
+    .select('id, provider')
+    .eq('id', connectionId)
+    .maybeSingle()
+  if (connectionError) return dbErrorResponse('handleListGoogleAdsAccounts: buscar conexão', connectionError)
+  if (!connection) return jsonResponse({ error: 'Conexão não encontrada' }, 404)
+  if (connection.provider !== 'google_ads') {
+    return jsonResponse({ error: 'Essa listagem só existe pra conexões de Google Ads' }, 400)
+  }
+
+  const accessToken = await getValidAccessToken(supabase, connection.id, 'google_ads')
+  if (!accessToken) return jsonResponse({ error: 'Não foi possível obter um token de acesso válido' }, 502)
+
+  const accounts = await discoverGoogleAdsClientAccounts(accessToken)
+  return jsonResponse({
+    accounts: accounts.map((a) => ({ id: a.customerId, name: a.name, loginCustomerId: a.loginCustomerId })),
+  })
+}
+
+/** Grava qual conta de anúncios do Google Ads usar numa conexão —
+ * chamada pelo gestor depois de escolher numa lista (Fase 20), quando
+ * a descoberta automática não pôde decidir sozinha. */
+async function handleSelectAccount(req: Request) {
+  const auth = await requireAdminOrGestor(req)
+  if (auth instanceof Response) return auth
+
+  let body: { connection_id?: string; customer_id?: string; login_customer_id?: string }
+  try {
+    body = await req.json()
+  } catch {
+    return jsonResponse({ error: 'Corpo inválido' }, 400)
+  }
+  if (!body.connection_id || !body.customer_id || !body.login_customer_id) {
+    return jsonResponse({ error: 'connection_id, customer_id e login_customer_id são obrigatórios' }, 400)
+  }
+
+  const supabase = getServiceClient()
+
+  const { data: connection, error: connectionError } = await supabase
+    .from('digital_asset_connections')
+    .select('id, provider')
+    .eq('id', body.connection_id)
+    .maybeSingle()
+  if (connectionError) return dbErrorResponse('handleSelectAccount: buscar conexão', connectionError)
+  if (!connection) return jsonResponse({ error: 'Conexão não encontrada' }, 404)
+  if (connection.provider !== 'google_ads') {
+    return jsonResponse({ error: 'Essa escolha só existe pra conexões de Google Ads' }, 400)
+  }
+
+  const { error: updateError } = await supabase
+    .from('digital_asset_connections')
+    .update({ external_account_id: body.customer_id, login_customer_id: body.login_customer_id })
+    .eq('id', connection.id)
+  if (updateError) return dbErrorResponse('handleSelectAccount: gravar conta escolhida', updateError)
+
+  return jsonResponse({ ok: true })
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -1140,11 +1332,16 @@ Deno.serve(async (req) => {
     if (req.method === 'GET' && url.pathname.endsWith('/connect')) return await handleConnect(req, url)
     if (req.method === 'GET' && url.pathname.endsWith('/callback')) return await handleCallback(url)
     if (req.method === 'GET' && url.pathname.endsWith('/campaigns')) return await handleListCampaigns(req, url)
+    if (req.method === 'GET' && url.pathname.endsWith('/accounts')) return await handleListGoogleAdsAccounts(req, url)
+    if (req.method === 'POST' && url.pathname.endsWith('/select-account')) return await handleSelectAccount(req)
     if (req.method === 'POST' && url.pathname.endsWith('/sync-all')) return await handleSyncAll(req)
     if (req.method === 'POST' && url.pathname.endsWith('/sync')) return await handleSync(req)
     if (req.method === 'POST' && url.pathname.endsWith('/forms-webhook')) return await handleFormsWebhook(req)
     return jsonResponse(
-      { error: 'Rota não encontrada. Use /connect, /callback, /campaigns, /sync, /sync-all ou /forms-webhook.' },
+      {
+        error:
+          'Rota não encontrada. Use /connect, /callback, /campaigns, /accounts, /select-account, /sync, /sync-all ou /forms-webhook.',
+      },
       404,
     )
   } catch (err) {

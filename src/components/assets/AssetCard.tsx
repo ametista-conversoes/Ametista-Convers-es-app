@@ -3,6 +3,7 @@ import { Boxes, ExternalLink, Pencil, Plug, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConnectIntegrationDialog } from '@/components/assets/ConnectIntegrationDialog'
 import { AssetFormDialog } from '@/components/assets/AssetFormDialog'
+import { SelectGoogleAdsAccountDialog } from '@/components/assets/SelectGoogleAdsAccountDialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -117,19 +118,22 @@ export function AssetCard({ asset, deleteMode, connections }: AssetCardProps) {
                 </Badge>
               </span>
               {connection.status === 'connected' &&
-                (connection.provider === 'google_ads' || connection.provider === 'meta_ads') && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2 text-muted-foreground hover:text-foreground"
-                  disabled={syncingId === connection.id}
-                  onClick={() => handleSync(connection.id)}
-                >
-                  <RefreshCw className={`h-3 w-3 ${syncingId === connection.id ? 'animate-spin' : ''}`} />
-                  Sincronizar agora
-                </Button>
-              )}
+                (connection.provider === 'google_ads' || connection.provider === 'meta_ads') &&
+                (connection.external_account_id ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-muted-foreground hover:text-foreground"
+                    disabled={syncingId === connection.id}
+                    onClick={() => handleSync(connection.id)}
+                  >
+                    <RefreshCw className={`h-3 w-3 ${syncingId === connection.id ? 'animate-spin' : ''}`} />
+                    Sincronizar agora
+                  </Button>
+                ) : (
+                  connection.provider === 'google_ads' && <SelectGoogleAdsAccountDialog connectionId={connection.id} />
+                ))}
             </div>
           ))}
           <ConnectIntegrationDialog
