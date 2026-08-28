@@ -16,6 +16,8 @@ import Project from '@/pages/client/Project'
 import Reports from '@/pages/client/Reports'
 import Tasks from '@/pages/client/Tasks'
 import Home from '@/pages/Home'
+import PrivacyPolicy from '@/pages/legal/PrivacyPolicy'
+import TermsOfUse from '@/pages/legal/TermsOfUse'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import Settings from '@/pages/Settings'
 import Assets from '@/pages/admin/Assets'
@@ -101,6 +103,10 @@ function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      {/* Públicas de propósito (sem ProtectedRoute) — precisam abrir sem
+          login pro Google conseguir verificar a tela de consentimento OAuth. */}
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<TermsOfUse />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>

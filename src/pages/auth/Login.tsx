@@ -61,6 +61,15 @@ export default function Login() {
           <Link to="/register" className="text-purple-400 hover:underline">
             Criar conta
           </Link>
+          <div className="mt-3 text-xs">
+            <Link to="/privacy" className="text-muted-foreground hover:underline">
+              Política de Privacidade
+            </Link>
+            <span className="mx-2">·</span>
+            <Link to="/terms" className="text-muted-foreground hover:underline">
+              Termos de Uso
+            </Link>
+          </div>
         </>
       }
     >
