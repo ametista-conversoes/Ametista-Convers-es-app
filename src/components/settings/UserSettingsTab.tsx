@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { LogOut, User as UserIcon } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -144,6 +144,16 @@ export function UserSettingsTab() {
           </Dialog>
         </CardContent>
       </Card>
+
+      <p className="text-center text-xs text-muted-foreground">
+        <Link to="/privacy" target="_blank" rel="noreferrer" className="hover:underline">
+          Política de Privacidade
+        </Link>
+        <span className="mx-2">·</span>
+        <Link to="/terms" target="_blank" rel="noreferrer" className="hover:underline">
+          Termos de Uso
+        </Link>
+      </p>
     </div>
   )
 }
