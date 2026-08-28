@@ -72,6 +72,28 @@ const managerPagesReady: Record<string, ComponentType> = {
   '/client-cassie': ManagerCassie,
 }
 
+// Rotas de "clientNavItems" compartilhadas pelos 3 papéis, fora do
+// RoleRoute abaixo: "/" tem seu próprio redirecionamento por papel
+// dentro de Home.tsx (envolver em RoleRoute causaria loop, já que o
+// AccessDenied do RoleRoute manda de volta pra "/"); "/settings" é
+// intencionalmente compartilhada pelos 3 papéis (ver Sidebar.tsx).
+const CLIENT_ROUTES_SHARED_WITH_OTHER_ROLES = new Set(['/', '/settings'])
+
+function renderNavRoute(
+  item: { href: string; title: string },
+  pagesReady: Record<string, ComponentType>,
+  portal: 'Portal Cliente' | 'Portal Gestor',
+) {
+  const ReadyPage = pagesReady[item.href]
+  return (
+    <Route
+      key={item.href}
+      path={item.href}
+      element={ReadyPage ? <ReadyPage /> : <PlaceholderPage title={item.title} portal={portal} />}
+    />
+  )
+}
+
 function App() {
   return (
     <Routes>
@@ -82,32 +104,27 @@ function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          {clientNavItems.map((item) => {
-            const ReadyPage = clientPagesReady[item.href]
-            return (
-              <Route
-                key={item.href}
-                path={item.href}
-                element={ReadyPage ? <ReadyPage /> : <PlaceholderPage title={item.title} portal="Portal Cliente" />}
-              />
-            )
-          })}
+          {clientNavItems
+            .filter((item) => CLIENT_ROUTES_SHARED_WITH_OTHER_ROLES.has(item.href))
+            .map((item) => renderNavRoute(item, clientPagesReady, 'Portal Cliente'))}
           {/* "/performance" virou uma aba de "/reports" na Fase 18 (páginas
               quase duplicadas) — mesmo padrão de redirecionamento do
               "/alerts" e "/onboarding" abaixo. */}
           <Route path="/performance" element={<Navigate to="/reports" replace />} />
 
+          {/* Defesa em profundidade (Fase 20.2) — as telas do Portal
+              Cliente já filtram os próprios dados pelo client_id de quem
+              está logado, então admin/gestor sem cliente vinculado só
+              veem o aviso de "conta não vinculada"; isso aqui bloqueia o
+              acesso à rota antes mesmo de chegar lá. */}
+          <Route element={<RoleRoute allowedRoles={['cliente']} />}>
+            {clientNavItems
+              .filter((item) => !CLIENT_ROUTES_SHARED_WITH_OTHER_ROLES.has(item.href))
+              .map((item) => renderNavRoute(item, clientPagesReady, 'Portal Cliente'))}
+          </Route>
+
           <Route element={<RoleRoute allowedRoles={['admin', 'gestor']} />}>
-            {managerNavItems.map((item) => {
-              const ReadyPage = managerPagesReady[item.href]
-              return (
-                <Route
-                  key={item.href}
-                  path={item.href}
-                  element={ReadyPage ? <ReadyPage /> : <PlaceholderPage title={item.title} portal="Portal Gestor" />}
-                />
-              )
-            })}
+            {managerNavItems.map((item) => renderNavRoute(item, managerPagesReady, 'Portal Gestor'))}
             {/* "/status" mostra o mesmo conteúdo de "/incidents" (sem item próprio no menu) */}
             <Route path="/status" element={<Incidents />} />
             {/* "/alerts" existia separado antes da Fase 6.5.6 (Incidentes e

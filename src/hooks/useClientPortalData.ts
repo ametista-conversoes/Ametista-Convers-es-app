@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -268,6 +269,9 @@ export function useCreateTask() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', clientId] })
     },
+    onError: () => {
+      toast.error('Não foi possível criar a tarefa.')
+    },
   })
 }
 
@@ -282,6 +286,9 @@ export function useSetTaskStatus() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', clientId] })
     },
+    onError: () => {
+      toast.error('Não foi possível atualizar o status da tarefa.')
+    },
   })
 }
 
@@ -295,6 +302,9 @@ export function useDeleteTask() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', clientId] })
+    },
+    onError: () => {
+      toast.error('Não foi possível excluir a tarefa.')
     },
   })
 }
@@ -351,6 +361,9 @@ export function useCreateComment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['comments', clientId] })
     },
+    onError: () => {
+      toast.error('Não foi possível enviar o comentário.')
+    },
   })
 }
 
@@ -370,6 +383,9 @@ export function useCreateMeeting() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meetings', clientId] })
+    },
+    onError: () => {
+      toast.error('Não foi possível agendar a reunião.')
     },
   })
 }
@@ -391,6 +407,12 @@ export function useRequestEmergencyMeeting() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meetings', clientId] })
     },
+    onError: (err) => {
+      // O RPC lança mensagens específicas e seguras de mostrar (regra de
+      // negócio: plano, limite mensal, horário indisponível) — mantém
+      // elas em vez de trocar por uma mensagem genérica.
+      toast.error(err instanceof Error ? err.message : 'Não foi possível solicitar a reunião de emergência.')
+    },
   })
 }
 
@@ -405,6 +427,9 @@ export function useCancelMeeting() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meetings', clientId] })
     },
+    onError: () => {
+      toast.error('Não foi possível cancelar a reunião.')
+    },
   })
 }
 
@@ -418,6 +443,9 @@ export function useDeleteMeeting() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meetings', clientId] })
+    },
+    onError: () => {
+      toast.error('Não foi possível excluir a reunião.')
     },
   })
 }
@@ -457,6 +485,9 @@ export function useCreateFileItem() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['file-items', clientId] })
     },
+    onError: () => {
+      toast.error('Não foi possível enviar o arquivo.')
+    },
   })
 }
 
@@ -470,6 +501,9 @@ export function useDeleteFile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['file-items', clientId] })
+    },
+    onError: () => {
+      toast.error('Não foi possível excluir o arquivo.')
     },
   })
 }
@@ -517,6 +551,9 @@ export function useRespondToApproval() {
       // "respond_to_approval" no banco) — invalida também Arquivos pra
       // ela aparecer lá sem precisar recarregar a página.
       queryClient.invalidateQueries({ queryKey: ['file-items', clientId] })
+    },
+    onError: () => {
+      toast.error('Não foi possível responder à aprovação.')
     },
   })
 }
@@ -577,6 +614,9 @@ export function useUpdateProfile() {
     onSuccess: async () => {
       await refreshProfile()
     },
+    onError: () => {
+      toast.error('Não foi possível atualizar o perfil.')
+    },
   })
 }
 
@@ -617,6 +657,9 @@ export function useUpdateOrganization() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organization'] })
     },
+    onError: () => {
+      toast.error('Não foi possível atualizar a organização.')
+    },
   })
 }
 
@@ -652,6 +695,9 @@ export function useTriggerEmergencyPause() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects', clientId] })
+    },
+    onError: () => {
+      toast.error('Não foi possível acionar a pausa de emergência.')
     },
   })
 }

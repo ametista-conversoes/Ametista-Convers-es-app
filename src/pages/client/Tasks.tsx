@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { toast } from 'sonner'
 import { NewTaskDialog } from '@/components/tasks/NewTaskDialog'
 import { TaskList } from '@/components/tasks/TaskList'
 import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
@@ -39,7 +38,7 @@ export default function Tasks() {
     try {
       await setTaskStatus.mutateAsync({ taskId, status })
     } catch {
-      toast.error('Não foi possível atualizar a tarefa.')
+      // erro já avisado pelo onError do hook
     } finally {
       setUpdatingTaskId(null)
     }

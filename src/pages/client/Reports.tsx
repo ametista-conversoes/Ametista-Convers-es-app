@@ -24,9 +24,9 @@ import { aggregateSnapshotKpis, buildTrendSeries, computeRevenueFromLeads, compu
 
 export default function Reports() {
   const { clientId } = useAuth()
-  const { data: client, isLoading: loadingClient } = useClient()
-  const { data: projects, isLoading: loadingProjects } = useProjects()
-  const { data: snapshots, isLoading: loadingSnapshots } = usePerformanceSnapshots()
+  const { data: client, isLoading: loadingClient, isError: clientIsError } = useClient()
+  const { data: projects, isLoading: loadingProjects, isError: projectsIsError } = useProjects()
+  const { data: snapshots, isLoading: loadingSnapshots, isError: snapshotsIsError } = usePerformanceSnapshots()
 
   if (!clientId) {
     return <UnlinkedClientNotice page="Relatórios" />
@@ -34,6 +34,10 @@ export default function Reports() {
 
   if (loadingClient || loadingProjects || loadingSnapshots) {
     return <p className="text-sm text-muted-foreground">Carregando...</p>
+  }
+
+  if (clientIsError || projectsIsError || snapshotsIsError) {
+    return <p className="text-sm text-destructive">Erro ao carregar os dados. Tente novamente.</p>
   }
 
   const projectList = projects ?? []

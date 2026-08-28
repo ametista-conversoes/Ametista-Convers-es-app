@@ -96,7 +96,7 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
       }
       setOpen(false)
     } catch {
-      toast.error(isEdit ? 'Não foi possível atualizar o modelo.' : 'Não foi possível criar o modelo.')
+      // erro já avisado pelo onError do hook
     }
   }
 

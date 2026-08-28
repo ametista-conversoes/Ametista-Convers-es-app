@@ -106,7 +106,7 @@ export function KanbanTaskFormDialog({ trigger, task, defaultClientId, defaultPr
       }
       setOpen(false)
     } catch {
-      toast.error(isEdit ? 'Não foi possível atualizar a tarefa.' : 'Não foi possível criar a tarefa.')
+      // erro já avisado pelo onError do hook
     }
   }
 

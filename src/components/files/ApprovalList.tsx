@@ -37,7 +37,7 @@ export function ApprovalList({ approvals }: ApprovalListProps) {
     try {
       await respondToApproval.mutateAsync({ approvalId: approval.id, status: 'approved', feedback: null })
     } catch {
-      toast.error('Não foi possível aprovar.')
+      // erro já avisado pelo onError do hook
     }
   }
 
@@ -51,7 +51,7 @@ export function ApprovalList({ approvals }: ApprovalListProps) {
       })
       setDialogFor(null)
     } catch {
-      toast.error('Não foi possível registrar a resposta.')
+      // erro já avisado pelo onError do hook
     }
   }
 

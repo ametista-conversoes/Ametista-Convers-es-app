@@ -1,5 +1,4 @@
 import { DndContext, type DragEndEvent, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { toast } from 'sonner'
 import { KanbanColumn } from './KanbanColumn'
 import type { ManagerTaskRecord } from '@/hooks/useManagerPortalData'
 import { useUpdateTaskStatus } from '@/hooks/useManagerPortalData'
@@ -35,7 +34,7 @@ export function KanbanBoard({ tasks, deleteMode }: KanbanBoardProps) {
     try {
       await updateTaskStatus.mutateAsync({ taskId, status: newStatus })
     } catch {
-      toast.error('Não foi possível mover a tarefa.')
+      // erro já avisado pelo onError do hook
     }
   }
 

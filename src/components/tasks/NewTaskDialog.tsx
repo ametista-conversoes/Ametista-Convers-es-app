@@ -12,7 +12,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { toast } from 'sonner'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
@@ -58,7 +57,7 @@ export function NewTaskDialog() {
       form.reset()
       setOpen(false)
     } catch {
-      toast.error('Não foi possível criar a tarefa.')
+      // erro já avisado pelo onError do hook
     }
   }
 

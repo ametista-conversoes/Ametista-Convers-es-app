@@ -13,8 +13,8 @@ import { projectStatusLabels, projectStatusStyles } from '@/lib/status-styles'
 
 export default function Project() {
   const { clientId } = useAuth()
-  const { data: client, isLoading: loadingClient } = useClient()
-  const { data: projects, isLoading: loadingProjects } = useProjects()
+  const { data: client, isLoading: loadingClient, isError: clientIsError } = useClient()
+  const { data: projects, isLoading: loadingProjects, isError: projectsIsError } = useProjects()
   const { data: tasks } = useTasks()
   const { data: goals } = useSmartGoals()
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
@@ -25,6 +25,10 @@ export default function Project() {
 
   if (loadingClient || loadingProjects) {
     return <p className="text-sm text-muted-foreground">Carregando...</p>
+  }
+
+  if (clientIsError || projectsIsError) {
+    return <p className="text-sm text-destructive">Erro ao carregar os dados. Tente novamente.</p>
   }
 
   const projectList = projects ?? []

@@ -23,8 +23,8 @@ import { aggregateSnapshotKpis, computeRevenueFromLeads, computeRoas } from '@/l
 
 export default function Dashboard() {
   const { clientId } = useAuth()
-  const { data: client, isLoading: loadingClient } = useClient()
-  const { data: snapshots, isLoading: loadingSnapshots } = usePerformanceSnapshots()
+  const { data: client, isLoading: loadingClient, isError: clientIsError } = useClient()
+  const { data: snapshots, isLoading: loadingSnapshots, isError: snapshotsIsError } = usePerformanceSnapshots()
   const { data: tasks } = useTasks()
   const { data: meetings } = useUpcomingMeetings()
   const { data: goals } = useSmartGoals()
@@ -36,6 +36,10 @@ export default function Dashboard() {
 
   if (loadingClient || loadingSnapshots) {
     return <p className="text-sm text-muted-foreground">Carregando...</p>
+  }
+
+  if (clientIsError || snapshotsIsError) {
+    return <p className="text-sm text-destructive">Erro ao carregar os dados. Tente novamente.</p>
   }
 
   const kpis = aggregateSnapshotKpis(snapshots ?? [])

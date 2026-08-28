@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Siren } from 'lucide-react'
-import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -32,7 +31,7 @@ export function IncidentAlertList({ incidents, alerts, deleteMode }: IncidentAle
     try {
       await resolveAlert.mutateAsync(alertId)
     } catch {
-      toast.error('Não foi possível resolver o alerta.')
+      // erro já avisado pelo onError do hook
     }
   }
 

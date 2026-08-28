@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Send } from 'lucide-react'
-import { toast } from 'sonner'
 import { AudioRecorderButton } from '@/components/comments/AudioRecorderButton'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -25,7 +24,7 @@ export function NewManagerCommentForm({ clientId }: NewManagerCommentFormProps) 
       setTitle('')
       setContent('')
     } catch {
-      toast.error('Não foi possível enviar a mensagem.')
+      // erro já avisado pelo onError do hook
     }
   }
 

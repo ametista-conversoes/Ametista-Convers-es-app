@@ -24,7 +24,7 @@ export function ManagerMeetingList({ meetings }: ManagerMeetingListProps) {
       await completeMeeting.mutateAsync(meetingId)
       toast.success('Reunião concluída.')
     } catch {
-      toast.error('Não foi possível concluir a reunião.')
+      // erro já avisado pelo onError do hook
     }
   }
 

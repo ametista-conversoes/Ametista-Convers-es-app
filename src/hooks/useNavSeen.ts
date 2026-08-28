@@ -35,6 +35,9 @@ function useMarkNavSeenMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['nav-last-seen', user?.id] })
     },
+    onError: (err) => {
+      console.error('Não foi possível marcar a aba como vista:', err)
+    },
   })
 }
 

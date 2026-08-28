@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -37,7 +36,7 @@ export function CancelMeetingDialog({ meetingTitle, onCancel }: CancelMeetingDia
       await onCancel(reason.trim())
       handleOpenChange(false)
     } catch {
-      toast.error('Não foi possível cancelar a reunião.')
+      // erro já avisado pelo onError do hook
     } finally {
       setIsSubmitting(false)
     }

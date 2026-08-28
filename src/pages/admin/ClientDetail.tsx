@@ -81,7 +81,7 @@ const CHANGEABLE_STATUSES = ['active', 'onboarding', 'paused', 'at_risk', 'churn
 
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>()
-  const { data: client, isLoading } = useManagerClient(id ?? null)
+  const { data: client, isLoading, isError: clientIsError } = useManagerClient(id ?? null)
   const { data: projects } = useAllProjects()
   const { data: tasks } = useAllTasks()
   const { data: goals } = useAllSmartGoals()
@@ -117,6 +117,10 @@ export default function ClientDetail() {
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Carregando...</p>
+  }
+
+  if (clientIsError) {
+    return <p className="text-sm text-destructive">Erro ao carregar os dados. Tente novamente.</p>
   }
 
   if (!client) {
@@ -186,7 +190,7 @@ export default function ClientDetail() {
       })
       toast.success('Dados do cliente atualizados.')
     } catch {
-      toast.error('Não foi possível salvar os dados.')
+      // erro já avisado pelo onError do hook
     } finally {
       setSavingDetails(false)
     }
@@ -356,11 +360,7 @@ export default function ClientDetail() {
                     size="sm"
                     className="h-7 text-xs"
                     disabled={recomputeHealthScore.isPending}
-                    onClick={() =>
-                      recomputeHealthScore.mutate(client.id, {
-                        onError: () => toast.error('Não foi possível recalcular o Health Score.'),
-                      })
-                    }
+                    onClick={() => recomputeHealthScore.mutate(client.id)}
                   >
                     <RefreshCw className={`h-3.5 w-3.5 ${recomputeHealthScore.isPending ? 'animate-spin' : ''}`} />
                     Recalcular agora

@@ -74,8 +74,8 @@ export function EmergencyMeetingDialog() {
       })
       toast.success('Reunião de emergência solicitada!')
       handleOpenChange(false)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Não foi possível solicitar a reunião.')
+    } catch {
+      // erro já avisado pelo onError do hook
     } finally {
       setSubmitting(false)
     }

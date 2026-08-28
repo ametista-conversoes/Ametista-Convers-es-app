@@ -53,7 +53,7 @@ export function AgencySettingsTab({ canEdit }: AgencySettingsTabProps) {
       })
       toast.success('Dados da agência atualizados.')
     } catch {
-      toast.error('Não foi possível salvar os dados da agência.')
+      // erro já avisado pelo onError do hook
     }
   }
 

@@ -41,7 +41,7 @@ export function MeetingRecurrenceDialog() {
       await enroll.mutateAsync(clientId)
       toast.success('Recorrência ativada — 3 reuniões já foram criadas.')
     } catch {
-      toast.error('Não foi possível ativar a recorrência.')
+      // erro já avisado pelo onError do hook
     }
   }
 
@@ -50,7 +50,7 @@ export function MeetingRecurrenceDialog() {
       await setActive.mutateAsync({ clientId, active: false })
       toast.success('Recorrência desativada.')
     } catch {
-      toast.error('Não foi possível desativar a recorrência.')
+      // erro já avisado pelo onError do hook
     }
   }
 

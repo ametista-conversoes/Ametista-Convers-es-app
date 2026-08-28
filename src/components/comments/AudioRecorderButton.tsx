@@ -40,7 +40,7 @@ export function AudioRecorderButton({ onSend }: AudioRecorderButtonProps) {
       await onSend(blob, seconds)
       discard()
     } catch {
-      toast.error('Não foi possível enviar a mensagem de voz.')
+      // erro já avisado pelo onError do hook
     } finally {
       setSending(false)
     }

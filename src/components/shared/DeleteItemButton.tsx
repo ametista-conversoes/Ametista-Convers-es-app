@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -31,7 +30,7 @@ export function DeleteItemButton({ label, onDelete, className }: DeleteItemButto
       await onDelete()
       setOpen(false)
     } catch {
-      toast.error('Não foi possível apagar.')
+      // erro já avisado pelo onError do hook
     } finally {
       setIsDeleting(false)
     }

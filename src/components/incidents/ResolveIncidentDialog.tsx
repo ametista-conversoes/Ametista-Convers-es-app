@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -33,7 +32,7 @@ export function ResolveIncidentDialog({ incident, onOpenChange }: ResolveInciden
       await resolveIncident.mutateAsync({ incidentId: incident.id, resolution })
       handleOpenChange(false)
     } catch {
-      toast.error('Não foi possível resolver o incidente.')
+      // erro já avisado pelo onError do hook
     }
   }
 

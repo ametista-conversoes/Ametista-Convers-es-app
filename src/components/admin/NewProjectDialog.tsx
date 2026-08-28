@@ -74,7 +74,7 @@ export function NewProjectDialog({ clientId }: NewProjectDialogProps) {
       form.reset()
       setOpen(false)
     } catch {
-      toast.error('Não foi possível criar o projeto.')
+      // erro já avisado pelo onError do hook
     }
   }
 

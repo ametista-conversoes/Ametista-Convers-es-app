@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { toast } from 'sonner'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import {
@@ -64,7 +63,7 @@ export function UpdateGoalProgressDialog({ goal }: UpdateGoalProgressDialogProps
       })
       setOpen(false)
     } catch {
-      toast.error('Não foi possível atualizar o progresso.')
+      // erro já avisado pelo onError do hook
     }
   }
 

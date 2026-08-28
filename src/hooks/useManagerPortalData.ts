@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { aggregateAudienceInsights, type AudienceRawResponse } from '@/lib/audience-insights'
 import { severityRank } from '@/lib/status-styles'
@@ -144,6 +145,9 @@ export function useUpdateClientDetails() {
       queryClient.invalidateQueries({ queryKey: ['manager-clients'] })
       queryClient.invalidateQueries({ queryKey: ['manager-client', id] })
     },
+    onError: () => {
+      toast.error('Não foi possível atualizar os dados do cliente.')
+    },
   })
 }
 
@@ -156,6 +160,9 @@ export function useUpdateClientStatus() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-clients'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível atualizar o status do cliente.')
     },
   })
 }
@@ -171,6 +178,9 @@ export function useRecomputeClientHealthScore() {
       queryClient.invalidateQueries({ queryKey: ['manager-client', clientId] })
       queryClient.invalidateQueries({ queryKey: ['manager-clients'] })
     },
+    onError: () => {
+      toast.error('Não foi possível recalcular o Health Score do cliente.')
+    },
   })
 }
 
@@ -183,6 +193,9 @@ export function useDeleteClient() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-clients'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível excluir o cliente.')
     },
   })
 }
@@ -224,6 +237,9 @@ export function useCreateIncident() {
       queryClient.invalidateQueries({ queryKey: ['manager-incidents'] })
       queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
     },
+    onError: () => {
+      toast.error('Não foi possível criar o incidente.')
+    },
   })
 }
 
@@ -241,6 +257,9 @@ export function useResolveIncident() {
       queryClient.invalidateQueries({ queryKey: ['manager-incidents'] })
       queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
     },
+    onError: () => {
+      toast.error('Não foi possível resolver o incidente.')
+    },
   })
 }
 
@@ -253,6 +272,9 @@ export function useDeleteIncident() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-incidents'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível excluir o incidente.')
     },
   })
 }
@@ -285,6 +307,9 @@ export function useResolveAlert() {
       queryClient.invalidateQueries({ queryKey: ['manager-alerts'] })
       queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
     },
+    onError: () => {
+      toast.error('Não foi possível resolver o alerta.')
+    },
   })
 }
 
@@ -297,6 +322,9 @@ export function useDeleteAlert() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-alerts'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível excluir o alerta.')
     },
   })
 }
@@ -350,6 +378,9 @@ export function useCreateProject() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-projects'] })
     },
+    onError: () => {
+      toast.error('Não foi possível criar o projeto.')
+    },
   })
 }
 
@@ -375,6 +406,9 @@ export function useUpdateProject() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-projects'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível atualizar o projeto.')
     },
   })
 }
@@ -452,6 +486,9 @@ export function useUpdateTaskStatus() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-tasks'] })
     },
+    onError: () => {
+      toast.error('Não foi possível atualizar o status da tarefa.')
+    },
   })
 }
 
@@ -464,6 +501,9 @@ export function useDeleteManagerTask() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-tasks'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível excluir a tarefa.')
     },
   })
 }
@@ -487,6 +527,9 @@ export function useCreateManagerTask() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-tasks'] })
     },
+    onError: () => {
+      toast.error('Não foi possível criar a tarefa.')
+    },
   })
 }
 
@@ -499,6 +542,9 @@ export function useUpdateManagerTask() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-tasks'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível atualizar a tarefa.')
     },
   })
 }
@@ -533,6 +579,9 @@ export function useApplyWorkflow() {
       queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
       queryClient.invalidateQueries({ queryKey: ['activity-checklist-items'] })
     },
+    onError: () => {
+      toast.error('Não foi possível aplicar o workflow.')
+    },
   })
 }
 
@@ -551,6 +600,9 @@ export function useSetClientDefaultWorkflow() {
     onSuccess: (_data, { clientId }) => {
       queryClient.invalidateQueries({ queryKey: ['manager-clients'] })
       queryClient.invalidateQueries({ queryKey: ['manager-client', clientId] })
+    },
+    onError: () => {
+      toast.error('Não foi possível salvar o workflow padrão do cliente.')
     },
   })
 }
@@ -605,6 +657,9 @@ export function useCreateWorkflowTemplate() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflow-templates'] })
     },
+    onError: () => {
+      toast.error('Não foi possível criar o modelo de workflow.')
+    },
   })
 }
 
@@ -618,6 +673,9 @@ export function useDeleteWorkflowTemplate() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflow-templates'] })
     },
+    onError: () => {
+      toast.error('Não foi possível excluir o modelo de workflow.')
+    },
   })
 }
 
@@ -630,6 +688,9 @@ export function useUpdateWorkflowTemplate() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflow-templates'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível atualizar o modelo de workflow.')
     },
   })
 }
@@ -674,6 +735,9 @@ export function useCreateClientWorkflowTemplate() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['client-workflow-templates'] })
     },
+    onError: () => {
+      toast.error('Não foi possível criar o workflow do cliente.')
+    },
   })
 }
 
@@ -687,6 +751,9 @@ export function useUpdateClientWorkflowTemplate() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['client-workflow-templates'] })
     },
+    onError: () => {
+      toast.error('Não foi possível atualizar o workflow do cliente.')
+    },
   })
 }
 
@@ -699,6 +766,9 @@ export function useDeleteClientWorkflowTemplate() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['client-workflow-templates'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível excluir o workflow do cliente.')
     },
   })
 }
@@ -716,6 +786,9 @@ export function useApplyClientWorkflow() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-tasks'] })
       queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível aplicar o workflow ao cliente.')
     },
   })
 }
@@ -768,6 +841,9 @@ export function useCreateActivityTemplate() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activity-templates'] })
     },
+    onError: () => {
+      toast.error('Não foi possível criar o modelo de atividade.')
+    },
   })
 }
 
@@ -780,6 +856,9 @@ export function useUpdateActivityTemplate() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activity-templates'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível atualizar o modelo de atividade.')
     },
   })
 }
@@ -794,6 +873,9 @@ export function useDeleteActivityTemplate() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activity-templates'] })
     },
+    onError: () => {
+      toast.error('Não foi possível excluir o modelo de atividade.')
+    },
   })
 }
 
@@ -806,6 +888,9 @@ export function useSetDefaultActivityTemplate() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activity-templates'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível marcar o modelo como padrão.')
     },
   })
 }
@@ -822,6 +907,9 @@ export function useUnsetDefaultActivityTemplate() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activity-templates'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível desmarcar o modelo como padrão.')
     },
   })
 }
@@ -872,6 +960,9 @@ export function useCreateActivityChecklistItem() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activity-checklist-items'] })
     },
+    onError: () => {
+      toast.error('Não foi possível criar o item da checklist.')
+    },
   })
 }
 
@@ -885,6 +976,9 @@ export function useToggleActivityChecklistItem() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activity-checklist-items'] })
     },
+    onError: () => {
+      toast.error('Não foi possível marcar o item da checklist.')
+    },
   })
 }
 
@@ -897,6 +991,9 @@ export function useDeleteActivityChecklistItem() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activity-checklist-items'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível excluir o item da checklist.')
     },
   })
 }
@@ -1129,6 +1226,9 @@ export function useCreateDigitalAsset() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-digital-assets'] })
     },
+    onError: () => {
+      toast.error('Não foi possível criar o ativo digital.')
+    },
   })
 }
 
@@ -1141,6 +1241,9 @@ export function useUpdateDigitalAsset() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-digital-assets'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível atualizar o ativo digital.')
     },
   })
 }
@@ -1155,6 +1258,9 @@ export function useUpdateDigitalAssetStatus() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-digital-assets'] })
     },
+    onError: () => {
+      toast.error('Não foi possível atualizar o status do ativo digital.')
+    },
   })
 }
 
@@ -1167,6 +1273,9 @@ export function useDeleteDigitalAsset() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-digital-assets'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível excluir o ativo digital.')
     },
   })
 }
@@ -1218,6 +1327,9 @@ export function useCreateSmartGoal() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-smart-goals'] })
     },
+    onError: () => {
+      toast.error('Não foi possível criar a meta.')
+    },
   })
 }
 
@@ -1242,6 +1354,9 @@ export function useUpdateSmartGoalProgress() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-smart-goals'] })
     },
+    onError: () => {
+      toast.error('Não foi possível atualizar o progresso da meta.')
+    },
   })
 }
 
@@ -1254,6 +1369,9 @@ export function useDeleteSmartGoal() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-smart-goals'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível excluir a meta.')
     },
   })
 }
@@ -1323,6 +1441,9 @@ export function useCreateManagerComment() {
     onSuccess: (_data, { clientId }) => {
       queryClient.invalidateQueries({ queryKey: ['manager-comments', clientId] })
     },
+    onError: () => {
+      toast.error('Não foi possível enviar o comentário.')
+    },
   })
 }
 
@@ -1369,6 +1490,9 @@ export function useCreateManagerMeeting() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-meetings'] })
     },
+    onError: () => {
+      toast.error('Não foi possível agendar a reunião.')
+    },
   })
 }
 
@@ -1381,6 +1505,9 @@ export function useCancelManagerMeeting() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-meetings'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível cancelar a reunião.')
     },
   })
 }
@@ -1395,6 +1522,9 @@ export function useDeleteManagerMeeting() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-meetings'] })
     },
+    onError: () => {
+      toast.error('Não foi possível excluir a reunião.')
+    },
   })
 }
 
@@ -1407,6 +1537,9 @@ export function useCompleteManagerMeeting() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-meetings'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível concluir a reunião.')
     },
   })
 }
@@ -1443,6 +1576,12 @@ export function useEnrollMeetingRecurrence() {
       queryClient.invalidateQueries({ queryKey: ['manager-meeting-recurrence', clientId] })
       queryClient.invalidateQueries({ queryKey: ['manager-meetings'] })
     },
+    onError: (err) => {
+      // O RPC lança uma mensagem específica e segura de mostrar quando o
+      // cliente não tem plano definido — mantém em vez de trocar por uma
+      // mensagem genérica.
+      toast.error(err instanceof Error ? err.message : 'Não foi possível ativar a recorrência de reuniões.')
+    },
   })
 }
 
@@ -1458,6 +1597,9 @@ export function useSetMeetingRecurrenceActive() {
     },
     onSuccess: (_data, { clientId }) => {
       queryClient.invalidateQueries({ queryKey: ['manager-meeting-recurrence', clientId] })
+    },
+    onError: () => {
+      toast.error('Não foi possível atualizar a recorrência de reuniões.')
     },
   })
 }
@@ -1507,6 +1649,9 @@ export function useCreateManagerFileItem() {
     onSuccess: (_data, { client_id }) => {
       queryClient.invalidateQueries({ queryKey: ['manager-file-items', client_id] })
     },
+    onError: () => {
+      toast.error('Não foi possível enviar o arquivo.')
+    },
   })
 }
 
@@ -1554,6 +1699,9 @@ export function useCreateManagerApproval() {
     },
     onSuccess: (_data, { client_id }) => {
       queryClient.invalidateQueries({ queryKey: ['manager-approvals', client_id] })
+    },
+    onError: () => {
+      toast.error('Não foi possível enviar a aprovação.')
     },
   })
 }
@@ -1618,6 +1766,9 @@ export function useCreateClient() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-clients'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível criar o cliente.')
     },
   })
 }

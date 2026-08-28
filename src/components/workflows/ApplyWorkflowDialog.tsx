@@ -88,7 +88,7 @@ export function ApplyWorkflowDialog({ template: fixedTemplate, lockedClientId }:
       toast.success(`${template.steps.length} tarefas criadas ${destinationMsg}.${activitiesMsg}`)
       handleOpenChange(false)
     } catch {
-      toast.error('Não foi possível aplicar o workflow.')
+      // erro já avisado pelo onError do hook
     }
   }
 

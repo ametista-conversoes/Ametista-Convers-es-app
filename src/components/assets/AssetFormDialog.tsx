@@ -101,7 +101,7 @@ export function AssetFormDialog({ trigger, asset }: AssetFormDialogProps) {
       }
       setOpen(false)
     } catch {
-      toast.error(isEdit ? 'Não foi possível atualizar o ativo.' : 'Não foi possível criar o ativo.')
+      // erro já avisado pelo onError do hook
     }
   }
 

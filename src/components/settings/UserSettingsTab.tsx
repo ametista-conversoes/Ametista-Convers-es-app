@@ -43,7 +43,7 @@ export function UserSettingsTab() {
       })
       toast.success('Dados atualizados.')
     } catch {
-      toast.error('Não foi possível salvar suas informações.')
+      // erro já avisado pelo onError do hook
     }
   }
 

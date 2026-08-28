@@ -45,7 +45,7 @@ export function EmergencyPauseButton() {
       toast.success('Pausa de emergência registrada. A agência foi notificada.')
       handleOpenChange(false)
     } catch {
-      toast.error('Não foi possível registrar a pausa de emergência.')
+      // erro já avisado pelo onError do hook
     }
   }
 

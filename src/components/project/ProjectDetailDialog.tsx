@@ -83,7 +83,7 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
       toast.success('Receita atualizada.')
       setEditingRevenue(false)
     } catch {
-      toast.error('Não foi possível salvar a receita.')
+      // erro já avisado pelo onError do hook
     }
   }
 
@@ -103,7 +103,7 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
       })
       toast.success('Campanha atualizada.')
     } catch {
-      toast.error('Não foi possível salvar a campanha.')
+      // erro já avisado pelo onError do hook
     }
   }
 
