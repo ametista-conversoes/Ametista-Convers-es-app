@@ -50,6 +50,7 @@
 //                                          Alerta genérico de "nova resposta", sem mudança)
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2'
+import { timingSafeEqual } from 'node:crypto'
 
 const PROVIDERS = ['google_ads', 'google_forms', 'meta_ads'] as const
 type Provider = (typeof PROVIDERS)[number]
@@ -133,6 +134,50 @@ function getServiceClient() {
   return createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
 }
 
+/** Compara em tempo constante (Fase 20.1) — evita que alguém descubra
+ * um segredo (X-Cron-Secret/X-Webhook-Secret) aos poucos, medindo
+ * quanto tempo cada tentativa errada leva pra falhar. */
+function safeCompare(a: string, b: string): boolean {
+  const bufA = new TextEncoder().encode(a)
+  const bufB = new TextEncoder().encode(b)
+  if (bufA.length !== bufB.length) return false
+  return timingSafeEqual(bufA, bufB)
+}
+
+// Fase 20.1: nunca devolver error.message bruto (Postgres/Google/Meta)
+// pro navegador — loga o erro completo no servidor (visível em Edge
+// Functions > Logs no painel do Supabase) e devolve só uma mensagem
+// genérica pro cliente.
+function dbErrorResponse(context: string, error: { message: string }) {
+  console.error(`[integrations] ${context}:`, error)
+  return jsonResponse({ error: 'Erro ao acessar o banco de dados. Tente novamente.' }, 500)
+}
+
+function platformErrorResponse(context: string, platform: string, body: unknown) {
+  console.error(`[integrations] ${context} — erro da ${platform}:`, body)
+  return jsonResponse({ error: `Erro ao consultar a ${platform}. Tente novamente.` }, 502)
+}
+
+function dbErrorRedirect(context: string, error: { message: string }) {
+  console.error(`[integrations] ${context}:`, error)
+  return callbackRedirect(false, 'Erro ao acessar o banco de dados. Tente novamente.')
+}
+
+function platformErrorRedirect(context: string, platform: string, body: unknown) {
+  console.error(`[integrations] ${context} — erro da ${platform}:`, body)
+  return callbackRedirect(false, `Não foi possível conectar com o ${platform}. Tente novamente.`)
+}
+
+function dbSyncError(context: string, error: { message: string }): { ok: false; error: string } {
+  console.error(`[integrations] ${context}:`, error)
+  return { ok: false, error: 'Erro ao acessar o banco de dados. Tente novamente.' }
+}
+
+function platformSyncError(context: string, platform: string, body: unknown): { ok: false; error: string } {
+  console.error(`[integrations] ${context} — erro da ${platform}:`, body)
+  return { ok: false, error: `Erro ao consultar a ${platform}. Tente novamente.` }
+}
+
 /** Só usado nas rotas chamadas pelo nosso próprio front-end (/connect,
  * /sync) — /callback e /forms-webhook são chamadas por fora (Google) e
  * se autenticam de outro jeito (ver comentário no topo do arquivo). */
@@ -200,7 +245,7 @@ async function handleConnect(req: Request, url: URL) {
     .select('id')
     .eq('id', digitalAssetId)
     .maybeSingle()
-  if (assetError) return jsonResponse({ error: assetError.message }, 500)
+  if (assetError) return dbErrorResponse('handleConnect: buscar ativo digital', assetError)
   if (!asset) return jsonResponse({ error: 'Ativo digital não encontrado' }, 404)
 
   const upsertPayload: Record<string, unknown> = { digital_asset_id: digitalAssetId, provider, status: 'disconnected' }
@@ -211,7 +256,7 @@ async function handleConnect(req: Request, url: URL) {
     .upsert(upsertPayload, { onConflict: 'digital_asset_id,provider', ignoreDuplicates: false })
     .select('id')
     .single()
-  if (connectionError) return jsonResponse({ error: connectionError.message }, 500)
+  if (connectionError) return dbErrorResponse('handleConnect: upsert conexão', connectionError)
 
   // Monta a URL de callback a partir do caminho da própria requisição
   // (troca só o final "/connect" por "/callback") combinado com
@@ -255,7 +300,7 @@ async function handleCallback(url: URL) {
     .select('id, provider')
     .eq('id', state)
     .maybeSingle()
-  if (connectionError) return callbackRedirect(false, connectionError.message)
+  if (connectionError) return dbErrorRedirect('handleCallback: buscar conexão', connectionError)
   if (!connection) return callbackRedirect(false, 'Conexão não encontrada (state inválido).')
 
   if (oauthError || !code) {
@@ -285,7 +330,7 @@ async function handleCallback(url: URL) {
     const shortTokenBody = await shortTokenRes.json()
     if (!shortTokenRes.ok) {
       await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connection.id)
-      return callbackRedirect(false, `Não foi possível conectar: ${shortTokenBody.error?.message ?? 'erro desconhecido'}.`)
+      return platformErrorRedirect('handleCallback: trocar token curto', 'Meta', shortTokenBody)
     }
 
     const longTokenUrl = new URL(META_TOKEN_URL)
@@ -298,10 +343,7 @@ async function handleCallback(url: URL) {
     const longTokenBody = await longTokenRes.json()
     if (!longTokenRes.ok) {
       await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connection.id)
-      return callbackRedirect(
-        false,
-        `Não foi possível trocar pelo token de longa duração: ${longTokenBody.error?.message ?? 'erro desconhecido'}.`,
-      )
+      return platformErrorRedirect('handleCallback: trocar token longo', 'Meta', longTokenBody)
     }
 
     accessToken = longTokenBody.access_token as string
@@ -322,7 +364,7 @@ async function handleCallback(url: URL) {
     const tokenBody = await tokenRes.json()
     if (!tokenRes.ok) {
       await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connection.id)
-      return callbackRedirect(false, `Não foi possível conectar: ${tokenBody.error_description ?? tokenBody.error ?? 'erro desconhecido'}.`)
+      return platformErrorRedirect('handleCallback: trocar token', 'Google', tokenBody)
     }
 
     accessToken = tokenBody.access_token as string
@@ -332,6 +374,7 @@ async function handleCallback(url: URL) {
 
   const { data: accessSecretId, error: accessSecretError } = await supabase.rpc('store_oauth_secret', { secret: accessToken })
   if (accessSecretError) {
+    console.error('[integrations] handleCallback: guardar token de acesso:', accessSecretError)
     await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connection.id)
     return callbackRedirect(false, 'Não foi possível guardar o token com segurança.')
   }
@@ -522,7 +565,7 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
     )
     const searchBody = await searchRes.json()
     if (!searchRes.ok) {
-      return { ok: false, error: searchBody.error?.message ?? 'Erro ao consultar a Google Ads API' }
+      return platformSyncError('syncConnection: Google Ads search', 'Google Ads', searchBody)
     }
 
     for (const row of (searchBody.results ?? []) as Array<Record<string, Record<string, unknown>>>) {
@@ -578,7 +621,7 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
     const insightsRes = await fetch(insightsUrl.toString())
     const insightsBody = await insightsRes.json()
     if (!insightsRes.ok) {
-      return { ok: false, error: insightsBody.error?.message ?? 'Erro ao consultar a Meta Marketing API' }
+      return platformSyncError('syncConnection: Meta insights', 'Meta Ads', insightsBody)
     }
 
     for (const row of (insightsBody.data ?? []) as Array<Record<string, unknown>>) {
@@ -632,7 +675,7 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
     const { error: upsertError } = await supabase
       .from('performance_snapshots')
       .upsert(rows, { onConflict: 'client_id,channel,snapshot_date' })
-    if (upsertError) return { ok: false, error: upsertError.message }
+    if (upsertError) return dbSyncError('syncConnection: upsert performance_snapshots', upsertError)
   }
 
   const campaignRows = Array.from(byCampaign.values()).map((c) => ({
@@ -652,7 +695,7 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
     const { error: campaignUpsertError } = await supabase
       .from('campaign_performance_snapshots')
       .upsert(campaignRows, { onConflict: 'connection_id,external_campaign_id,snapshot_date' })
-    if (campaignUpsertError) return { ok: false, error: campaignUpsertError.message }
+    if (campaignUpsertError) return dbSyncError('syncConnection: upsert campaign_performance_snapshots', campaignUpsertError)
   }
 
   await supabase.from('digital_asset_connections').update({ last_synced_at: new Date().toISOString() }).eq('id', connection.id)
@@ -802,7 +845,7 @@ async function syncFormsConnection(supabase: SupabaseClient, connection: Syncabl
   })
   const formBody = await formRes.json()
   if (!formRes.ok) {
-    return { ok: false, error: formBody.error?.message ?? 'Erro ao consultar a Google Forms API (estrutura do formulário)' }
+    return platformSyncError('syncFormsConnection: buscar estrutura do formulário', 'Google Forms', formBody)
   }
 
   const questionRows = normalizeFormItems((formBody.items ?? []) as Array<Record<string, unknown>>)
@@ -818,7 +861,7 @@ async function syncFormsConnection(supabase: SupabaseClient, connection: Syncabl
       })),
       { onConflict: 'connection_id,external_question_id' },
     )
-    if (questionsError) return { ok: false, error: questionsError.message }
+    if (questionsError) return dbSyncError('syncFormsConnection: upsert form_questions', questionsError)
   }
 
   const clientId = (connection.digital_assets as unknown as { client_id: string }).client_id
@@ -834,7 +877,7 @@ async function syncFormsConnection(supabase: SupabaseClient, connection: Syncabl
     const responsesRes = await fetch(responsesUrl.toString(), { headers: { Authorization: `Bearer ${accessToken}` } })
     const responsesBody = await responsesRes.json()
     if (!responsesRes.ok) {
-      return { ok: false, error: responsesBody.error?.message ?? 'Erro ao consultar a Google Forms API (respostas)' }
+      return platformSyncError('syncFormsConnection: buscar respostas', 'Google Forms', responsesBody)
     }
 
     const responses = (responsesBody.responses ?? []) as Array<Record<string, unknown>>
@@ -855,7 +898,7 @@ async function syncFormsConnection(supabase: SupabaseClient, connection: Syncabl
         )
         .select('id')
         .single()
-      if (responseError) return { ok: false, error: responseError.message }
+      if (responseError) return dbSyncError('syncFormsConnection: upsert form_responses', responseError)
 
       const answerRows = normalizeFormAnswers((response.answers ?? {}) as Record<string, unknown>)
       if (answerRows.length > 0) {
@@ -868,7 +911,7 @@ async function syncFormsConnection(supabase: SupabaseClient, connection: Syncabl
           })),
           { onConflict: 'response_id,external_question_id' },
         )
-        if (answersError) return { ok: false, error: answersError.message }
+        if (answersError) return dbSyncError('syncFormsConnection: upsert form_answers', answersError)
       }
 
       syncedResponses += 1
@@ -901,7 +944,7 @@ async function handleSync(req: Request) {
     .select('id, provider, external_account_id, digital_assets(client_id)')
     .eq('id', body.connection_id)
     .maybeSingle()
-  if (connectionError) return jsonResponse({ error: connectionError.message }, 500)
+  if (connectionError) return dbErrorResponse('handleSync: buscar conexão', connectionError)
   if (!connection) return jsonResponse({ error: 'Conexão não encontrada' }, 404)
 
   if (connection.provider === 'google_forms') {
@@ -932,7 +975,7 @@ async function handleListCampaigns(req: Request, url: URL) {
     .select('id, provider, external_account_id')
     .eq('id', connectionId)
     .maybeSingle()
-  if (connectionError) return jsonResponse({ error: connectionError.message }, 500)
+  if (connectionError) return dbErrorResponse('handleListCampaigns: buscar conexão', connectionError)
   if (!connection) return jsonResponse({ error: 'Conexão não encontrada' }, 404)
   if (connection.provider !== 'google_ads' && connection.provider !== 'meta_ads') {
     return jsonResponse({ error: 'Listagem de campanhas só disponível pra Google Ads e Meta Ads' }, 400)
@@ -965,7 +1008,7 @@ async function handleListCampaigns(req: Request, url: URL) {
     )
     const searchBody = await searchRes.json()
     if (!searchRes.ok) {
-      return jsonResponse({ error: searchBody.error?.message ?? 'Erro ao consultar a Google Ads API' }, 502)
+      return platformErrorResponse('handleListCampaigns', 'Google Ads', searchBody)
     }
 
     const campaigns = ((searchBody.results ?? []) as Array<Record<string, Record<string, unknown>>>).map((row) => ({
@@ -984,7 +1027,7 @@ async function handleListCampaigns(req: Request, url: URL) {
   const campaignsRes = await fetch(campaignsUrl.toString())
   const campaignsBody = await campaignsRes.json()
   if (!campaignsRes.ok) {
-    return jsonResponse({ error: campaignsBody.error?.message ?? 'Erro ao consultar a Meta Marketing API' }, 502)
+    return platformErrorResponse('handleListCampaigns', 'Meta Ads', campaignsBody)
   }
 
   const campaigns = ((campaignsBody.data ?? []) as Array<{ id: string; name: string; status: string }>).map((c) => ({
@@ -1007,7 +1050,7 @@ async function handleListCampaigns(req: Request, url: URL) {
 async function handleSyncAll(req: Request) {
   const secret = req.headers.get('X-Cron-Secret') ?? ''
   const expectedSecret = Deno.env.get('CRON_SECRET') ?? ''
-  if (!expectedSecret || secret !== expectedSecret) {
+  if (!expectedSecret || !safeCompare(secret, expectedSecret)) {
     return jsonResponse({ error: 'Não autorizado' }, 401)
   }
 
@@ -1018,7 +1061,7 @@ async function handleSyncAll(req: Request) {
     .select('id, provider, external_account_id, digital_assets(client_id)')
     .eq('status', 'connected')
     .in('provider', ['google_ads', 'meta_ads', 'google_forms'])
-  if (connectionsError) return jsonResponse({ error: connectionsError.message }, 500)
+  if (connectionsError) return dbErrorResponse('handleSyncAll: buscar conexões', connectionsError)
 
   const results: Array<{ connectionId: string } & (SyncResult | FormsSyncResult)> = []
   for (const connection of (connections ?? []) as SyncableConnection[]) {
@@ -1035,7 +1078,7 @@ async function handleSyncAll(req: Request) {
 async function handleFormsWebhook(req: Request) {
   const secret = req.headers.get('X-Webhook-Secret') ?? ''
   const expectedSecret = Deno.env.get('FORMS_WEBHOOK_SECRET') ?? ''
-  if (!expectedSecret || secret !== expectedSecret) {
+  if (!expectedSecret || !safeCompare(secret, expectedSecret)) {
     return jsonResponse({ error: 'Não autorizado' }, 401)
   }
 
@@ -1057,7 +1100,7 @@ async function handleFormsWebhook(req: Request) {
     .eq('provider', 'google_forms')
     .eq('external_account_id', body.formId)
     .maybeSingle()
-  if (connectionError) return jsonResponse({ error: connectionError.message }, 500)
+  if (connectionError) return dbErrorResponse('handleFormsWebhook: buscar conexão', connectionError)
   if (!connection) return jsonResponse({ error: 'Nenhum formulário conectado com esse id' }, 404)
 
   const { error: dedupeError } = await supabase
@@ -1065,7 +1108,7 @@ async function handleFormsWebhook(req: Request) {
     .insert({ connection_id: connection.id, response_id: body.responseId })
   if (dedupeError) {
     if (dedupeError.code === '23505') return jsonResponse({ ok: true, duplicate: true })
-    return jsonResponse({ error: dedupeError.message }, 500)
+    return dbErrorResponse('handleFormsWebhook: registrar dedup', dedupeError)
   }
 
   const clientId = (connection.digital_assets as unknown as { client_id: string }).client_id
@@ -1081,7 +1124,7 @@ async function handleFormsWebhook(req: Request) {
     severity: 'medium',
     category: 'novo_lead',
   })
-  if (alertError) return jsonResponse({ error: alertError.message }, 500)
+  if (alertError) return dbErrorResponse('handleFormsWebhook: inserir alerta', alertError)
 
   return jsonResponse({ ok: true })
 }
@@ -1105,6 +1148,7 @@ Deno.serve(async (req) => {
       404,
     )
   } catch (err) {
-    return jsonResponse({ error: err instanceof Error ? err.message : 'Erro inesperado' }, 500)
+    console.error('[integrations] erro inesperado:', err)
+    return jsonResponse({ error: 'Erro inesperado. Tente novamente.' }, 500)
   }
 })

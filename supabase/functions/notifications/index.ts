@@ -33,6 +33,7 @@
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2'
 import webpush from 'npm:web-push@3.6.7'
+import { timingSafeEqual } from 'node:crypto'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -42,10 +43,20 @@ function getServiceClient() {
   return createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
 }
 
+/** Compara em tempo constante (Fase 20.1) — evita que alguém descubra
+ * o segredo aos poucos, medindo quanto tempo cada tentativa errada
+ * leva pra falhar. */
+function safeCompare(a: string, b: string): boolean {
+  const bufA = new TextEncoder().encode(a)
+  const bufB = new TextEncoder().encode(b)
+  if (bufA.length !== bufB.length) return false
+  return timingSafeEqual(bufA, bufB)
+}
+
 function requireCronSecret(req: Request): Response | null {
   const secret = req.headers.get('X-Notifications-Secret') ?? ''
   const expectedSecret = Deno.env.get('NOTIFICATIONS_CRON_SECRET') ?? ''
-  if (!expectedSecret || secret !== expectedSecret) return jsonResponse({ error: 'Não autorizado' }, 401)
+  if (!expectedSecret || !safeCompare(secret, expectedSecret)) return jsonResponse({ error: 'Não autorizado' }, 401)
   return null
 }
 

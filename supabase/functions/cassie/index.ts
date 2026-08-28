@@ -65,6 +65,20 @@ function getServiceClient() {
   return createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
 }
 
+// Fase 20.1: nunca devolver error.message bruto (Postgres/OpenAI) pro
+// navegador — loga o erro completo no servidor (visível em Edge
+// Functions > Logs no painel do Supabase) e devolve só uma mensagem
+// genérica pro cliente.
+function dbErrorResponse(context: string, error: { message: string }) {
+  console.error(`[cassie] ${context}:`, error)
+  return jsonResponse({ error: 'Erro ao acessar o banco de dados. Tente novamente.' }, 500)
+}
+
+function openaiErrorResponse(context: string, body: unknown) {
+  console.error(`[cassie] ${context} — erro da OpenAI:`, body)
+  return jsonResponse({ error: 'Erro ao consultar a IA. Tente novamente.' }, 502)
+}
+
 type CassieMode = 'assistente' | 'analista' | 'consultora' | 'auditora'
 const CASSIE_MODES: CassieMode[] = ['assistente', 'analista', 'consultora', 'auditora']
 
@@ -315,14 +329,14 @@ async function handleChat(req: Request) {
       .order('created_at', { ascending: false })
       .limit(HISTORY_LIMIT),
   ])
-  if (historyError) return jsonResponse({ error: historyError.message }, 500)
+  if (historyError) return dbErrorResponse('handleChat: buscar histórico', historyError)
 
   const orderedHistory = [...(history ?? [])].reverse()
 
   const { error: insertUserError } = await supabase
     .from('cassie_messages')
     .insert({ client_id: targetClientId, conversation_owner_id: auth.userId, role: 'user', content: message, mode })
-  if (insertUserError) return jsonResponse({ error: insertUserError.message }, 500)
+  if (insertUserError) return dbErrorResponse('handleChat: inserir mensagem do usuário', insertUserError)
 
   const openaiRes = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
@@ -338,7 +352,7 @@ async function handleChat(req: Request) {
   })
   const openaiBody = await openaiRes.json()
   if (!openaiRes.ok) {
-    return jsonResponse({ error: openaiBody.error?.message ?? 'Erro ao consultar a API da OpenAI' }, 502)
+    return openaiErrorResponse('handleChat', openaiBody)
   }
 
   const replyText = extractReplyText(openaiBody)
@@ -347,7 +361,7 @@ async function handleChat(req: Request) {
   const { error: insertReplyError } = await supabase
     .from('cassie_messages')
     .insert({ client_id: targetClientId, conversation_owner_id: auth.userId, role: 'assistant', content: replyText, mode })
-  if (insertReplyError) return jsonResponse({ error: insertReplyError.message }, 500)
+  if (insertReplyError) return dbErrorResponse('handleChat: inserir resposta da Cassie', insertReplyError)
 
   return jsonResponse({ reply: replyText })
 }
@@ -448,6 +462,9 @@ async function handlePersuasiveCopy(req: Request) {
 
   const supabase = getServiceClient()
 
+  const { data: clientExists } = await supabase.from('clients').select('id').eq('id', body.client_id).maybeSingle()
+  if (!clientExists) return jsonResponse({ error: 'Cliente não encontrado' }, 404)
+
   let connectionIds: string[]
   if (body.connection_id) {
     connectionIds = [body.connection_id]
@@ -489,7 +506,7 @@ async function handlePersuasiveCopy(req: Request) {
     .limit(PERSUASIVE_COPY_HISTORY_LIMIT)
   historyQuery = body.connection_id ? historyQuery.eq('connection_id', body.connection_id) : historyQuery.is('connection_id', null)
   const { data: history, error: historyError } = await historyQuery
-  if (historyError) return jsonResponse({ error: historyError.message }, 500)
+  if (historyError) return dbErrorResponse('handlePersuasiveCopy: buscar histórico', historyError)
   const orderedHistory = [...(history ?? [])].reverse()
 
   const { error: insertUserError } = await supabase.from('persuasive_copy_messages').insert({
@@ -499,7 +516,7 @@ async function handlePersuasiveCopy(req: Request) {
     role: 'user',
     content: message,
   })
-  if (insertUserError) return jsonResponse({ error: insertUserError.message }, 500)
+  if (insertUserError) return dbErrorResponse('handlePersuasiveCopy: inserir mensagem do usuário', insertUserError)
 
   const answersText = answers.map((a) => `Pergunta: "${a.title}"\nResposta: ${a.answerText}`).join('\n\n')
 
@@ -517,7 +534,7 @@ async function handlePersuasiveCopy(req: Request) {
   })
   const openaiBody = await openaiRes.json()
   if (!openaiRes.ok) {
-    return jsonResponse({ error: openaiBody.error?.message ?? 'Erro ao consultar a API da OpenAI' }, 502)
+    return openaiErrorResponse('handlePersuasiveCopy', openaiBody)
   }
 
   const replyText = extractReplyText(openaiBody)
@@ -530,7 +547,7 @@ async function handlePersuasiveCopy(req: Request) {
     role: 'assistant',
     content: replyText,
   })
-  if (insertReplyError) return jsonResponse({ error: insertReplyError.message }, 500)
+  if (insertReplyError) return dbErrorResponse('handlePersuasiveCopy: inserir resposta da IA', insertReplyError)
 
   return jsonResponse({ reply: replyText })
 }
@@ -547,6 +564,7 @@ Deno.serve(async (req) => {
     if (req.method === 'POST' && url.pathname.endsWith('/persuasive-copy')) return await handlePersuasiveCopy(req)
     return jsonResponse({ error: 'Rota não encontrada. Use /chat ou /persuasive-copy.' }, 404)
   } catch (err) {
-    return jsonResponse({ error: err instanceof Error ? err.message : 'Erro inesperado' }, 500)
+    console.error('[cassie] erro inesperado:', err)
+    return jsonResponse({ error: 'Erro inesperado. Tente novamente.' }, 500)
   }
 })
