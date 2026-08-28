@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { fetchLatestUpdatedAt, latestOf } from '@/lib/nav-activity'
+import { supabase } from '@/lib/supabase'
 
 export interface ClientRecord {
   id: string
@@ -367,29 +368,6 @@ export function useCreateComment() {
   })
 }
 
-export interface NewMeetingInput {
-  title: string
-  date: string
-  meeting_link: string | null
-}
-
-export function useCreateMeeting() {
-  const { clientId } = useAuth()
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (input: NewMeetingInput) => {
-      const { error } = await supabase.from('meetings').insert({ ...input, client_id: clientId })
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['meetings', clientId] })
-    },
-    onError: () => {
-      toast.error('Não foi possível agendar a reunião.')
-    },
-  })
-}
-
 /** Pedido de reunião de emergência (Fase 6.5.1) — toda a validação
  * (plano Dominação, 1x/mês, fora dos horários bloqueados) mora na
  * função `request_emergency_meeting` do banco, não aqui. */
@@ -556,23 +534,6 @@ export function useRespondToApproval() {
       toast.error('Não foi possível responder à aprovação.')
     },
   })
-}
-
-async function fetchLatestUpdatedAt(table: string, clientId: string): Promise<string | null> {
-  const { data, error } = await supabase
-    .from(table)
-    .select('updated_at')
-    .eq('client_id', clientId)
-    .order('updated_at', { ascending: false })
-    .limit(1)
-  if (error) throw error
-  return (data?.[0] as { updated_at: string } | undefined)?.updated_at ?? null
-}
-
-function latestOf(...values: (string | null)[]): string | null {
-  const valid = values.filter((v): v is string => !!v)
-  if (valid.length === 0) return null
-  return valid.reduce((max, v) => (new Date(v) > new Date(max) ? v : max))
 }
 
 /** Última atividade por aba (chave = href do menu), usada pra acender a

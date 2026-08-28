@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { aggregateAudienceInsights, type AudienceRawResponse } from '@/lib/audience-insights'
+import { fetchLatestUpdatedAt, latestOf } from '@/lib/nav-activity'
 import { severityRank } from '@/lib/status-styles'
 import { supabase } from '@/lib/supabase'
 
@@ -1704,18 +1705,6 @@ export function useCreateManagerApproval() {
       toast.error('Não foi possível enviar a aprovação.')
     },
   })
-}
-
-async function fetchLatestUpdatedAt(table: string): Promise<string | null> {
-  const { data, error } = await supabase.from(table).select('updated_at').order('updated_at', { ascending: false }).limit(1)
-  if (error) throw error
-  return (data?.[0] as { updated_at: string } | undefined)?.updated_at ?? null
-}
-
-function latestOf(...values: (string | null)[]): string | null {
-  const valid = values.filter((v): v is string => !!v)
-  if (valid.length === 0) return null
-  return valid.reduce((max, v) => (new Date(v) > new Date(max) ? v : max))
 }
 
 /** Última atividade por aba (chave = href do menu), usada pra acender a
