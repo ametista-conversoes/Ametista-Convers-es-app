@@ -16,6 +16,14 @@ export default defineConfig({
         // injectManifest, que precisaria reescrever à mão o
         // pré-cache que já funciona em produção desde a Fase 10b.
         importScripts: ['push-worker.js'],
+        // Fase 20.7 (achado ao vivo): sem isso, o Service Worker
+        // intercepta a navegação de volta do login do Google
+        // (/oauth/google-callback, proxy pro backend em vercel.json) e
+        // serve o app do cache em vez de deixar ir pra rede de verdade —
+        // como essa rota não existe no React Router (só existe no nível
+        // do servidor), o app renderiza em branco. Sem fallback offline
+        // pra essa rota é o esperado: ela só faz sentido com rede real.
+        navigateFallbackDenylist: [/^\/oauth\//],
       },
       manifest: {
         name: 'Ametista Conversões',
