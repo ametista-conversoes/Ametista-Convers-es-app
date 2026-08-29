@@ -82,11 +82,27 @@ const SNAPSHOT_WINDOW_DAYS = 30
 export function aggregateSnapshotKpis(snapshots: PerformanceSnapshotRecord[]): SnapshotKpis {
   const since = new Date(Date.now() - SNAPSHOT_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const recent = snapshots.filter((s) => s.snapshot_date >= since)
+  return sumSnapshotKpis(recent)
+}
 
-  const spend = recent.reduce((sum, s) => sum + (s.spend ?? 0), 0)
-  const impressions = recent.reduce((sum, s) => sum + (s.impressions ?? 0), 0)
-  const clicks = recent.reduce((sum, s) => sum + (s.clicks ?? 0), 0)
-  const conversions = recent.reduce((sum, s) => sum + (s.conversions ?? 0), 0)
+/**
+ * Mesmas fórmulas de `aggregateSnapshotKpis`, mas filtrando por um mês
+ * específico (ano+mês) em vez da janela rolante dos últimos 30 dias —
+ * usado na aba "Histórico Mensal" de Relatórios pra mostrar o mês
+ * ainda em andamento (Fase 21.3) com os mesmos números que o
+ * fechamento oficial (client_monthly_reports) vai gravar quando o mês
+ * terminar.
+ */
+export function aggregateSnapshotKpisForMonth(snapshots: PerformanceSnapshotRecord[], year: number, month: number): SnapshotKpis {
+  const prefix = `${year}-${String(month).padStart(2, '0')}`
+  return sumSnapshotKpis(snapshots.filter((s) => s.snapshot_date.startsWith(prefix)))
+}
+
+function sumSnapshotKpis(snapshots: PerformanceSnapshotRecord[]): SnapshotKpis {
+  const spend = snapshots.reduce((sum, s) => sum + (s.spend ?? 0), 0)
+  const impressions = snapshots.reduce((sum, s) => sum + (s.impressions ?? 0), 0)
+  const clicks = snapshots.reduce((sum, s) => sum + (s.clicks ?? 0), 0)
+  const conversions = snapshots.reduce((sum, s) => sum + (s.conversions ?? 0), 0)
 
   return {
     spend,

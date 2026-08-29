@@ -10,6 +10,23 @@ const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', {
   minute: '2-digit',
 })
 
+// Fase 21.3 — nomes de mês em português, índice 0 = Janeiro. Usado no
+// MonthYearPicker e no relatório em PDF, pra sempre bater o mesmo texto.
+export const MONTH_LABELS = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+]
+
 export function formatCurrency(value: number | null | undefined): string {
   if (value === null || value === undefined) return '—'
   return currencyFormatter.format(value)

@@ -251,6 +251,45 @@ export function usePerformanceSnapshots() {
   })
 }
 
+// Fase 21.3: histórico mensal fechado (client_monthly_reports),
+// gerado automaticamente todo dia 1 pelo mês anterior — usado na aba
+// "Histórico Mensal" de Relatórios pra baixar o PDF de um mês
+// específico, sem depender do dado diário bruto continuar existindo.
+export interface MonthlyReportRecord {
+  id: string
+  client_id: string
+  ref_month: string
+  spend: number | null
+  revenue: number | null
+  roas: number | null
+  cpa: number | null
+  ctr: number | null
+  clicks: number | null
+  impressions: number | null
+  conversions: number | null
+  health_score: number | null
+  generated_at: string
+}
+
+export function useMonthlyReport(year: number, month: number) {
+  const { clientId } = useAuth()
+  const refMonth = `${year}-${String(month).padStart(2, '0')}-01`
+  return useQuery({
+    queryKey: ['monthly-report', clientId, refMonth],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('client_monthly_reports')
+        .select('*')
+        .eq('client_id', clientId as string)
+        .eq('ref_month', refMonth)
+        .maybeSingle()
+      if (error) throw error
+      return data as MonthlyReportRecord | null
+    },
+    enabled: !!clientId,
+  })
+}
+
 export interface NewTaskInput {
   title: string
   description: string | null
