@@ -94,7 +94,6 @@ export function MetricAlertThresholdsCard({ clientId }: MetricAlertThresholdsCar
           const row = rowFor(key)
           return (
             <div key={key} className="flex flex-wrap items-center gap-3 rounded-lg bg-secondary/50 px-3 py-2">
-              <Checkbox checked={row.enabled} onCheckedChange={(checked) => updateRow(key, { enabled: checked === true })} />
               <span className="w-28 shrink-0 text-sm text-foreground">{label}</span>
               <Select value={row.comparison} onValueChange={(value) => updateRow(key, { comparison: value as 'above' | 'below' })}>
                 <SelectTrigger className="h-8 w-28">
@@ -110,9 +109,13 @@ export function MetricAlertThresholdsCard({ clientId }: MetricAlertThresholdsCar
                 step="0.01"
                 placeholder="Valor"
                 value={row.thresholdValue}
-                onChange={(e) => updateRow(key, { thresholdValue: e.target.value })}
+                onChange={(e) => updateRow(key, { thresholdValue: e.target.value, enabled: e.target.value.trim() !== '' })}
                 className="h-8 w-28"
               />
+              <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+                <Checkbox checked={row.enabled} onCheckedChange={(checked) => updateRow(key, { enabled: checked === true })} />
+                Ativo
+              </label>
             </div>
           )
         })}

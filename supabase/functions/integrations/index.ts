@@ -1136,6 +1136,14 @@ async function handleSync(req: Request) {
 
   const result = await syncConnection(supabase, connection as SyncableConnection)
   if (!result.ok) return jsonResponse({ error: result.error }, 502)
+
+  // Fase 21.2 (corrigido — faltava aqui): o botão "Sincronizar agora"
+  // do front-end chama essa rota, não /sync-all (só o cron chama essa
+  // outra, protegida por segredo) — sem essa chamada aqui, os
+  // limiares de métrica nunca eram checados num teste manual.
+  const { error: thresholdError } = await supabase.rpc('check_metric_alert_thresholds')
+  if (thresholdError) await logServerError('integrations', 'handleSync: checar limiares de métrica', thresholdError)
+
   return jsonResponse({ ok: true, syncedDays: result.syncedDays })
 }
 
