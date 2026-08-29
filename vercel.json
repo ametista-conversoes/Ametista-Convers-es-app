@@ -1,5 +1,9 @@
 {
   "routes": [
+    {
+      "src": "/oauth/google-callback",
+      "dest": "https://ktexhzcpqrqjdgzgxisx.supabase.co/functions/v1/integrations/callback"
+    },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]

@@ -131,6 +131,22 @@ function isProvider(value: string | null): value is Provider {
   return !!value && (PROVIDERS as readonly string[]).includes(value)
 }
 
+/** Fase 20 (achado ao vivo): o `redirect_uri` do fluxo OAuth do Google
+ * (Ads/Forms — Meta não tem esse problema) precisa estar num domínio
+ * que a gente consiga verificar posse (pra tela de consentimento
+ * mostrar o nome/logo do app em vez do domínio técnico da função) —
+ * `supabase.co` nunca vai servir pra isso, só a Vercel do próprio app.
+ * `vercel.json` tem uma rota que encaminha `/oauth/google-callback`
+ * pra esta mesma função por trás, sem o navegador perceber. Usada
+ * tanto pra montar o link de autorização (handleConnect) quanto na
+ * troca do código pelo token (handleCallback) — as duas chamadas
+ * precisam mandar pra Google exatamente o mesmo valor, senão ela
+ * recusa com "redirect_uri_mismatch". */
+function buildGoogleRedirectUri(): string {
+  const frontendUrl = Deno.env.get('FRONTEND_URL') ?? 'http://localhost:5173'
+  return `${frontendUrl}/oauth/google-callback`
+}
+
 /** Aceita tanto o id puro de um Google Forms quanto o link inteiro
  * (ex: https://docs.google.com/forms/d/<id>/edit). */
 function extractFormId(input: string): string {
@@ -302,11 +318,15 @@ async function handleConnect(req: Request, url: URL) {
     .single()
   if (connectionError) return dbErrorResponse('handleConnect: upsert conexão', connectionError)
 
-  // Monta a URL de callback a partir do caminho da própria requisição
-  // (troca só o final "/connect" por "/callback") combinado com
-  // SUPABASE_URL — o "origin" visto de dentro da função é um endereço
-  // interno, não o público.
-  const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1${url.pathname.replace(/\/connect$/, '/callback')}`
+  // Meta: monta a URL de callback a partir do caminho da própria
+  // requisição (troca só o final "/connect" por "/callback") combinado
+  // com SUPABASE_URL — o "origin" visto de dentro da função é um
+  // endereço interno, não o público. Google (Ads/Forms): usa
+  // buildGoogleRedirectUri() em vez disso — ver comentário da função.
+  const redirectUri =
+    provider === 'meta_ads'
+      ? `${Deno.env.get('SUPABASE_URL')}/functions/v1${url.pathname.replace(/\/connect$/, '/callback')}`
+      : buildGoogleRedirectUri()
 
   let authorizationUrl: URL
   if (provider === 'meta_ads') {
@@ -352,7 +372,14 @@ async function handleCallback(url: URL) {
     return callbackRedirect(false, `Conexão cancelada ou recusada${oauthError ? `: ${oauthError}` : ''}.`)
   }
 
-  const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1${url.pathname}`
+  // Meta: a requisição chega direto na função, então dá pra remontar a
+  // partir do próprio path recebido. Google (Ads/Forms): a requisição
+  // chega via proxy da Vercel (ver vercel.json) — o path visto aqui
+  // dentro continua sendo o da Supabase, não o que o navegador usou de
+  // verdade, então precisa ser o mesmo valor fixo de buildGoogleRedirectUri()
+  // usado lá em handleConnect, não recalculado a partir do request.
+  const redirectUri =
+    connection.provider === 'meta_ads' ? `${Deno.env.get('SUPABASE_URL')}/functions/v1${url.pathname}` : buildGoogleRedirectUri()
 
   let accessToken: string
   let refreshToken: string | undefined
