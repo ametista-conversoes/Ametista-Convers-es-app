@@ -330,6 +330,69 @@ export function useDeleteAlert() {
   })
 }
 
+// Fase 21.1: monitoramento de erros (tipo Sentry, próprio) — captura
+// tanto erro de front-end (ErrorBoundary/window.onerror, ver
+// src/lib/error-logging.ts) quanto de Edge Function (logServerError
+// nos 3 arquivos em supabase/functions/*/index.ts).
+export interface ErrorLogRecord {
+  id: string
+  source: 'frontend' | 'edge_function'
+  function_name: string | null
+  message: string
+  stack: string | null
+  context: unknown
+  severity: string
+  resolved: boolean
+  created_at: string
+}
+
+export function useErrorLogs() {
+  return useQuery({
+    queryKey: ['error-logs'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('error_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(200)
+      if (error) throw error
+      return data as ErrorLogRecord[]
+    },
+  })
+}
+
+export function useResolveErrorLog() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('error_logs').update({ resolved: true }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['error-logs'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível marcar o erro como resolvido.')
+    },
+  })
+}
+
+export function useDeleteErrorLog() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('error_logs').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['error-logs'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível excluir o log de erro.')
+    },
+  })
+}
+
 export function useTimelineEvents() {
   return useQuery({
     queryKey: ['manager-timeline'],

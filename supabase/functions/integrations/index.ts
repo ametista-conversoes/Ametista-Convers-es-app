@@ -168,37 +168,63 @@ function safeCompare(a: string, b: string): boolean {
   return timingSafeEqual(bufA, bufB)
 }
 
+// Fase 21.1: além do console.error (visível só em Edge Functions >
+// Logs), grava em error_logs pra aparecer em /errors no Portal
+// Gestor. Nunca lança — logging não pode virar uma fonte nova de erro.
+async function logServerError(functionName: string, context: string, error: unknown) {
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : JSON.stringify(error)
+  try {
+    await getServiceClient()
+      .from('error_logs')
+      .insert({
+        source: 'edge_function',
+        function_name: functionName,
+        message: `${context}: ${message}`,
+        stack: error instanceof Error ? (error.stack ?? null) : null,
+        context: error instanceof Error ? null : (error ?? null),
+      })
+  } catch (err) {
+    console.error(`[${functionName}] não foi possível gravar em error_logs:`, err)
+  }
+}
+
 // Fase 20.1: nunca devolver error.message bruto (Postgres/Google/Meta)
 // pro navegador — loga o erro completo no servidor (visível em Edge
 // Functions > Logs no painel do Supabase) e devolve só uma mensagem
 // genérica pro cliente.
-function dbErrorResponse(context: string, error: { message: string }) {
+async function dbErrorResponse(context: string, error: { message: string }) {
   console.error(`[integrations] ${context}:`, error)
+  await logServerError('integrations', context, error)
   return jsonResponse({ error: 'Erro ao acessar o banco de dados. Tente novamente.' }, 500)
 }
 
-function platformErrorResponse(context: string, platform: string, body: unknown) {
+async function platformErrorResponse(context: string, platform: string, body: unknown) {
   console.error(`[integrations] ${context} — erro da ${platform}:`, body)
+  await logServerError('integrations', `${context} — erro da ${platform}`, body)
   return jsonResponse({ error: `Erro ao consultar a ${platform}. Tente novamente.` }, 502)
 }
 
-function dbErrorRedirect(context: string, error: { message: string }) {
+async function dbErrorRedirect(context: string, error: { message: string }) {
   console.error(`[integrations] ${context}:`, error)
+  await logServerError('integrations', context, error)
   return callbackRedirect(false, 'Erro ao acessar o banco de dados. Tente novamente.')
 }
 
-function platformErrorRedirect(context: string, platform: string, body: unknown) {
+async function platformErrorRedirect(context: string, platform: string, body: unknown) {
   console.error(`[integrations] ${context} — erro da ${platform}:`, body)
+  await logServerError('integrations', `${context} — erro da ${platform}`, body)
   return callbackRedirect(false, `Não foi possível conectar com o ${platform}. Tente novamente.`)
 }
 
-function dbSyncError(context: string, error: { message: string }): { ok: false; error: string } {
+async function dbSyncError(context: string, error: { message: string }): Promise<{ ok: false; error: string }> {
   console.error(`[integrations] ${context}:`, error)
+  await logServerError('integrations', context, error)
   return { ok: false, error: 'Erro ao acessar o banco de dados. Tente novamente.' }
 }
 
-function platformSyncError(context: string, platform: string, body: unknown): { ok: false; error: string } {
+async function platformSyncError(context: string, platform: string, body: unknown): Promise<{ ok: false; error: string }> {
   console.error(`[integrations] ${context} — erro da ${platform}:`, body)
+  await logServerError('integrations', `${context} — erro da ${platform}`, body)
   return { ok: false, error: `Erro ao consultar a ${platform}. Tente novamente.` }
 }
 
@@ -1373,6 +1399,7 @@ Deno.serve(async (req) => {
     )
   } catch (err) {
     console.error('[integrations] erro inesperado:', err)
+    await logServerError('integrations', 'erro inesperado', err)
     return jsonResponse({ error: 'Erro inesperado. Tente novamente.' }, 500)
   }
 })

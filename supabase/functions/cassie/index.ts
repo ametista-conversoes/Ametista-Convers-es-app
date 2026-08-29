@@ -65,17 +65,39 @@ function getServiceClient() {
   return createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
 }
 
+// Fase 21.1: além do console.error (visível só em Edge Functions >
+// Logs), grava em error_logs pra aparecer em /errors no Portal
+// Gestor. Nunca lança — logging não pode virar uma fonte nova de erro.
+async function logServerError(functionName: string, context: string, error: unknown) {
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : JSON.stringify(error)
+  try {
+    await getServiceClient()
+      .from('error_logs')
+      .insert({
+        source: 'edge_function',
+        function_name: functionName,
+        message: `${context}: ${message}`,
+        stack: error instanceof Error ? (error.stack ?? null) : null,
+        context: error instanceof Error ? null : (error ?? null),
+      })
+  } catch (err) {
+    console.error(`[${functionName}] não foi possível gravar em error_logs:`, err)
+  }
+}
+
 // Fase 20.1: nunca devolver error.message bruto (Postgres/OpenAI) pro
 // navegador — loga o erro completo no servidor (visível em Edge
 // Functions > Logs no painel do Supabase) e devolve só uma mensagem
 // genérica pro cliente.
-function dbErrorResponse(context: string, error: { message: string }) {
+async function dbErrorResponse(context: string, error: { message: string }) {
   console.error(`[cassie] ${context}:`, error)
+  await logServerError('cassie', context, error)
   return jsonResponse({ error: 'Erro ao acessar o banco de dados. Tente novamente.' }, 500)
 }
 
-function openaiErrorResponse(context: string, body: unknown) {
+async function openaiErrorResponse(context: string, body: unknown) {
   console.error(`[cassie] ${context} — erro da OpenAI:`, body)
+  await logServerError('cassie', `${context} — erro da OpenAI`, body)
   return jsonResponse({ error: 'Erro ao consultar a IA. Tente novamente.' }, 502)
 }
 
@@ -565,6 +587,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Rota não encontrada. Use /chat ou /persuasive-copy.' }, 404)
   } catch (err) {
     console.error('[cassie] erro inesperado:', err)
+    await logServerError('cassie', 'erro inesperado', err)
     return jsonResponse({ error: 'Erro inesperado. Tente novamente.' }, 500)
   }
 })

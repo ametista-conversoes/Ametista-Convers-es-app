@@ -27,6 +27,7 @@ import ClientComments from '@/pages/admin/ClientComments'
 import ClientDetail from '@/pages/admin/ClientDetail'
 import Clients from '@/pages/admin/Clients'
 import DashboardExecutivo from '@/pages/admin/DashboardExecutivo'
+import ErrorLogs from '@/pages/admin/ErrorLogs'
 import Incidents from '@/pages/admin/Incidents'
 import Integrations from '@/pages/admin/Integrations'
 import Kanban from '@/pages/admin/Kanban'
@@ -72,6 +73,7 @@ const managerPagesReady: Record<string, ComponentType> = {
   '/client-meetings': ManagerMeetings,
   '/client-files': ManagerFiles,
   '/client-cassie': ManagerCassie,
+  '/errors': ErrorLogs,
 }
 
 // Rotas de "clientNavItems" compartilhadas pelos 3 papéis, fora do

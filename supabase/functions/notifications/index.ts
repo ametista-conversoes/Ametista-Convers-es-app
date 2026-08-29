@@ -43,6 +43,25 @@ function getServiceClient() {
   return createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
 }
 
+// Fase 21.1: grava em error_logs pra aparecer em /errors no Portal
+// Gestor. Nunca lança — logging não pode virar uma fonte nova de erro.
+async function logServerError(functionName: string, context: string, error: unknown) {
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : JSON.stringify(error)
+  try {
+    await getServiceClient()
+      .from('error_logs')
+      .insert({
+        source: 'edge_function',
+        function_name: functionName,
+        message: `${context}: ${message}`,
+        stack: error instanceof Error ? (error.stack ?? null) : null,
+        context: error instanceof Error ? null : (error ?? null),
+      })
+  } catch (err) {
+    console.error(`[${functionName}] não foi possível gravar em error_logs:`, err)
+  }
+}
+
 /** Compara em tempo constante (Fase 20.1) — evita que alguém descubra
  * o segredo aos poucos, medindo quanto tempo cada tentativa errada
  * leva pra falhar. */
@@ -274,7 +293,10 @@ async function handleTick(req: Request) {
   ])
 
   const errors = [atRisk.error, overdueGoals.error, reminders1h.error, reminders15m.error].filter(Boolean)
-  if (errors.length > 0) return jsonResponse({ error: errors.map((e) => e?.message).join('; ') }, 500)
+  if (errors.length > 0) {
+    await logServerError('notifications', 'handleTick: rodar detect_new_*', errors)
+    return jsonResponse({ error: errors.map((e) => e?.message).join('; ') }, 500)
+  }
 
   const dispatched: Array<{ kind: string; id: string }> = [
     ...(atRisk.data ?? []).map((r: { id: string }) => ({ kind: 'client_at_risk', id: r.id })),
@@ -297,6 +319,8 @@ Deno.serve(async (req) => {
     if (req.method === 'POST' && url.pathname.endsWith('/dispatch')) return await handleDispatch(req)
     return jsonResponse({ error: 'Rota não encontrada. Use /tick ou /dispatch.' }, 404)
   } catch (err) {
+    console.error('[notifications] erro inesperado:', err)
+    await logServerError('notifications', 'erro inesperado', err)
     return jsonResponse({ error: err instanceof Error ? err.message : 'Erro inesperado' }, 500)
   }
 })
