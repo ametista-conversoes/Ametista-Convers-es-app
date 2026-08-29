@@ -11,6 +11,7 @@ export default function Settings() {
   const { role } = useAuth()
   const showGlobal = role === 'admin'
   const showAgency = role === 'admin' || role === 'gestor'
+  const showClient = role === 'cliente'
 
   const defaultTab = showGlobal ? 'global' : showAgency ? 'agency' : 'client'
 
@@ -27,7 +28,7 @@ export default function Settings() {
           {showAgency && <TabsTrigger value="agency">Agência</TabsTrigger>}
           {showAgency && <TabsTrigger value="availability">Disponibilidade</TabsTrigger>}
           {showAgency && <TabsTrigger value="errors">Erros</TabsTrigger>}
-          <TabsTrigger value="client">Cliente</TabsTrigger>
+          {showClient && <TabsTrigger value="client">Cliente</TabsTrigger>}
           <TabsTrigger value="user">Usuário</TabsTrigger>
         </TabsList>
 
@@ -55,9 +56,11 @@ export default function Settings() {
           </TabsContent>
         )}
 
-        <TabsContent value="client">
-          <ClientSettingsTab />
-        </TabsContent>
+        {showClient && (
+          <TabsContent value="client">
+            <ClientSettingsTab />
+          </TabsContent>
+        )}
 
         <TabsContent value="user">
           <UserSettingsTab />

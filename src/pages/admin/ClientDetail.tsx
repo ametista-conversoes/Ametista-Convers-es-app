@@ -15,6 +15,7 @@ import {
   UsersRound,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { MetricAlertThresholdsCard } from '@/components/admin/MetricAlertThresholdsCard'
 import { NewProjectDialog } from '@/components/admin/NewProjectDialog'
 import { CassieChatThread } from '@/components/cassie/CassieChatThread'
 import { CassieHeader } from '@/components/cassie/CassieHeader'
@@ -399,6 +400,8 @@ export default function ClientDetail() {
           </Button>
         </CardContent>
       </Card>
+
+      <MetricAlertThresholdsCard clientId={client.id} />
 
       {/* Cliente em risco — só aparece se houver algum problema de verdade */}
       {riskDetails.hasProblems && (

@@ -377,6 +377,55 @@ export function useResolveErrorLog() {
   })
 }
 
+// Fase 21.2: alerta automático por limiar de métrica, configurado por
+// cliente na Central de Informações — a checagem de verdade roda no
+// banco (check_metric_alert_thresholds, chamada a cada sync).
+export interface MetricAlertThresholdRecord {
+  id: string
+  client_id: string
+  metric: string
+  comparison: 'above' | 'below'
+  threshold_value: number
+  enabled: boolean
+}
+
+export function useMetricAlertThresholds(clientId: string | null) {
+  return useQuery({
+    queryKey: ['metric-alert-thresholds', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('metric_alert_thresholds')
+        .select('*')
+        .eq('client_id', clientId as string)
+      if (error) throw error
+      return data as MetricAlertThresholdRecord[]
+    },
+    enabled: !!clientId,
+  })
+}
+
+export function useUpsertMetricAlertThreshold() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      client_id: string
+      metric: string
+      comparison: 'above' | 'below'
+      threshold_value: number
+      enabled: boolean
+    }) => {
+      const { error } = await supabase.from('metric_alert_thresholds').upsert(input, { onConflict: 'client_id,metric' })
+      if (error) throw error
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['metric-alert-thresholds', variables.client_id] })
+    },
+    onError: () => {
+      toast.error('Não foi possível salvar o limiar de alerta.')
+    },
+  })
+}
+
 export function useDeleteErrorLog() {
   const queryClient = useQueryClient()
   return useMutation({

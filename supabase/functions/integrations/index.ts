@@ -1245,6 +1245,12 @@ async function handleSyncAll(req: Request) {
     results.push({ connectionId: connection.id, ...result })
   }
 
+  // Fase 21.2: confere os limiares de métrica configurados por cliente
+  // logo depois do sync, já que é quando o dado novo chega — não
+  // derruba a resposta do sync se falhar, só loga.
+  const { error: thresholdError } = await supabase.rpc('check_metric_alert_thresholds')
+  if (thresholdError) await logServerError('integrations', 'handleSyncAll: checar limiares de métrica', thresholdError)
+
   return jsonResponse({ ok: true, results })
 }
 

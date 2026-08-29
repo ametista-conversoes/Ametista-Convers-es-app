@@ -1,25 +1,15 @@
 import { Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useAuth } from '@/contexts/AuthContext'
 import { useClient } from '@/hooks/useClientPortalData'
 import { formatCurrency } from '@/lib/format'
 import { clientStatusLabels, clientStatusStyles, planLabels } from '@/lib/status-styles'
 
+// Fase 21.2: só renderiza pra role 'cliente' (Settings.tsx filtra a
+// aba antes disso) — o branch de "conta sem cliente vinculado" que
+// existia aqui pra admin/gestor não faz mais sentido, removido.
 export function ClientSettingsTab() {
-  const { clientId } = useAuth()
   const { data: client, isLoading } = useClient()
-
-  if (!clientId) {
-    return (
-      <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
-        <CardContent className="p-0 text-sm text-muted-foreground">
-          Esta conta não tem um cliente vinculado — normal para contas de equipe (admin/gestor), que não são de um
-          cliente específico.
-        </CardContent>
-      </Card>
-    )
-  }
 
   if (isLoading || !client) {
     return <p className="text-sm text-muted-foreground">Carregando...</p>
