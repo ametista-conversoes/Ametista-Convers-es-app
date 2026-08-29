@@ -1,5 +1,4 @@
 import {
-  AlertOctagon,
   AlertTriangle,
   BarChart3,
   Boxes,
@@ -57,5 +56,4 @@ export const managerNavItems: NavItem[] = [
   { title: 'Reuniões', href: '/client-meetings', icon: Calendar },
   { title: 'Arquivos', href: '/client-files', icon: FileText },
   { title: 'Cassie IA', href: '/client-cassie', icon: Sparkles },
-  { title: 'Erros', href: '/errors', icon: AlertOctagon },
 ]
