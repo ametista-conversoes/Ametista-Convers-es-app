@@ -239,6 +239,23 @@ async function dispatchMeetingReminder(supabase: SupabaseClient, entityId: strin
   })
 }
 
+/** Fase 21.4 — lembrete de renovação de contrato (30/7/1 dias antes de
+ * clients.renewal_date). Aviso interno da agência, não do cliente —
+ * só admin/gestor recebe (diferente de dispatchMeetingReminder, que
+ * também avisa o cliente). */
+async function dispatchRenewalReminder(supabase: SupabaseClient, entityId: string, when: '30 dias' | '7 dias' | '1 dia') {
+  const { data: client } = await supabase.from('clients').select('id, name').eq('id', entityId).maybeSingle()
+  if (!client) return
+
+  const adminGestorIds = await getAdminGestorUserIds(supabase)
+  await sendPushToUsers(supabase, adminGestorIds, {
+    title: `Renovação em ${when}`,
+    body: `Contrato de ${client.name} renova em ${when}`,
+    url: `/clients/${client.id}`,
+    tag: `renewal-reminder-${client.id}`,
+  })
+}
+
 async function dispatchByKindAndId(supabase: SupabaseClient, kind: string, entityId: string) {
   switch (kind) {
     case 'incident_created':
@@ -253,6 +270,12 @@ async function dispatchByKindAndId(supabase: SupabaseClient, kind: string, entit
       return dispatchMeetingReminder(supabase, entityId, '1 hora')
     case 'meeting_reminder_15m':
       return dispatchMeetingReminder(supabase, entityId, '15 minutos')
+    case 'renewal_reminder_30d':
+      return dispatchRenewalReminder(supabase, entityId, '30 dias')
+    case 'renewal_reminder_7d':
+      return dispatchRenewalReminder(supabase, entityId, '7 dias')
+    case 'renewal_reminder_1d':
+      return dispatchRenewalReminder(supabase, entityId, '1 dia')
   }
 }
 
@@ -285,14 +308,25 @@ async function handleTick(req: Request) {
 
   const supabase = getServiceClient()
 
-  const [atRisk, overdueGoals, reminders1h, reminders15m] = await Promise.all([
+  const [atRisk, overdueGoals, reminders1h, reminders15m, renewal30d, renewal7d, renewal1d] = await Promise.all([
     supabase.rpc('detect_new_at_risk_clients'),
     supabase.rpc('detect_new_overdue_goals'),
     supabase.rpc('detect_new_meeting_reminders_1h'),
     supabase.rpc('detect_new_meeting_reminders_15m'),
+    supabase.rpc('detect_new_renewal_reminders_30d'),
+    supabase.rpc('detect_new_renewal_reminders_7d'),
+    supabase.rpc('detect_new_renewal_reminders_1d'),
   ])
 
-  const errors = [atRisk.error, overdueGoals.error, reminders1h.error, reminders15m.error].filter(Boolean)
+  const errors = [
+    atRisk.error,
+    overdueGoals.error,
+    reminders1h.error,
+    reminders15m.error,
+    renewal30d.error,
+    renewal7d.error,
+    renewal1d.error,
+  ].filter(Boolean)
   if (errors.length > 0) {
     await logServerError('notifications', 'handleTick: rodar detect_new_*', errors)
     return jsonResponse({ error: errors.map((e) => e?.message).join('; ') }, 500)
@@ -303,6 +337,9 @@ async function handleTick(req: Request) {
     ...(overdueGoals.data ?? []).map((r: { id: string }) => ({ kind: 'smart_goal_overdue', id: r.id })),
     ...(reminders1h.data ?? []).map((r: { id: string }) => ({ kind: 'meeting_reminder_1h', id: r.id })),
     ...(reminders15m.data ?? []).map((r: { id: string }) => ({ kind: 'meeting_reminder_15m', id: r.id })),
+    ...(renewal30d.data ?? []).map((r: { id: string }) => ({ kind: 'renewal_reminder_30d', id: r.id })),
+    ...(renewal7d.data ?? []).map((r: { id: string }) => ({ kind: 'renewal_reminder_7d', id: r.id })),
+    ...(renewal1d.data ?? []).map((r: { id: string }) => ({ kind: 'renewal_reminder_1d', id: r.id })),
   ]
 
   for (const item of dispatched) {
