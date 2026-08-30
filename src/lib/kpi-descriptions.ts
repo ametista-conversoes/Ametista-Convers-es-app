@@ -13,10 +13,15 @@ export const kpiDescriptions = {
     'Nenhuma plataforma de anúncio reporta faturamento, então a Receita é calculada em 2 passos: Vendas = Leads ÷ "Leads p/ fechar 1 venda", depois Receita = Vendas × "Ticket médio" — as duas premissas são editadas na Central de Informações do Cliente. Sem elas configuradas, aparece "—".\n\n' +
     'Cálculo: (Conversões dos últimos 30 dias ÷ Leads p/ fechar) × Ticket médio.',
 
+  gastoTotal:
+    'Gasto Total = Investimento em mídia + Mensalidade da agência\n\n' +
+    'Tudo que o cliente gasta no período: o que foi investido em anúncios mais a mensalidade paga pela gestão da agência.\n\n' +
+    'Cálculo: Investimento + Mensalidade, no mesmo período.',
+
   lucro:
-    'Lucro = Receita menos Investimento\n\n' +
-    'Quanto sobrou depois de descontar o que foi gasto em mídia paga da Receita estimada a partir dos Leads. Sem a Receita configurada (premissas na Central de Informações do Cliente), aparece "—".\n\n' +
-    'Cálculo: Receita − Investimento, no mesmo período.',
+    'Lucro = Receita menos Gasto Total\n\n' +
+    'Quanto sobrou depois de descontar tanto o investimento em mídia quanto a mensalidade da agência da Receita estimada a partir dos Leads — mesma fórmula do "Resumo financeiro" (aba Financeiro). Sem a Receita configurada (premissas na Central de Informações do Cliente), aparece "—".\n\n' +
+    'Cálculo: Receita − (Investimento + Mensalidade), no mesmo período.',
 
   roas:
     'ROAS = Retorno sobre Investimento em Anúncios (Return on Ad Spend)\n\n' +

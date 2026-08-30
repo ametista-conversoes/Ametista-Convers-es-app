@@ -8,6 +8,7 @@ import {
   Gauge,
   MousePointerClick,
   Percent,
+  Receipt,
   Target,
   TrendingUp,
   Wallet,
@@ -75,6 +76,7 @@ export default function Reports() {
     monthlyData = {
       spend: monthlyReport.spend,
       revenue: monthlyReport.revenue,
+      monthlyFee: client?.monthly_fee ?? null,
       roas: monthlyReport.roas,
       cpa: monthlyReport.cpa,
       ctr: monthlyReport.ctr,
@@ -89,6 +91,7 @@ export default function Reports() {
     monthlyData = {
       spend: liveKpis.spend,
       revenue: liveRevenue,
+      monthlyFee: client?.monthly_fee ?? null,
       roas: liveRevenue != null ? computeRoas(liveRevenue, liveKpis.spend) : null,
       cpa: liveKpis.cpa,
       ctr: liveKpis.ctr,
@@ -98,7 +101,10 @@ export default function Reports() {
       health_score: client?.health_score ?? null,
     }
   }
-  const monthlyProfit = monthlyData?.revenue != null ? monthlyData.revenue - (monthlyData.spend ?? 0) : null
+  // Mesma fórmula do FinancialSummaryCard (aba Financeiro) — Lucro
+  // desconta a mensalidade da agência, não só o investimento em mídia.
+  const monthlyTotalCost = (monthlyData?.spend ?? 0) + (monthlyData?.monthlyFee ?? 0)
+  const monthlyProfit = monthlyData?.revenue != null ? monthlyData.revenue - monthlyTotalCost : null
   const monthChannelData = groupByChannelForMonth(
     snapshotList,
     selectedYear,
@@ -270,6 +276,12 @@ export default function Reports() {
                     value={formatCurrency(monthlyData.spend)}
                     icon={DollarSign}
                     description={kpiDescriptions.investimento}
+                  />
+                  <KpiCard
+                    label="Gasto Total"
+                    value={formatCurrency(monthlyTotalCost)}
+                    icon={Receipt}
+                    description={kpiDescriptions.gastoTotal}
                   />
                   <KpiCard
                     label="Receita"

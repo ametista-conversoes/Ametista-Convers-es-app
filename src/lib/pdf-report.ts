@@ -7,6 +7,7 @@ import { formatCurrency, formatDate, formatMultiplier, formatNumber, formatPerce
 export interface MonthlyReportPdfData {
   spend: number | null
   revenue: number | null
+  monthlyFee: number | null
   roas: number | null
   cpa: number | null
   ctr: number | null
@@ -31,7 +32,10 @@ export function generateMonthlyReportPdf(
 ) {
   const doc = new jsPDF()
   const monthLabel = `${MONTH_LABELS[month - 1]} de ${year}`
-  const profit = data.revenue != null ? data.revenue - (data.spend ?? 0) : null
+  // Mesma fórmula do FinancialSummaryCard (aba Financeiro) — Lucro
+  // desconta a mensalidade da agência, não só o investimento em mídia.
+  const totalCost = (data.spend ?? 0) + (data.monthlyFee ?? 0)
+  const profit = data.revenue != null ? data.revenue - totalCost : null
 
   /** Pula pra próxima página se a próxima linha não couber — os
    * blocos do relatório podem crescer bastante (tendência diária,
@@ -71,7 +75,9 @@ export function generateMonthlyReportPdf(
   y += 14
 
   const metricRows: Array<[string, string]> = [
-    ['Investimento', formatCurrency(data.spend)],
+    ['Investimento em mídia', formatCurrency(data.spend)],
+    ['Mensalidade da agência', formatCurrency(data.monthlyFee)],
+    ['Gasto total', formatCurrency(totalCost)],
     ['Receita', formatCurrency(data.revenue)],
     ['Lucro', formatCurrency(profit)],
     ['ROAS', formatMultiplier(data.roas)],
