@@ -85,3 +85,23 @@ export function buildExecutiveMetricSeries(snapshots: ExecutiveKpiSnapshotRecord
     .sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date))
     .map((s) => ({ date: s.snapshot_date, value: s[field] }))
 }
+
+// Fase 24 — histórico diário do Health Score por cliente
+// (client_health_score_snapshots, gravado dentro de
+// `recompute_client_health_score` a cada recálculo, ver migration-051).
+export interface ClientHealthScoreSnapshotRecord {
+  id: string
+  client_id: string
+  snapshot_date: string
+  health_score: number | null
+}
+
+/** Série diária do Health Score de UM cliente, pro `MetricDetailDialog`
+ * — mesma ideia de `buildExecutiveMetricSeries`, os pontos já vêm
+ * prontos da tabela. */
+export function buildHealthScoreSeries(snapshots: ClientHealthScoreSnapshotRecord[]): MetricSeriesPoint[] {
+  return snapshots
+    .slice()
+    .sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date))
+    .map((s) => ({ date: s.snapshot_date, value: s.health_score }))
+}

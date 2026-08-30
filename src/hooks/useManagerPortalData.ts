@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { aggregateAudienceInsights, type AudienceRawResponse } from '@/lib/audience-insights'
 import type { PerformanceSnapshotRecord } from '@/hooks/useClientPortalData'
-import type { ExecutiveKpiSnapshotRecord } from '@/lib/manager-metrics'
+import type { ClientHealthScoreSnapshotRecord, ExecutiveKpiSnapshotRecord } from '@/lib/manager-metrics'
 import { fetchLatestUpdatedAt, latestOf } from '@/lib/nav-activity'
 import { severityRank } from '@/lib/status-styles'
 import { supabase } from '@/lib/supabase'
@@ -1911,5 +1911,24 @@ export function useExecutiveKpiHistory() {
       if (error) throw error
       return data as ExecutiveKpiSnapshotRecord[]
     },
+  })
+}
+
+// Fase 24 — histórico diário do Health Score de UM cliente
+// (client_health_score_snapshots, gravado a cada recálculo), pro
+// clique-pra-detalhe no card "Health Score" da Central de Informações.
+export function useClientHealthScoreHistory(clientId: string | null) {
+  return useQuery({
+    queryKey: ['client-health-score-history', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('client_health_score_snapshots')
+        .select('*')
+        .eq('client_id', clientId as string)
+        .order('snapshot_date', { ascending: true })
+      if (error) throw error
+      return data as ClientHealthScoreSnapshotRecord[]
+    },
+    enabled: !!clientId,
   })
 }

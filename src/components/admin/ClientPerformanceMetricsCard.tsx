@@ -16,9 +16,10 @@ import { KpiCard } from '@/components/dashboard/KpiCard'
 import { MetricDetailDialog } from '@/components/dashboard/MetricDetailDialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { ManagerClientRecord } from '@/hooks/useManagerPortalData'
-import { useClientPerformanceSnapshots } from '@/hooks/useManagerPortalData'
+import { useClientHealthScoreHistory, useClientPerformanceSnapshots } from '@/hooks/useManagerPortalData'
 import { formatCurrency, formatMultiplier, formatNumber, formatPercent } from '@/lib/format'
 import { kpiDescriptions } from '@/lib/kpi-descriptions'
+import { buildHealthScoreSeries } from '@/lib/manager-metrics'
 import { aggregateSnapshotKpis, buildMetricSeries, computeRevenueFromLeads, computeRoas, type MetricKey } from '@/lib/metrics'
 
 interface MetricDetailConfig {
@@ -39,9 +40,12 @@ interface ClientPerformanceMetricsCardProps {
  * `computeRoas`) — nunca mostra um número diferente do que o cliente já
  * vê do lado dele. Clique em qualquer card abre o mesmo detalhe com
  * gráfico já usado no resto do app (Fases 22/23). */
+type SelectedMetric = MetricKey | 'healthScore'
+
 export function ClientPerformanceMetricsCard({ client }: ClientPerformanceMetricsCardProps) {
   const { data: snapshots, isLoading } = useClientPerformanceSnapshots(client.id)
-  const [selectedMetric, setSelectedMetric] = useState<MetricKey | null>(null)
+  const { data: healthHistory } = useClientHealthScoreHistory(client.id)
+  const [selectedMetric, setSelectedMetric] = useState<SelectedMetric | null>(null)
 
   const snapshotList = snapshots ?? []
   const kpis = aggregateSnapshotKpis(snapshotList)
@@ -64,7 +68,19 @@ export function ClientPerformanceMetricsCard({ client }: ClientPerformanceMetric
     impressions: { label: 'Impressões', currentValue: kpis.impressions, formatValue: formatNumber },
     clicks: { label: 'Cliques', currentValue: kpis.clicks, formatValue: formatNumber },
   }
-  const selectedMetricConfig = selectedMetric ? metricConfigs[selectedMetric] : undefined
+  const healthScoreConfig: MetricDetailConfig = {
+    label: 'Health Score',
+    currentValue: client.health_score,
+    formatValue: formatNumber,
+  }
+  const selectedMetricConfig =
+    selectedMetric === 'healthScore' ? healthScoreConfig : selectedMetric ? metricConfigs[selectedMetric] : undefined
+  const selectedSeries =
+    selectedMetric === 'healthScore'
+      ? buildHealthScoreSeries(healthHistory ?? [])
+      : selectedMetric
+        ? buildMetricSeries(snapshotList, selectedMetric, client.leads_to_close, client.average_ticket)
+        : []
 
   return (
     <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
@@ -162,6 +178,7 @@ export function ClientPerformanceMetricsCard({ client }: ClientPerformanceMetric
                 value={formatNumber(client.health_score)}
                 icon={Activity}
                 description={kpiDescriptions.healthScoreMedio}
+                onClick={() => setSelectedMetric('healthScore')}
               />
             </div>
           </div>
@@ -174,7 +191,7 @@ export function ClientPerformanceMetricsCard({ client }: ClientPerformanceMetric
           onOpenChange={(open) => !open && setSelectedMetric(null)}
           label={selectedMetricConfig.label}
           currentValue={selectedMetricConfig.currentValue}
-          series={buildMetricSeries(snapshotList, selectedMetric, client.leads_to_close, client.average_ticket)}
+          series={selectedSeries}
           formatValue={selectedMetricConfig.formatValue}
         />
       )}
