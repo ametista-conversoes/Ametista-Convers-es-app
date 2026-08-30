@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { CheckCircle2, DollarSign, Gauge, Target, TrendingUp } from 'lucide-react'
 import { AssignedTasksCard } from '@/components/dashboard/AssignedTasksCard'
 import { EmergencyPauseButton } from '@/components/dashboard/EmergencyPauseButton'
@@ -5,6 +6,7 @@ import { FinancialSummaryCard } from '@/components/dashboard/FinancialSummaryCar
 import { GoalsProgressCard } from '@/components/dashboard/GoalsProgressCard'
 import { HealthScoreGauge } from '@/components/dashboard/HealthScoreGauge'
 import { KpiCard } from '@/components/dashboard/KpiCard'
+import { MetricDetailDialog } from '@/components/dashboard/MetricDetailDialog'
 import { NotificationsCard } from '@/components/dashboard/NotificationsCard'
 import { UpcomingMeetingsCard } from '@/components/dashboard/UpcomingMeetingsCard'
 import { UnlinkedClientNotice } from '@/components/shared/UnlinkedClientNotice'
@@ -19,7 +21,13 @@ import {
 } from '@/hooks/useClientPortalData'
 import { formatCurrency, formatMultiplier, formatNumber } from '@/lib/format'
 import { kpiDescriptions } from '@/lib/kpi-descriptions'
-import { aggregateSnapshotKpis, computeRevenueFromLeads, computeRoas } from '@/lib/metrics'
+import { aggregateSnapshotKpis, buildMetricSeries, computeRevenueFromLeads, computeRoas, type MetricKey } from '@/lib/metrics'
+
+interface MetricDetailConfig {
+  label: string
+  currentValue: number | null
+  formatValue: (value: number | null) => string
+}
 
 export default function Dashboard() {
   const { clientId } = useAuth()
@@ -29,6 +37,7 @@ export default function Dashboard() {
   const { data: meetings } = useUpcomingMeetings()
   const { data: goals } = useSmartGoals()
   const { data: alerts } = useAlerts()
+  const [selectedMetric, setSelectedMetric] = useState<MetricKey | null>(null)
 
   if (!clientId) {
     return <UnlinkedClientNotice page="um Dashboard" />
@@ -42,9 +51,19 @@ export default function Dashboard() {
     return <p className="text-sm text-destructive">Erro ao carregar os dados. Tente novamente.</p>
   }
 
-  const kpis = aggregateSnapshotKpis(snapshots ?? [])
+  const snapshotList = snapshots ?? []
+  const kpis = aggregateSnapshotKpis(snapshotList)
   const revenue = computeRevenueFromLeads(kpis.conversions, client?.leads_to_close ?? null, client?.average_ticket ?? null)
   const roas = revenue != null ? computeRoas(revenue, kpis.spend) : null
+
+  const metricConfigs: Partial<Record<MetricKey, MetricDetailConfig>> = {
+    spend: { label: 'Investimento', currentValue: kpis.spend, formatValue: formatCurrency },
+    revenue: { label: 'Receita', currentValue: revenue, formatValue: formatCurrency },
+    roas: { label: 'ROAS', currentValue: roas, formatValue: formatMultiplier },
+    cpa: { label: 'CPA', currentValue: kpis.cpa, formatValue: formatCurrency },
+    conversions: { label: 'Conversões', currentValue: kpis.conversions, formatValue: formatNumber },
+  }
+  const selectedMetricConfig = selectedMetric ? metricConfigs[selectedMetric] : undefined
 
   return (
     <div className="space-y-6">
@@ -63,20 +82,35 @@ export default function Dashboard() {
             value={formatCurrency(kpis.spend)}
             icon={DollarSign}
             description={kpiDescriptions.investimento}
+            onClick={() => setSelectedMetric('spend')}
           />
           <KpiCard
             label="Receita"
             value={formatCurrency(revenue)}
             icon={TrendingUp}
             description={kpiDescriptions.receita}
+            onClick={() => setSelectedMetric('revenue')}
           />
-          <KpiCard label="ROAS" value={formatMultiplier(roas)} icon={Gauge} description={kpiDescriptions.roas} />
-          <KpiCard label="CPA" value={formatCurrency(kpis.cpa)} icon={Target} description={kpiDescriptions.cpa} />
+          <KpiCard
+            label="ROAS"
+            value={formatMultiplier(roas)}
+            icon={Gauge}
+            description={kpiDescriptions.roas}
+            onClick={() => setSelectedMetric('roas')}
+          />
+          <KpiCard
+            label="CPA"
+            value={formatCurrency(kpis.cpa)}
+            icon={Target}
+            description={kpiDescriptions.cpa}
+            onClick={() => setSelectedMetric('cpa')}
+          />
           <KpiCard
             label="Conversões"
             value={formatNumber(kpis.conversions)}
             icon={CheckCircle2}
             description={kpiDescriptions.conversoes}
+            onClick={() => setSelectedMetric('conversions')}
           />
         </div>
       </div>
@@ -99,6 +133,17 @@ export default function Dashboard() {
           <NotificationsCard alerts={alerts ?? []} />
         </div>
       </div>
+
+      {selectedMetric && selectedMetricConfig && (
+        <MetricDetailDialog
+          open
+          onOpenChange={(open) => !open && setSelectedMetric(null)}
+          label={selectedMetricConfig.label}
+          currentValue={selectedMetricConfig.currentValue}
+          series={buildMetricSeries(snapshotList, selectedMetric, client?.leads_to_close ?? null, client?.average_ticket ?? null)}
+          formatValue={selectedMetricConfig.formatValue}
+        />
+      )}
     </div>
   )
 }

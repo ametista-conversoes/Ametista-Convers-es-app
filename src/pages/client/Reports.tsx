@@ -18,6 +18,7 @@ import { SpendRevenueBarChart } from '@/components/charts/SpendRevenueBarChart'
 import { FinancialSummaryCard } from '@/components/dashboard/FinancialSummaryCard'
 import { GoalsProgressCard } from '@/components/dashboard/GoalsProgressCard'
 import { KpiCard } from '@/components/dashboard/KpiCard'
+import { MetricDetailDialog } from '@/components/dashboard/MetricDetailDialog'
 import { MonthYearPicker } from '@/components/reports/MonthYearPicker'
 import { UnlinkedClientNotice } from '@/components/shared/UnlinkedClientNotice'
 import { Button } from '@/components/ui/button'
@@ -30,15 +31,23 @@ import { kpiDescriptions } from '@/lib/kpi-descriptions'
 import {
   aggregateSnapshotKpis,
   aggregateSnapshotKpisForMonth,
+  buildMetricSeries,
   buildTrendSeries,
   computeRevenueFromLeads,
   computeRoas,
   groupByChannel,
   groupByChannelForMonth,
+  type MetricKey,
 } from '@/lib/metrics'
 import { generateMonthlyReportPdf, type MonthlyReportPdfData } from '@/lib/pdf-report'
 
 const now = new Date()
+
+interface MetricDetailConfig {
+  label: string
+  currentValue: number | null
+  formatValue: (value: number | null) => string
+}
 
 export default function Reports() {
   const { clientId } = useAuth()
@@ -48,6 +57,7 @@ export default function Reports() {
   const { data: goals, isLoading: loadingGoals, isError: goalsIsError } = useSmartGoals()
   const [selectedYear, setSelectedYear] = useState(now.getFullYear())
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1)
+  const [selectedMetric, setSelectedMetric] = useState<MetricKey | null>(null)
   const { data: monthlyReport, isLoading: loadingMonthlyReport } = useMonthlyReport(selectedYear, selectedMonth)
 
   if (!clientId) {
@@ -69,6 +79,20 @@ export default function Reports() {
   const roas = revenue != null ? computeRoas(revenue, kpis.spend) : null
   const channelData = groupByChannel(projectList)
   const trendData = buildTrendSeries(snapshotList)
+
+  const metricConfigs: Record<MetricKey, MetricDetailConfig> = {
+    spend: { label: 'Investimento', currentValue: kpis.spend, formatValue: formatCurrency },
+    revenue: { label: 'Receita', currentValue: revenue, formatValue: formatCurrency },
+    roas: { label: 'ROAS', currentValue: roas, formatValue: formatMultiplier },
+    cpa: { label: 'CPA', currentValue: kpis.cpa, formatValue: formatCurrency },
+    conversions: { label: 'Conversões', currentValue: kpis.conversions, formatValue: formatNumber },
+    ctr: { label: 'CTR médio', currentValue: kpis.ctr, formatValue: formatPercent },
+    cpc: { label: 'CPC', currentValue: kpis.cpc, formatValue: formatCurrency },
+    conversionRate: { label: 'Taxa de Conversão', currentValue: kpis.conversionRate, formatValue: formatPercent },
+    impressions: { label: 'Impressões', currentValue: kpis.impressions, formatValue: formatNumber },
+    clicks: { label: 'Cliques', currentValue: kpis.clicks, formatValue: formatNumber },
+  }
+  const selectedMetricConfig = selectedMetric ? metricConfigs[selectedMetric] : undefined
 
   const isCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === now.getMonth() + 1
   let monthlyData: MonthlyReportPdfData | null = null
@@ -139,26 +163,42 @@ export default function Reports() {
                 value={formatPercent(kpis.ctr)}
                 icon={MousePointerClick}
                 description={kpiDescriptions.ctrMedio}
+                onClick={() => setSelectedMetric('ctr')}
               />
-              <KpiCard label="ROAS" value={formatMultiplier(roas)} icon={Gauge} description={kpiDescriptions.roas} />
+              <KpiCard
+                label="ROAS"
+                value={formatMultiplier(roas)}
+                icon={Gauge}
+                description={kpiDescriptions.roas}
+                onClick={() => setSelectedMetric('roas')}
+              />
               <KpiCard
                 label="Impressões"
                 value={formatNumber(kpis.impressions)}
                 icon={Eye}
                 description={kpiDescriptions.impressoes}
+                onClick={() => setSelectedMetric('impressions')}
               />
               <KpiCard
                 label="Cliques"
                 value={formatNumber(kpis.clicks)}
                 icon={MousePointerClick}
                 description={kpiDescriptions.cliques}
+                onClick={() => setSelectedMetric('clicks')}
               />
-              <KpiCard label="CPC" value={formatCurrency(kpis.cpc)} icon={Target} description={kpiDescriptions.cpc} />
+              <KpiCard
+                label="CPC"
+                value={formatCurrency(kpis.cpc)}
+                icon={Target}
+                description={kpiDescriptions.cpc}
+                onClick={() => setSelectedMetric('cpc')}
+              />
               <KpiCard
                 label="Taxa de Conversão"
                 value={formatPercent(kpis.conversionRate)}
                 icon={Percent}
                 description={kpiDescriptions.taxaConversao}
+                onClick={() => setSelectedMetric('conversionRate')}
               />
             </div>
           </div>
@@ -184,19 +224,28 @@ export default function Reports() {
                 value={formatCurrency(kpis.spend)}
                 icon={DollarSign}
                 description={kpiDescriptions.investimento}
+                onClick={() => setSelectedMetric('spend')}
               />
               <KpiCard
                 label="Receita"
                 value={formatCurrency(revenue)}
                 icon={TrendingUp}
                 description={kpiDescriptions.receita}
+                onClick={() => setSelectedMetric('revenue')}
               />
-              <KpiCard label="CPA" value={formatCurrency(kpis.cpa)} icon={Target} description={kpiDescriptions.cpa} />
+              <KpiCard
+                label="CPA"
+                value={formatCurrency(kpis.cpa)}
+                icon={Target}
+                description={kpiDescriptions.cpa}
+                onClick={() => setSelectedMetric('cpa')}
+              />
               <KpiCard
                 label="Conversões"
                 value={formatNumber(kpis.conversions)}
                 icon={CheckCircle2}
                 description={kpiDescriptions.conversoes}
+                onClick={() => setSelectedMetric('conversions')}
               />
               <KpiCard
                 label="Health Score"
@@ -344,6 +393,17 @@ export default function Reports() {
           )}
         </TabsContent>
       </Tabs>
+
+      {selectedMetric && selectedMetricConfig && (
+        <MetricDetailDialog
+          open
+          onOpenChange={(open) => !open && setSelectedMetric(null)}
+          label={selectedMetricConfig.label}
+          currentValue={selectedMetricConfig.currentValue}
+          series={buildMetricSeries(snapshotList, selectedMetric, client?.leads_to_close ?? null, client?.average_ticket ?? null)}
+          formatValue={selectedMetricConfig.formatValue}
+        />
+      )}
     </div>
   )
 }

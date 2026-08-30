@@ -137,6 +137,79 @@ export function aggregateSnapshotKpisForMonth(snapshots: PerformanceSnapshotReco
   return sumSnapshotKpis(snapshots.filter((s) => s.snapshot_date.startsWith(prefix)))
 }
 
+// Fase 22 — chave de cada métrica clicável (KpiCard -> MetricDetailDialog).
+export type MetricKey = 'spend' | 'revenue' | 'roas' | 'cpa' | 'ctr' | 'cpc' | 'conversionRate' | 'conversions' | 'impressions' | 'clicks'
+
+export interface MetricSeriesPoint {
+  date: string
+  value: number | null
+}
+
+/**
+ * Série diária de UMA métrica, pro gráfico de linha do
+ * `MetricDetailDialog` — agrupa os retratos por data (mesmo padrão de
+ * `buildTrendSeries`) e aplica, dia a dia, a MESMA fórmula já usada em
+ * `aggregateSnapshotKpis`/`computeRevenueFromLeads`/`computeRoas`, pra
+ * nunca destoar do que já é mostrado no resto do app.
+ */
+export function buildMetricSeries(
+  snapshots: PerformanceSnapshotRecord[],
+  metricKey: MetricKey,
+  leadsToClose: number | null,
+  averageTicket: number | null,
+): MetricSeriesPoint[] {
+  const byDate = new Map<string, { spend: number; clicks: number; impressions: number; conversions: number }>()
+  for (const s of snapshots) {
+    const existing = byDate.get(s.snapshot_date) ?? { spend: 0, clicks: 0, impressions: 0, conversions: 0 }
+    existing.spend += s.spend ?? 0
+    existing.clicks += s.clicks ?? 0
+    existing.impressions += s.impressions ?? 0
+    existing.conversions += s.conversions ?? 0
+    byDate.set(s.snapshot_date, existing)
+  }
+
+  return Array.from(byDate.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, day]) => {
+      let value: number | null
+      switch (metricKey) {
+        case 'spend':
+          value = day.spend
+          break
+        case 'clicks':
+          value = day.clicks
+          break
+        case 'impressions':
+          value = day.impressions
+          break
+        case 'conversions':
+          value = day.conversions
+          break
+        case 'ctr':
+          value = day.impressions > 0 ? (day.clicks / day.impressions) * 100 : null
+          break
+        case 'cpc':
+          value = day.clicks > 0 ? day.spend / day.clicks : null
+          break
+        case 'conversionRate':
+          value = day.clicks > 0 ? (day.conversions / day.clicks) * 100 : null
+          break
+        case 'cpa':
+          value = day.conversions > 0 ? day.spend / day.conversions : null
+          break
+        case 'revenue':
+          value = computeRevenueFromLeads(day.conversions, leadsToClose, averageTicket)
+          break
+        case 'roas': {
+          const dayRevenue = computeRevenueFromLeads(day.conversions, leadsToClose, averageTicket)
+          value = dayRevenue != null ? computeRoas(dayRevenue, day.spend) : null
+          break
+        }
+      }
+      return { date, value }
+    })
+}
+
 function sumSnapshotKpis(snapshots: PerformanceSnapshotRecord[]): SnapshotKpis {
   const spend = snapshots.reduce((sum, s) => sum + (s.spend ?? 0), 0)
   const impressions = snapshots.reduce((sum, s) => sum + (s.impressions ?? 0), 0)

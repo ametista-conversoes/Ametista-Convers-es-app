@@ -11,17 +11,35 @@ interface KpiCardProps {
   icon: LucideIcon
   description?: string
   className?: string
+  onClick?: () => void
 }
 
-export function KpiCard({ label, value, icon: Icon, description, className }: KpiCardProps) {
+/** Fase 22: `onClick` opcional abre o `MetricDetailDialog` — o botão
+ * de ajuda já tinha `stopPropagation` (Fase 4), então continua
+ * funcionando sem também abrir o dialog junto. */
+export function KpiCard({ label, value, icon: Icon, description, className, onClick }: KpiCardProps) {
   const id = useId()
   const { openId, setOpenId } = useKpiPopover()
   const isOpen = openId === id
 
   return (
     <Card
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onClick()
+              }
+            }
+          : undefined
+      }
       className={cn(
         'relative rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6',
+        onClick && 'cursor-pointer',
         className,
       )}
     >
