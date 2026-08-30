@@ -10,10 +10,12 @@ import {
   Percent,
   Target,
   TrendingUp,
+  Wallet,
 } from 'lucide-react'
 import { PerformanceTrendChart } from '@/components/charts/PerformanceTrendChart'
 import { SpendRevenueBarChart } from '@/components/charts/SpendRevenueBarChart'
 import { FinancialSummaryCard } from '@/components/dashboard/FinancialSummaryCard'
+import { GoalsProgressCard } from '@/components/dashboard/GoalsProgressCard'
 import { KpiCard } from '@/components/dashboard/KpiCard'
 import { MonthYearPicker } from '@/components/reports/MonthYearPicker'
 import { UnlinkedClientNotice } from '@/components/shared/UnlinkedClientNotice'
@@ -21,7 +23,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/contexts/AuthContext'
-import { useClient, useMonthlyReport, usePerformanceSnapshots, useProjects } from '@/hooks/useClientPortalData'
+import { useClient, useMonthlyReport, usePerformanceSnapshots, useProjects, useSmartGoals } from '@/hooks/useClientPortalData'
 import { formatCurrency, formatMultiplier, formatNumber, formatPercent } from '@/lib/format'
 import { kpiDescriptions } from '@/lib/kpi-descriptions'
 import {
@@ -31,6 +33,7 @@ import {
   computeRevenueFromLeads,
   computeRoas,
   groupByChannel,
+  groupByChannelForMonth,
 } from '@/lib/metrics'
 import { generateMonthlyReportPdf, type MonthlyReportPdfData } from '@/lib/pdf-report'
 
@@ -41,6 +44,7 @@ export default function Reports() {
   const { data: client, isLoading: loadingClient, isError: clientIsError } = useClient()
   const { data: projects, isLoading: loadingProjects, isError: projectsIsError } = useProjects()
   const { data: snapshots, isLoading: loadingSnapshots, isError: snapshotsIsError } = usePerformanceSnapshots()
+  const { data: goals, isLoading: loadingGoals, isError: goalsIsError } = useSmartGoals()
   const [selectedYear, setSelectedYear] = useState(now.getFullYear())
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1)
   const { data: monthlyReport, isLoading: loadingMonthlyReport } = useMonthlyReport(selectedYear, selectedMonth)
@@ -49,11 +53,11 @@ export default function Reports() {
     return <UnlinkedClientNotice page="Relatórios" />
   }
 
-  if (loadingClient || loadingProjects || loadingSnapshots) {
+  if (loadingClient || loadingProjects || loadingSnapshots || loadingGoals) {
     return <p className="text-sm text-muted-foreground">Carregando...</p>
   }
 
-  if (clientIsError || projectsIsError || snapshotsIsError) {
+  if (clientIsError || projectsIsError || snapshotsIsError || goalsIsError) {
     return <p className="text-sm text-destructive">Erro ao carregar os dados. Tente novamente.</p>
   }
 
@@ -94,6 +98,17 @@ export default function Reports() {
       health_score: client?.health_score ?? null,
     }
   }
+  const monthlyProfit = monthlyData?.revenue != null ? monthlyData.revenue - (monthlyData.spend ?? 0) : null
+  const monthChannelData = groupByChannelForMonth(
+    snapshotList,
+    selectedYear,
+    selectedMonth,
+    client?.leads_to_close ?? null,
+    client?.average_ticket ?? null,
+  )
+  const monthTrendData = buildTrendSeries(
+    snapshotList.filter((s) => s.snapshot_date.startsWith(`${selectedYear}-${String(selectedMonth).padStart(2, '0')}`)),
+  )
 
   return (
     <div className="space-y-6">
@@ -214,7 +229,9 @@ export default function Reports() {
               }}
             />
             {client && monthlyData && (
-              <Button onClick={() => generateMonthlyReportPdf(client, monthlyData!, selectedYear, selectedMonth)}>
+              <Button
+                onClick={() => generateMonthlyReportPdf(client, monthlyData!, selectedYear, selectedMonth, monthChannelData)}
+              >
                 <Download className="h-4 w-4" />
                 Baixar PDF
               </Button>
@@ -246,6 +263,7 @@ export default function Reports() {
                     icon={TrendingUp}
                     description={kpiDescriptions.receita}
                   />
+                  <KpiCard label="Lucro" value={formatCurrency(monthlyProfit)} icon={Wallet} description={kpiDescriptions.lucro} />
                   <KpiCard label="ROAS" value={formatMultiplier(monthlyData.roas)} icon={Gauge} description={kpiDescriptions.roas} />
                   <KpiCard label="CPA" value={formatCurrency(monthlyData.cpa)} icon={Target} description={kpiDescriptions.cpa} />
                   <KpiCard
@@ -261,6 +279,40 @@ export default function Reports() {
                     description={kpiDescriptions.conversoes}
                   />
                 </div>
+              </div>
+
+              <Card className="min-w-0 overflow-hidden rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
+                <CardHeader className="p-0">
+                  <CardTitle className="text-base">Investimento vs. Receita por canal</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0 pt-4">
+                  {monthChannelData.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum dado de canal para este mês.</p>
+                  ) : (
+                    <SpendRevenueBarChart data={monthChannelData} />
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="min-w-0 overflow-hidden rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
+                <CardHeader className="p-0">
+                  <CardTitle className="text-base">Tendência do mês</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0 pt-4">
+                  {monthTrendData.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Sem histórico diário para este mês.</p>
+                  ) : (
+                    <PerformanceTrendChart data={monthTrendData} />
+                  )}
+                </CardContent>
+              </Card>
+
+              <div>
+                <GoalsProgressCard goals={goals ?? []} />
+                <p className="mt-2 text-xs text-muted-foreground/70">
+                  Metas atuais — mostram a situação de hoje, não um histórico do mês selecionado (as metas SMART não têm
+                  fechamento por mês).
+                </p>
               </div>
             </>
           )}

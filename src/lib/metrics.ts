@@ -39,6 +39,45 @@ export function groupByChannel(projects: ProjectRecord[]): ChannelBreakdown[] {
   return Array.from(byChannel.values())
 }
 
+/**
+ * Investimento real por canal (retratos diários) dentro de um mês
+ * específico, com a Receita do mês inteiro (calculada a partir dos
+ * Leads reais, mesma fórmula de `computeRevenueFromLeads`) distribuída
+ * proporcionalmente pela fatia de conversões de cada canal — não tem
+ * receita reportada por canal em nenhuma plataforma de anúncio, essa é
+ * a mesma lógica de atribuição já usada pro total do cliente, só
+ * quebrada por canal (Fase 21.3b, aba "Histórico Mensal").
+ */
+export function groupByChannelForMonth(
+  snapshots: PerformanceSnapshotRecord[],
+  year: number,
+  month: number,
+  leadsToClose: number | null,
+  averageTicket: number | null,
+): ChannelBreakdown[] {
+  const prefix = `${year}-${String(month).padStart(2, '0')}`
+  const monthSnapshots = snapshots.filter((s) => s.snapshot_date.startsWith(prefix))
+
+  const byChannel = new Map<string, { spend: number; conversions: number }>()
+  let totalConversions = 0
+  for (const s of monthSnapshots) {
+    const channel = s.channel ?? 'Sem canal'
+    const existing = byChannel.get(channel) ?? { spend: 0, conversions: 0 }
+    existing.spend += s.spend ?? 0
+    existing.conversions += s.conversions ?? 0
+    byChannel.set(channel, existing)
+    totalConversions += s.conversions ?? 0
+  }
+
+  const totalRevenue = computeRevenueFromLeads(totalConversions, leadsToClose, averageTicket)
+
+  return Array.from(byChannel.entries()).map(([channel, { spend, conversions }]) => ({
+    channel,
+    investimento: spend,
+    receita: totalRevenue != null && totalConversions > 0 ? totalRevenue * (conversions / totalConversions) : 0,
+  }))
+}
+
 /** Soma os retratos diários de todos os projetos do cliente, por data. */
 export function buildTrendSeries(snapshots: PerformanceSnapshotRecord[]): TrendPoint[] {
   const byDate = new Map<string, TrendPoint>()

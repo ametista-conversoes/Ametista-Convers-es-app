@@ -13,6 +13,11 @@ export const kpiDescriptions = {
     'Nenhuma plataforma de anúncio reporta faturamento, então a Receita é calculada em 2 passos: Vendas = Leads ÷ "Leads p/ fechar 1 venda", depois Receita = Vendas × "Ticket médio" — as duas premissas são editadas na Central de Informações do Cliente. Sem elas configuradas, aparece "—".\n\n' +
     'Cálculo: (Conversões dos últimos 30 dias ÷ Leads p/ fechar) × Ticket médio.',
 
+  lucro:
+    'Lucro = Receita menos Investimento\n\n' +
+    'Quanto sobrou depois de descontar o que foi gasto em mídia paga da Receita estimada a partir dos Leads. Sem a Receita configurada (premissas na Central de Informações do Cliente), aparece "—".\n\n' +
+    'Cálculo: Receita − Investimento, no mesmo período.',
+
   roas:
     'ROAS = Retorno sobre Investimento em Anúncios (Return on Ad Spend)\n\n' +
     'Mostra quanto foi gerado em receita para cada real investido em anúncios. Um ROAS de 4x significa que cada R$ 1 investido gerou R$ 4 em receita. Cruza a Receita estimada (a partir de Leads) com o Investimento real sincronizado.\n\n' +
