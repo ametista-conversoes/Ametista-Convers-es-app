@@ -206,9 +206,13 @@ export default function Reports() {
         <TabsContent value="channels" className="space-y-4">
           <Card className="min-w-0 overflow-hidden rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
             <CardHeader className="p-0">
-              <CardTitle className="text-base">Investimento vs. Receita por canal</CardTitle>
+              <CardTitle className="text-base">Investimento vs. Receita por canal (todos os projetos)</CardTitle>
             </CardHeader>
-            <CardContent className="p-0 pt-4">
+            <CardContent className="space-y-3 p-0 pt-4">
+              <p className="text-xs text-muted-foreground">
+                Investimento/Receita cadastrados manualmente em cada projeto, somando todo o histórico — diferente do
+                gráfico por canal da aba "Histórico Mensal", que usa o dado real sincronizado de um mês específico.
+              </p>
               {channelData.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum projeto com canal definido ainda.</p>
               ) : (
@@ -230,7 +234,17 @@ export default function Reports() {
             />
             {client && monthlyData && (
               <Button
-                onClick={() => generateMonthlyReportPdf(client, monthlyData!, selectedYear, selectedMonth, monthChannelData)}
+                onClick={() =>
+                  generateMonthlyReportPdf(
+                    client,
+                    monthlyData!,
+                    selectedYear,
+                    selectedMonth,
+                    monthChannelData,
+                    monthTrendData,
+                    goals ?? [],
+                  )
+                }
               >
                 <Download className="h-4 w-4" />
                 Baixar PDF
@@ -283,7 +297,7 @@ export default function Reports() {
 
               <Card className="min-w-0 overflow-hidden rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
                 <CardHeader className="p-0">
-                  <CardTitle className="text-base">Investimento vs. Receita por canal</CardTitle>
+                  <CardTitle className="text-base">Investimento vs. Receita por canal (mês selecionado)</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0 pt-4">
                   {monthChannelData.length === 0 ? (
