@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { aggregateAudienceInsights, type AudienceRawResponse } from '@/lib/audience-insights'
+import type { ExecutiveKpiSnapshotRecord } from '@/lib/manager-metrics'
 import { fetchLatestUpdatedAt, latestOf } from '@/lib/nav-activity'
 import { severityRank } from '@/lib/status-styles'
 import { supabase } from '@/lib/supabase'
@@ -1870,6 +1871,23 @@ export function useCreateClient() {
     },
     onError: () => {
       toast.error('Não foi possível criar o cliente.')
+    },
+  })
+}
+
+// Fase 23 — histórico diário dos 8 KPIs do Dashboard Executivo
+// (executive_kpi_snapshots, capturado por cron), pro clique-pra-detalhe
+// nos cards (MetricDetailDialog, mesmo componente do Portal Cliente).
+export function useExecutiveKpiHistory() {
+  return useQuery({
+    queryKey: ['executive-kpi-history'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('executive_kpi_snapshots')
+        .select('*')
+        .order('snapshot_date', { ascending: true })
+      if (error) throw error
+      return data as ExecutiveKpiSnapshotRecord[]
     },
   })
 }

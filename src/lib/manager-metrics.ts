@@ -4,6 +4,7 @@ import type {
   ManagerProjectRecord,
   ManagerTaskRecord,
 } from '@/hooks/useManagerPortalData'
+import type { MetricSeriesPoint } from '@/lib/metrics'
 
 export interface ExecutiveKpis {
   mrrTotal: number
@@ -55,4 +56,32 @@ export function computeExecutiveKpis(
     productivity,
     managedBudget,
   }
+}
+
+// Fase 23 — histórico diário dos 8 KPIs executivos (executive_kpi_snapshots,
+// capturado por cron, ver migration-050) — espelha as colunas da tabela.
+export interface ExecutiveKpiSnapshotRecord {
+  id: string
+  snapshot_date: string
+  mrr_total: number
+  active_clients: number
+  churn_rate: number | null
+  open_incidents: number
+  at_risk_clients: number
+  workload: number
+  productivity: number | null
+  managed_budget: number
+}
+
+export type ExecutiveMetricField = Exclude<keyof ExecutiveKpiSnapshotRecord, 'id' | 'snapshot_date'>
+
+/** Série diária de UM KPI executivo, pro `MetricDetailDialog` (mesmo
+ * componente já usado no Portal Cliente, Fase 22) — aqui os pontos já
+ * vêm prontos da tabela, sem precisar recalcular por dia (diferente
+ * de `buildMetricSeries`, que soma retratos brutos do cliente). */
+export function buildExecutiveMetricSeries(snapshots: ExecutiveKpiSnapshotRecord[], field: ExecutiveMetricField): MetricSeriesPoint[] {
+  return snapshots
+    .slice()
+    .sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date))
+    .map((s) => ({ date: s.snapshot_date, value: s[field] }))
 }
