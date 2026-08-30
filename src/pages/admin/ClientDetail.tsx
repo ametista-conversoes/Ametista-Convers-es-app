@@ -15,6 +15,7 @@ import {
   UsersRound,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { ClientPerformanceMetricsCard } from '@/components/admin/ClientPerformanceMetricsCard'
 import { MetricAlertThresholdsCard } from '@/components/admin/MetricAlertThresholdsCard'
 import { NewProjectDialog } from '@/components/admin/NewProjectDialog'
 import { CassieChatThread } from '@/components/cassie/CassieChatThread'
@@ -400,6 +401,8 @@ export default function ClientDetail() {
           </Button>
         </CardContent>
       </Card>
+
+      <ClientPerformanceMetricsCard client={client} />
 
       <MetricAlertThresholdsCard clientId={client.id} />
 

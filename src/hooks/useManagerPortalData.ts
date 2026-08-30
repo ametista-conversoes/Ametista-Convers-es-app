@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { aggregateAudienceInsights, type AudienceRawResponse } from '@/lib/audience-insights'
+import type { PerformanceSnapshotRecord } from '@/hooks/useClientPortalData'
 import type { ExecutiveKpiSnapshotRecord } from '@/lib/manager-metrics'
 import { fetchLatestUpdatedAt, latestOf } from '@/lib/nav-activity'
 import { severityRank } from '@/lib/status-styles'
@@ -1872,6 +1873,27 @@ export function useCreateClient() {
     onError: () => {
       toast.error('Não foi possível criar o cliente.')
     },
+  })
+}
+
+// Fase 23b — mesmo dado que `usePerformanceSnapshots` já busca pro
+// cliente logado (Portal Cliente), só que aqui pra um client_id
+// arbitrário (Central de Informações do Cliente, Portal Gestor) —
+// mesmas fórmulas (aggregateSnapshotKpis/buildMetricSeries) valem
+// pros dois, pra nunca mostrar número diferente do lado do cliente.
+export function useClientPerformanceSnapshots(clientId: string | null) {
+  return useQuery({
+    queryKey: ['client-performance-snapshots', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('performance_snapshots')
+        .select('*')
+        .eq('client_id', clientId as string)
+        .order('snapshot_date', { ascending: true })
+      if (error) throw error
+      return data as PerformanceSnapshotRecord[]
+    },
+    enabled: !!clientId,
   })
 }
 
