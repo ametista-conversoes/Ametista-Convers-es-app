@@ -57,7 +57,11 @@ export default function Reports() {
   const { data: goals, isLoading: loadingGoals, isError: goalsIsError } = useSmartGoals()
   const [selectedYear, setSelectedYear] = useState(now.getFullYear())
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1)
-  const [selectedMetric, setSelectedMetric] = useState<MetricKey | null>(null)
+  // "all" = histórico inteiro (abas Tráfego/Financeiro), "month" = só o
+  // mês selecionado no seletor (aba Histórico Mensal) — mesmo card
+  // (CPA, por exemplo) mostra um gráfico diferente dependendo de onde
+  // foi clicado.
+  const [selectedMetric, setSelectedMetric] = useState<{ key: MetricKey; scope: 'all' | 'month' } | null>(null)
   const { data: monthlyReport, isLoading: loadingMonthlyReport } = useMonthlyReport(selectedYear, selectedMonth)
 
   if (!clientId) {
@@ -92,7 +96,6 @@ export default function Reports() {
     impressions: { label: 'Impressões', currentValue: kpis.impressions, formatValue: formatNumber },
     clicks: { label: 'Cliques', currentValue: kpis.clicks, formatValue: formatNumber },
   }
-  const selectedMetricConfig = selectedMetric ? metricConfigs[selectedMetric] : undefined
 
   const isCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === now.getMonth() + 1
   let monthlyData: MonthlyReportPdfData | null = null
@@ -136,9 +139,37 @@ export default function Reports() {
     client?.leads_to_close ?? null,
     client?.average_ticket ?? null,
   )
-  const monthTrendData = buildTrendSeries(
-    snapshotList.filter((s) => s.snapshot_date.startsWith(`${selectedYear}-${String(selectedMonth).padStart(2, '0')}`)),
-  )
+  const monthPrefix = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`
+  const monthSnapshots = snapshotList.filter((s) => s.snapshot_date.startsWith(monthPrefix))
+  const monthTrendData = buildTrendSeries(monthSnapshots)
+
+  // Config dos cards clicáveis da aba "Histórico Mensal" — "Gasto
+  // Total" e "Lucro" ficam de fora (dependem da mensalidade, um valor
+  // só do mês inteiro, sem jeito natural de virar uma série diária).
+  const monthlyMetricConfigs: Partial<Record<MetricKey, MetricDetailConfig>> = monthlyData
+    ? {
+        spend: { label: 'Investimento', currentValue: monthlyData.spend, formatValue: formatCurrency },
+        revenue: { label: 'Receita', currentValue: monthlyData.revenue, formatValue: formatCurrency },
+        roas: { label: 'ROAS', currentValue: monthlyData.roas, formatValue: formatMultiplier },
+        cpa: { label: 'CPA', currentValue: monthlyData.cpa, formatValue: formatCurrency },
+        ctr: { label: 'CTR médio', currentValue: monthlyData.ctr, formatValue: formatPercent },
+        conversions: { label: 'Conversões', currentValue: monthlyData.conversions, formatValue: formatNumber },
+      }
+    : {}
+
+  const selectedMetricConfig = selectedMetric
+    ? selectedMetric.scope === 'month'
+      ? monthlyMetricConfigs[selectedMetric.key]
+      : metricConfigs[selectedMetric.key]
+    : undefined
+  const selectedMetricSeries = selectedMetric
+    ? buildMetricSeries(
+        selectedMetric.scope === 'month' ? monthSnapshots : snapshotList,
+        selectedMetric.key,
+        client?.leads_to_close ?? null,
+        client?.average_ticket ?? null,
+      )
+    : []
 
   return (
     <div className="space-y-6">
@@ -163,42 +194,42 @@ export default function Reports() {
                 value={formatPercent(kpis.ctr)}
                 icon={MousePointerClick}
                 description={kpiDescriptions.ctrMedio}
-                onClick={() => setSelectedMetric('ctr')}
+                onClick={() => setSelectedMetric({ key: 'ctr', scope: 'all' })}
               />
               <KpiCard
                 label="ROAS"
                 value={formatMultiplier(roas)}
                 icon={Gauge}
                 description={kpiDescriptions.roas}
-                onClick={() => setSelectedMetric('roas')}
+                onClick={() => setSelectedMetric({ key: 'roas', scope: 'all' })}
               />
               <KpiCard
                 label="Impressões"
                 value={formatNumber(kpis.impressions)}
                 icon={Eye}
                 description={kpiDescriptions.impressoes}
-                onClick={() => setSelectedMetric('impressions')}
+                onClick={() => setSelectedMetric({ key: 'impressions', scope: 'all' })}
               />
               <KpiCard
                 label="Cliques"
                 value={formatNumber(kpis.clicks)}
                 icon={MousePointerClick}
                 description={kpiDescriptions.cliques}
-                onClick={() => setSelectedMetric('clicks')}
+                onClick={() => setSelectedMetric({ key: 'clicks', scope: 'all' })}
               />
               <KpiCard
                 label="CPC"
                 value={formatCurrency(kpis.cpc)}
                 icon={Target}
                 description={kpiDescriptions.cpc}
-                onClick={() => setSelectedMetric('cpc')}
+                onClick={() => setSelectedMetric({ key: 'cpc', scope: 'all' })}
               />
               <KpiCard
                 label="Taxa de Conversão"
                 value={formatPercent(kpis.conversionRate)}
                 icon={Percent}
                 description={kpiDescriptions.taxaConversao}
-                onClick={() => setSelectedMetric('conversionRate')}
+                onClick={() => setSelectedMetric({ key: 'conversionRate', scope: 'all' })}
               />
             </div>
           </div>
@@ -224,28 +255,28 @@ export default function Reports() {
                 value={formatCurrency(kpis.spend)}
                 icon={DollarSign}
                 description={kpiDescriptions.investimento}
-                onClick={() => setSelectedMetric('spend')}
+                onClick={() => setSelectedMetric({ key: 'spend', scope: 'all' })}
               />
               <KpiCard
                 label="Receita"
                 value={formatCurrency(revenue)}
                 icon={TrendingUp}
                 description={kpiDescriptions.receita}
-                onClick={() => setSelectedMetric('revenue')}
+                onClick={() => setSelectedMetric({ key: 'revenue', scope: 'all' })}
               />
               <KpiCard
                 label="CPA"
                 value={formatCurrency(kpis.cpa)}
                 icon={Target}
                 description={kpiDescriptions.cpa}
-                onClick={() => setSelectedMetric('cpa')}
+                onClick={() => setSelectedMetric({ key: 'cpa', scope: 'all' })}
               />
               <KpiCard
                 label="Conversões"
                 value={formatNumber(kpis.conversions)}
                 icon={CheckCircle2}
                 description={kpiDescriptions.conversoes}
-                onClick={() => setSelectedMetric('conversions')}
+                onClick={() => setSelectedMetric({ key: 'conversions', scope: 'all' })}
               />
               <KpiCard
                 label="Health Score"
@@ -325,6 +356,7 @@ export default function Reports() {
                     value={formatCurrency(monthlyData.spend)}
                     icon={DollarSign}
                     description={kpiDescriptions.investimento}
+                    onClick={() => setSelectedMetric({ key: 'spend', scope: 'month' })}
                   />
                   <KpiCard
                     label="Gasto Total"
@@ -337,21 +369,36 @@ export default function Reports() {
                     value={formatCurrency(monthlyData.revenue)}
                     icon={TrendingUp}
                     description={kpiDescriptions.receita}
+                    onClick={() => setSelectedMetric({ key: 'revenue', scope: 'month' })}
                   />
                   <KpiCard label="Lucro" value={formatCurrency(monthlyProfit)} icon={Wallet} description={kpiDescriptions.lucro} />
-                  <KpiCard label="ROAS" value={formatMultiplier(monthlyData.roas)} icon={Gauge} description={kpiDescriptions.roas} />
-                  <KpiCard label="CPA" value={formatCurrency(monthlyData.cpa)} icon={Target} description={kpiDescriptions.cpa} />
+                  <KpiCard
+                    label="ROAS"
+                    value={formatMultiplier(monthlyData.roas)}
+                    icon={Gauge}
+                    description={kpiDescriptions.roas}
+                    onClick={() => setSelectedMetric({ key: 'roas', scope: 'month' })}
+                  />
+                  <KpiCard
+                    label="CPA"
+                    value={formatCurrency(monthlyData.cpa)}
+                    icon={Target}
+                    description={kpiDescriptions.cpa}
+                    onClick={() => setSelectedMetric({ key: 'cpa', scope: 'month' })}
+                  />
                   <KpiCard
                     label="CTR médio"
                     value={formatPercent(monthlyData.ctr)}
                     icon={MousePointerClick}
                     description={kpiDescriptions.ctrMedio}
+                    onClick={() => setSelectedMetric({ key: 'ctr', scope: 'month' })}
                   />
                   <KpiCard
                     label="Conversões"
                     value={formatNumber(monthlyData.conversions)}
                     icon={CheckCircle2}
                     description={kpiDescriptions.conversoes}
+                    onClick={() => setSelectedMetric({ key: 'conversions', scope: 'month' })}
                   />
                 </div>
               </div>
@@ -398,9 +445,9 @@ export default function Reports() {
         <MetricDetailDialog
           open
           onOpenChange={(open) => !open && setSelectedMetric(null)}
-          label={selectedMetricConfig.label}
+          label={selectedMetric.scope === 'month' ? `${selectedMetricConfig.label} (mês selecionado)` : selectedMetricConfig.label}
           currentValue={selectedMetricConfig.currentValue}
-          series={buildMetricSeries(snapshotList, selectedMetric, client?.leads_to_close ?? null, client?.average_ticket ?? null)}
+          series={selectedMetricSeries}
           formatValue={selectedMetricConfig.formatValue}
         />
       )}
