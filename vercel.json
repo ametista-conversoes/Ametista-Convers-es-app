@@ -4,6 +4,8 @@
       "src": "/oauth/google-callback",
       "dest": "https://ktexhzcpqrqjdgzgxisx.supabase.co/functions/v1/integrations/callback"
     },
+    { "src": "/privacy", "dest": "/privacy/index.html" },
+    { "src": "/terms", "dest": "/terms/index.html" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]

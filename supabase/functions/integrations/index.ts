@@ -100,7 +100,7 @@ const GOOGLE_FORMS_API_BASE = 'https://forms.googleapis.com/v1/forms'
 // de navegador sujeita a CORS) nem /forms-webhook (chamada servidor-a-
 // servidor do Google Apps Script, também não passa por CORS).
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://ametistaconversoesapp.vercel.app',
+  'Access-Control-Allow-Origin': 'https://ametistaconversoes.app',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-secret',
 }
 

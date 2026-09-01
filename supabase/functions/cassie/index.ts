@@ -50,7 +50,7 @@ const HISTORY_LIMIT = 20 // últimas mensagens incluídas como contexto, pra nã
 // Restrito ao domínio de produção (deploy na Vercel) — antes era '*'
 // (qualquer site podia chamar), trocado ao publicar o app de verdade.
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://ametistaconversoesapp.vercel.app',
+  'Access-Control-Allow-Origin': 'https://ametistaconversoes.app',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
