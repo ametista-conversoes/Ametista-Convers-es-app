@@ -1,3 +1,7 @@
+import { useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
+import { AgencyProviderConnectionsCard } from '@/components/settings/AgencyProviderConnectionsCard'
 import { AgencySettingsTab } from '@/components/settings/AgencySettingsTab'
 import { AvailabilitySettingsTab } from '@/components/settings/AvailabilitySettingsTab'
 import { ClientSettingsTab } from '@/components/settings/ClientSettingsTab'
@@ -14,6 +18,32 @@ export default function Settings() {
   const showClient = role === 'cliente'
 
   const defaultTab = showGlobal ? 'global' : showAgency ? 'agency' : 'client'
+
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // Volta do /callback da Edge Function "integrations" depois de
+  // conectar a conta administradora (Fase 28) — mesmo padrão de
+  // Assets.tsx (leitura da query string, sem página própria porque
+  // rotas sem autenticação do Supabase forçam Content-Type texto puro).
+  useEffect(() => {
+    const integration = searchParams.get('integration')
+    if (!integration) return
+    const message = searchParams.get('message')
+    if (integration === 'connected') {
+      toast.success(message ?? 'Conta administradora conectada com sucesso.')
+    } else if (integration === 'error') {
+      toast.error(message ?? 'Não foi possível conectar a conta administradora.')
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('integration')
+        next.delete('message')
+        return next
+      },
+      { replace: true },
+    )
+  }, [searchParams, setSearchParams])
 
   return (
     <div className="space-y-6">
@@ -39,8 +69,9 @@ export default function Settings() {
         )}
 
         {showAgency && (
-          <TabsContent value="agency">
+          <TabsContent value="agency" className="space-y-4">
             <AgencySettingsTab canEdit={role === 'admin'} />
+            <AgencyProviderConnectionsCard canEdit={role === 'admin'} />
           </TabsContent>
         )}
 

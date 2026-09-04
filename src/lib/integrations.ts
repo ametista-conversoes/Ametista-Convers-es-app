@@ -80,6 +80,96 @@ export async function selectGoogleAdsAccount(connectionId: string, account: Goog
   if (!res.ok) throw new Error(body.error ?? 'Não foi possível salvar a conta escolhida.')
 }
 
+// Fase 28 — conta administradora da agência (MCC no Google Ads,
+// Business Manager no Meta), autenticada 1x em vez de por cliente.
+
+export type AgencyProvider = 'google_ads' | 'meta_ads'
+
+/** Chama /agency-connect e devolve a URL de autorização — mesmo padrão
+ * de connectIntegration, só que sem digital_asset_id nenhum (é a conta
+ * da agência, não de um cliente específico). */
+export async function connectAgencyProvider(provider: AgencyProvider): Promise<string> {
+  const search = new URLSearchParams({ provider })
+  const res = await fetch(`${FUNCTIONS_BASE}/agency-connect?${search.toString()}`, { headers: await authHeaders() })
+  const body = await res.json()
+  if (!res.ok) throw new Error(body.error ?? 'Não foi possível iniciar a conexão.')
+  return body.authorizationUrl as string
+}
+
+export async function disconnectAgencyProvider(provider: AgencyProvider): Promise<void> {
+  const res = await fetch(`${FUNCTIONS_BASE}/agency-disconnect`, {
+    method: 'POST',
+    headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider }),
+  })
+  const body = await res.json()
+  if (!res.ok) throw new Error(body.error ?? 'Não foi possível desconectar.')
+}
+
+export interface AgencyAdAccount {
+  id: string
+  name: string | null
+  loginCustomerId?: string
+}
+
+/** Lista as contas de cliente visíveis pela conta administradora já
+ * conectada (MCC/Business Manager) — popula o seletor no diálogo
+ * "Conectar integração" de um Ativo Digital. */
+export async function listAgencyAccounts(provider: AgencyProvider): Promise<AgencyAdAccount[]> {
+  const search = new URLSearchParams({ provider })
+  const res = await fetch(`${FUNCTIONS_BASE}/agency-accounts?${search.toString()}`, { headers: await authHeaders() })
+  const body = await res.json()
+  if (!res.ok) throw new Error(body.error ?? 'Não foi possível buscar as contas.')
+  return body.accounts as AgencyAdAccount[]
+}
+
+/** Vincula uma conta escolhida da lista de listAgencyAccounts a um
+ * Ativo Digital — sem OAuth nenhum nessa etapa (a autenticação já foi
+ * feita uma vez em Configurações > Agência). */
+export async function linkAgencyAccount(
+  digitalAssetId: string,
+  provider: AgencyProvider,
+  account: AgencyAdAccount,
+): Promise<void> {
+  const res = await fetch(`${FUNCTIONS_BASE}/link-agency-account`, {
+    method: 'POST',
+    headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      digital_asset_id: digitalAssetId,
+      provider,
+      external_account_id: account.id,
+      login_customer_id: account.loginCustomerId,
+    }),
+  })
+  const body = await res.json()
+  if (!res.ok) throw new Error(body.error ?? 'Não foi possível vincular a conta.')
+}
+
+export interface AgencyBusiness {
+  id: string
+  name: string | null
+}
+
+/** Só existe pro Meta — lista os Business Managers visíveis pela conta
+ * conectada, quando a escolha automática (handleAgencyCallback) não
+ * conseguiu decidir sozinha (0 ou 2+ encontrados). */
+export async function listAgencyBusinesses(): Promise<AgencyBusiness[]> {
+  const res = await fetch(`${FUNCTIONS_BASE}/agency-businesses?provider=meta_ads`, { headers: await authHeaders() })
+  const body = await res.json()
+  if (!res.ok) throw new Error(body.error ?? 'Não foi possível buscar os Business Managers.')
+  return body.businesses as AgencyBusiness[]
+}
+
+export async function selectAgencyBusiness(businessId: string): Promise<void> {
+  const res = await fetch(`${FUNCTIONS_BASE}/select-agency-business`, {
+    method: 'POST',
+    headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ business_id: businessId }),
+  })
+  const body = await res.json()
+  if (!res.ok) throw new Error(body.error ?? 'Não foi possível salvar o Business Manager escolhido.')
+}
+
 export interface ExternalCampaign {
   id: string
   name: string

@@ -1204,6 +1204,31 @@ export function useDigitalAssetConnections() {
   })
 }
 
+export interface AgencyProviderConnectionRecord {
+  id: string
+  provider: string
+  status: string
+  external_account_id: string | null
+}
+
+/** Conexão de agência (Fase 28 — MCC no Google Ads, Business Manager no
+ * Meta), 1 linha por provedor. Quem escreve é sempre a Edge Function
+ * "integrations" (service role); o app só lê, pra mostrar o status em
+ * Configurações > Agência e decidir se o diálogo "Conectar integração"
+ * mostra a lista de contas ou pede pra conectar a agência primeiro. */
+export function useAgencyProviderConnections() {
+  return useQuery({
+    queryKey: ['agency-provider-connections'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('agency_provider_connections')
+        .select('id, provider, status, external_account_id')
+      if (error) throw error
+      return data as AgencyProviderConnectionRecord[]
+    },
+  })
+}
+
 export interface FormQuestionRecord {
   id: string
   external_question_id: string

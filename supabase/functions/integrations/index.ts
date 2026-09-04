@@ -56,6 +56,22 @@
 //   POST .../integrations/forms-webhook   { formId, responseId, submittedAt, answers }
 //                                          (cabeçalho X-Webhook-Secret — continua só criando o
 //                                          Alerta genérico de "nova resposta", sem mudança)
+//
+// Fase 28 — conta administradora da agência (MCC no Google Ads, Business
+// Manager no Meta), autenticada 1x em vez de por cliente. Conexões de
+// cliente feitas por OAuth direto (linhas acima) continuam funcionando
+// sem nenhuma mudança — este é só o caminho novo pra conexão futura:
+//   GET  .../integrations/agency-connect?provider=google_ads|meta_ads   (só admin)
+//   GET  .../integrations/agency-accounts?provider=...                  (lista contas de cliente
+//                                          visíveis pelo MCC/Business Manager já conectado)
+//   POST .../integrations/link-agency-account  { digital_asset_id, provider, external_account_id,
+//                                          login_customer_id? }   (sem OAuth nessa etapa — só
+//                                          escolhe, numa lista, qual conta do cliente usar)
+//   POST .../integrations/agency-disconnect  { provider }         (só admin)
+//   GET  .../integrations/agency-businesses?provider=meta_ads     (só Meta — lista Business
+//                                          Managers quando a escolha automática não foi
+//                                          possível, 0 ou 2+ encontrados)
+//   POST .../integrations/select-agency-business  { business_id }  (só admin)
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2'
 import { timingSafeEqual } from 'node:crypto'
@@ -119,9 +135,9 @@ function jsonResponse(body: unknown, status = 200) {
  * Supabase — uma página aqui nunca renderiza bonita, sempre aparece
  * como código cru. O resultado vai na query string; quem mostra um
  * aviso de verdade é o próprio app (toast em Assets.tsx). */
-function callbackRedirect(success: boolean, message: string) {
+function callbackRedirect(success: boolean, message: string, targetPath = '/assets') {
   const frontendUrl = Deno.env.get('FRONTEND_URL') ?? 'http://localhost:5173'
-  const target = new URL(`${frontendUrl}/assets`)
+  const target = new URL(`${frontendUrl}${targetPath}`)
   target.searchParams.set('integration', success ? 'connected' : 'error')
   target.searchParams.set('message', message)
   return new Response(null, { status: 302, headers: { ...corsHeaders, Location: target.toString() } })
@@ -252,6 +268,51 @@ async function requireAdminOrGestor(req: Request): Promise<{ userId: string; rol
   return { userId: userData.user.id, role: profile.role }
 }
 
+/** Fase 20 (achado ao vivo): a mesma conta real de Google Ads/Meta Ads
+ * conectada em 2 ativos digitais diferentes do mesmo cliente duplicava
+ * dado sincronizado (campaign_performance_snapshots repetido por
+ * conexão, entre outros). Só permite 1 conexão "connected" de cada
+ * provedor por cliente — reconectar o MESMO ativo (mesma linha)
+ * continua liberado, só bloqueia um ativo digital *diferente* do mesmo
+ * cliente. Reaproveitada por handleConnect (OAuth por cliente, legado)
+ * e handleLinkAgencyAccount (Fase 28, escolha a partir da conta de
+ * agência). */
+async function assertNoSiblingConnection(
+  supabase: SupabaseClient,
+  provider: 'google_ads' | 'meta_ads',
+  digitalAssetId: string,
+  clientId: string,
+): Promise<Response | null> {
+  const { data: siblingAssets, error: siblingAssetsError } = await supabase
+    .from('digital_assets')
+    .select('id')
+    .eq('client_id', clientId)
+    .neq('id', digitalAssetId)
+  if (siblingAssetsError) return await dbErrorResponse('assertNoSiblingConnection: buscar ativos do cliente', siblingAssetsError)
+  const siblingAssetIds = ((siblingAssets ?? []) as Array<{ id: string }>).map((a) => a.id)
+  if (siblingAssetIds.length === 0) return null
+
+  const { data: existingConnection, error: existingConnectionError } = await supabase
+    .from('digital_asset_connections')
+    .select('id')
+    .eq('provider', provider)
+    .eq('status', 'connected')
+    .in('digital_asset_id', siblingAssetIds)
+    .maybeSingle()
+  if (existingConnectionError) {
+    return await dbErrorResponse('assertNoSiblingConnection: checar conexão existente do cliente', existingConnectionError)
+  }
+  if (!existingConnection) return null
+
+  const providerLabel = provider === 'google_ads' ? 'Google Ads' : 'Meta Ads'
+  return jsonResponse(
+    {
+      error: `Esse cliente já tem uma conexão de ${providerLabel} ativa em outro ativo digital. Desconecte a outra antes de conectar uma nova — só 1 conexão de ${providerLabel} por cliente é permitida.`,
+    },
+    409,
+  )
+}
+
 async function handleConnect(req: Request, url: URL) {
   const auth = await requireAdminOrGestor(req)
   if (auth instanceof Response) return auth
@@ -305,33 +366,8 @@ async function handleConnect(req: Request, url: URL) {
   // provedor por cliente — reconectar o MESMO ativo (mesma linha) continua
   // liberado, só bloqueia um ativo digital *diferente* do mesmo cliente.
   if (provider === 'google_ads' || provider === 'meta_ads') {
-    const { data: siblingAssets, error: siblingAssetsError } = await supabase
-      .from('digital_assets')
-      .select('id')
-      .eq('client_id', asset.client_id)
-      .neq('id', digitalAssetId)
-    if (siblingAssetsError) return dbErrorResponse('handleConnect: buscar ativos do cliente', siblingAssetsError)
-    const siblingAssetIds = ((siblingAssets ?? []) as Array<{ id: string }>).map((a) => a.id)
-
-    if (siblingAssetIds.length > 0) {
-      const { data: existingConnection, error: existingConnectionError } = await supabase
-        .from('digital_asset_connections')
-        .select('id')
-        .eq('provider', provider)
-        .eq('status', 'connected')
-        .in('digital_asset_id', siblingAssetIds)
-        .maybeSingle()
-      if (existingConnectionError) return dbErrorResponse('handleConnect: checar conexão existente do cliente', existingConnectionError)
-      if (existingConnection) {
-        const providerLabel = provider === 'google_ads' ? 'Google Ads' : 'Meta Ads'
-        return jsonResponse(
-          {
-            error: `Esse cliente já tem uma conexão de ${providerLabel} ativa em outro ativo digital. Desconecte a outra antes de conectar uma nova — só 1 conexão de ${providerLabel} por cliente é permitida.`,
-          },
-          409,
-        )
-      }
-    }
+    const siblingError = await assertNoSiblingConnection(supabase, provider, digitalAssetId, asset.client_id)
+    if (siblingError) return siblingError
   }
 
   const upsertPayload: Record<string, unknown> = { digital_asset_id: digitalAssetId, provider, status: 'disconnected' }
@@ -376,12 +412,149 @@ async function handleConnect(req: Request, url: URL) {
   return jsonResponse({ authorizationUrl: authorizationUrl.toString(), connectionId: connection.id })
 }
 
+/** Fase 28 — autentica a conta administradora da agência (MCC no
+ * Google Ads, Business Manager no Meta) uma vez só, não por cliente.
+ * Só admin (defesa em profundidade — a tela em Configurações > Agência
+ * já esconde o botão pra gestor). Reaproveita o MESMO redirect_uri/rota
+ * /callback de sempre — só o "state" muda (prefixo "agency:"), então
+ * não precisa cadastrar nenhuma URI nova no Google Cloud Console/Meta. */
+async function handleAgencyConnect(req: Request, url: URL) {
+  const auth = await requireAdminOrGestor(req)
+  if (auth instanceof Response) return auth
+  if (auth.role !== 'admin') return jsonResponse({ error: 'Só o admin pode conectar a conta administradora.' }, 403)
+
+  const provider = url.searchParams.get('provider')
+  if (provider !== 'google_ads' && provider !== 'meta_ads') {
+    return jsonResponse({ error: 'Provedor inválido. Use google_ads ou meta_ads.' }, 400)
+  }
+
+  if (provider !== 'meta_ads' && !Deno.env.get(GOOGLE_OAUTH_CLIENT_ID_ENV)) {
+    return jsonResponse(
+      { error: `As credenciais do Google ainda não foram configuradas nesta função (falta o segredo "${GOOGLE_OAUTH_CLIENT_ID_ENV}").` },
+      400,
+    )
+  }
+  if (provider === 'meta_ads' && !Deno.env.get('META_APP_ID')) {
+    return jsonResponse(
+      { error: 'As credenciais do Meta ainda não foram configuradas nesta função (falta o segredo META_APP_ID).' },
+      400,
+    )
+  }
+
+  const supabase = getServiceClient()
+
+  const { data: connection, error: connectionError } = await supabase
+    .from('agency_provider_connections')
+    .upsert({ provider, status: 'disconnected' }, { onConflict: 'provider', ignoreDuplicates: false })
+    .select('id')
+    .single()
+  if (connectionError) return dbErrorResponse('handleAgencyConnect: upsert conexão de agência', connectionError)
+
+  const redirectUri =
+    provider === 'meta_ads'
+      ? `${Deno.env.get('SUPABASE_URL')}/functions/v1${url.pathname.replace(/\/agency-connect$/, '/callback')}`
+      : buildGoogleRedirectUri()
+
+  let authorizationUrl: URL
+  if (provider === 'meta_ads') {
+    authorizationUrl = new URL(META_AUTHORIZE_URL)
+    authorizationUrl.searchParams.set('client_id', Deno.env.get('META_APP_ID') ?? '')
+    authorizationUrl.searchParams.set('redirect_uri', redirectUri)
+    authorizationUrl.searchParams.set('response_type', 'code')
+    authorizationUrl.searchParams.set('scope', META_SCOPE)
+    authorizationUrl.searchParams.set('state', `agency:${connection.id}`)
+  } else {
+    authorizationUrl = new URL(GOOGLE_AUTHORIZE_URL)
+    authorizationUrl.searchParams.set('client_id', Deno.env.get(GOOGLE_OAUTH_CLIENT_ID_ENV) ?? '')
+    authorizationUrl.searchParams.set('redirect_uri', redirectUri)
+    authorizationUrl.searchParams.set('response_type', 'code')
+    authorizationUrl.searchParams.set('access_type', 'offline')
+    authorizationUrl.searchParams.set('prompt', 'consent')
+    authorizationUrl.searchParams.set('scope', GOOGLE_SCOPES.google_ads)
+    authorizationUrl.searchParams.set('state', `agency:${connection.id}`)
+  }
+
+  return jsonResponse({ authorizationUrl: authorizationUrl.toString() })
+}
+
+type CodeExchangeResult =
+  | { ok: true; accessToken: string; refreshToken?: string; expiresIn: number }
+  | { ok: false; step: string; body: unknown }
+
+/** Meta: a troca é GET com parâmetros na URL (não POST), e o token de
+ * curta duração (~1-2h) precisa ser trocado por um de longa duração
+ * (60 dias) logo em seguida — não existe "refresh_token" separado
+ * como no Google; renovar significa reexecutar essa mesma troca antes
+ * do token vencer (ver `refreshMetaAccessToken`). Reaproveitada tanto
+ * pela conexão por cliente (handleCallback) quanto pela conexão de
+ * agência (handleAgencyCallback, Fase 28). */
+async function exchangeMetaCode(code: string, redirectUri: string): Promise<CodeExchangeResult> {
+  const shortTokenUrl = new URL(META_TOKEN_URL)
+  shortTokenUrl.searchParams.set('client_id', Deno.env.get('META_APP_ID') ?? '')
+  shortTokenUrl.searchParams.set('client_secret', Deno.env.get('META_APP_SECRET') ?? '')
+  shortTokenUrl.searchParams.set('redirect_uri', redirectUri)
+  shortTokenUrl.searchParams.set('code', code)
+
+  const shortTokenRes = await fetch(shortTokenUrl.toString())
+  const shortTokenBody = await shortTokenRes.json()
+  if (!shortTokenRes.ok) return { ok: false, step: 'token curto', body: shortTokenBody }
+
+  const longTokenUrl = new URL(META_TOKEN_URL)
+  longTokenUrl.searchParams.set('grant_type', 'fb_exchange_token')
+  longTokenUrl.searchParams.set('client_id', Deno.env.get('META_APP_ID') ?? '')
+  longTokenUrl.searchParams.set('client_secret', Deno.env.get('META_APP_SECRET') ?? '')
+  longTokenUrl.searchParams.set('fb_exchange_token', shortTokenBody.access_token)
+
+  const longTokenRes = await fetch(longTokenUrl.toString())
+  const longTokenBody = await longTokenRes.json()
+  if (!longTokenRes.ok) return { ok: false, step: 'token longo', body: longTokenBody }
+
+  return {
+    ok: true,
+    accessToken: longTokenBody.access_token as string,
+    expiresIn: (longTokenBody.expires_in as number | undefined) ?? 5_184_000, // ~60 dias, padrão do Meta
+  }
+}
+
+/** Reaproveitada tanto pela conexão por cliente (handleCallback) quanto
+ * pela conexão de agência (handleAgencyCallback, Fase 28). */
+async function exchangeGoogleCode(code: string, redirectUri: string): Promise<CodeExchangeResult> {
+  const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: Deno.env.get(GOOGLE_OAUTH_CLIENT_ID_ENV) ?? '',
+      client_secret: Deno.env.get(GOOGLE_OAUTH_CLIENT_SECRET_ENV) ?? '',
+      code,
+      grant_type: 'authorization_code',
+      redirect_uri: redirectUri,
+    }),
+  })
+  const tokenBody = await tokenRes.json()
+  if (!tokenRes.ok) return { ok: false, step: 'token', body: tokenBody }
+
+  return {
+    ok: true,
+    accessToken: tokenBody.access_token as string,
+    refreshToken: tokenBody.refresh_token as string | undefined,
+    expiresIn: (tokenBody.expires_in as number | undefined) ?? 3600,
+  }
+}
+
 async function handleCallback(url: URL) {
   const state = url.searchParams.get('state')
   const code = url.searchParams.get('code')
   const oauthError = url.searchParams.get('error')
 
   if (!state) return callbackRedirect(false, 'Parâmetro "state" ausente.')
+
+  // Fase 28: conexão de agência (Configurações > Agência) usa o MESMO
+  // /callback já registrado no Google Cloud Console/Meta — só o prefixo
+  // do "state" distingue as duas, pra não precisar cadastrar uma URI
+  // nova em nenhum dos dois painéis externos.
+  if (state.startsWith('agency:')) {
+    return await handleAgencyCallback(url, state.slice('agency:'.length), code, oauthError)
+  }
 
   const supabase = getServiceClient()
 
@@ -407,67 +580,12 @@ async function handleCallback(url: URL) {
   const redirectUri =
     connection.provider === 'meta_ads' ? `${Deno.env.get('SUPABASE_URL')}/functions/v1${url.pathname}` : buildGoogleRedirectUri()
 
-  let accessToken: string
-  let refreshToken: string | undefined
-  let expiresIn: number
-
-  if (connection.provider === 'meta_ads') {
-    // Meta: a troca é GET com parâmetros na URL (não POST), e o token
-    // de curta duração (~1-2h) precisa ser trocado por um de longa
-    // duração (60 dias) logo em seguida — não existe "refresh_token"
-    // separado como no Google; renovar significa reexecutar essa
-    // mesma troca antes do token vencer (ver `getValidAccessToken`).
-    const shortTokenUrl = new URL(META_TOKEN_URL)
-    shortTokenUrl.searchParams.set('client_id', Deno.env.get('META_APP_ID') ?? '')
-    shortTokenUrl.searchParams.set('client_secret', Deno.env.get('META_APP_SECRET') ?? '')
-    shortTokenUrl.searchParams.set('redirect_uri', redirectUri)
-    shortTokenUrl.searchParams.set('code', code)
-
-    const shortTokenRes = await fetch(shortTokenUrl.toString())
-    const shortTokenBody = await shortTokenRes.json()
-    if (!shortTokenRes.ok) {
-      await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connection.id)
-      return platformErrorRedirect('handleCallback: trocar token curto', 'Meta', shortTokenBody)
-    }
-
-    const longTokenUrl = new URL(META_TOKEN_URL)
-    longTokenUrl.searchParams.set('grant_type', 'fb_exchange_token')
-    longTokenUrl.searchParams.set('client_id', Deno.env.get('META_APP_ID') ?? '')
-    longTokenUrl.searchParams.set('client_secret', Deno.env.get('META_APP_SECRET') ?? '')
-    longTokenUrl.searchParams.set('fb_exchange_token', shortTokenBody.access_token)
-
-    const longTokenRes = await fetch(longTokenUrl.toString())
-    const longTokenBody = await longTokenRes.json()
-    if (!longTokenRes.ok) {
-      await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connection.id)
-      return platformErrorRedirect('handleCallback: trocar token longo', 'Meta', longTokenBody)
-    }
-
-    accessToken = longTokenBody.access_token as string
-    refreshToken = undefined
-    expiresIn = (longTokenBody.expires_in as number | undefined) ?? 5_184_000 // ~60 dias, padrão do Meta
-  } else {
-    const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: Deno.env.get(GOOGLE_OAUTH_CLIENT_ID_ENV) ?? '',
-        client_secret: Deno.env.get(GOOGLE_OAUTH_CLIENT_SECRET_ENV) ?? '',
-        code,
-        grant_type: 'authorization_code',
-        redirect_uri: redirectUri,
-      }),
-    })
-    const tokenBody = await tokenRes.json()
-    if (!tokenRes.ok) {
-      await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connection.id)
-      return platformErrorRedirect('handleCallback: trocar token', 'Google', tokenBody)
-    }
-
-    accessToken = tokenBody.access_token as string
-    refreshToken = tokenBody.refresh_token as string | undefined
-    expiresIn = (tokenBody.expires_in as number | undefined) ?? 3600
+  const exchange = connection.provider === 'meta_ads' ? await exchangeMetaCode(code, redirectUri) : await exchangeGoogleCode(code, redirectUri)
+  if (!exchange.ok) {
+    await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connection.id)
+    return platformErrorRedirect(`handleCallback: trocar ${exchange.step}`, connection.provider === 'meta_ads' ? 'Meta' : 'Google', exchange.body)
   }
+  const { accessToken, refreshToken, expiresIn } = exchange
 
   const { data: accessSecretId, error: accessSecretError } = await supabase.rpc('store_oauth_secret', { secret: accessToken })
   if (accessSecretError) {
@@ -553,6 +671,95 @@ async function handleCallback(url: URL) {
   return callbackRedirect(true, 'Integração conectada com sucesso.')
 }
 
+/** Fase 28 — mesma troca de código→token de handleCallback, só que
+ * grava em agency_provider_connections/agency_oauth_tokens em vez de
+ * digital_asset_connections/oauth_tokens. Chamada por handleCallback
+ * quando o "state" começa com "agency:". */
+async function handleAgencyCallback(url: URL, agencyConnectionId: string, code: string | null, oauthError: string | null) {
+  const supabase = getServiceClient()
+
+  const { data: connection, error: connectionError } = await supabase
+    .from('agency_provider_connections')
+    .select('id, provider')
+    .eq('id', agencyConnectionId)
+    .maybeSingle()
+  if (connectionError) return dbErrorRedirect('handleAgencyCallback: buscar conexão de agência', connectionError)
+  if (!connection) return callbackRedirect(false, 'Conexão de agência não encontrada (state inválido).', '/settings')
+
+  if (oauthError || !code) {
+    await supabase.from('agency_provider_connections').update({ status: 'error' }).eq('id', connection.id)
+    return callbackRedirect(false, `Conexão cancelada ou recusada${oauthError ? `: ${oauthError}` : ''}.`, '/settings')
+  }
+
+  const redirectUri =
+    connection.provider === 'meta_ads'
+      ? `${Deno.env.get('SUPABASE_URL')}/functions/v1${url.pathname}`
+      : buildGoogleRedirectUri()
+
+  const exchange = connection.provider === 'meta_ads' ? await exchangeMetaCode(code, redirectUri) : await exchangeGoogleCode(code, redirectUri)
+  if (!exchange.ok) {
+    await supabase.from('agency_provider_connections').update({ status: 'error' }).eq('id', connection.id)
+    console.error(`[integrations] handleAgencyCallback: trocar ${exchange.step} — erro da ${connection.provider === 'meta_ads' ? 'Meta' : 'Google'}:`, exchange.body)
+    await logServerError('integrations', `handleAgencyCallback: trocar ${exchange.step}`, exchange.body)
+    return callbackRedirect(false, `Não foi possível conectar com o ${connection.provider === 'meta_ads' ? 'Meta' : 'Google'}. Tente novamente.`, '/settings')
+  }
+  const { accessToken, refreshToken, expiresIn } = exchange
+
+  const { data: accessSecretId, error: accessSecretError } = await supabase.rpc('store_oauth_secret', { secret: accessToken })
+  if (accessSecretError) {
+    console.error('[integrations] handleAgencyCallback: guardar token de acesso:', accessSecretError)
+    await supabase.from('agency_provider_connections').update({ status: 'error' }).eq('id', connection.id)
+    return callbackRedirect(false, 'Não foi possível guardar o token com segurança.', '/settings')
+  }
+
+  const tokenUpsert: Record<string, unknown> = {
+    agency_connection_id: connection.id,
+    access_token_secret_id: accessSecretId,
+    expires_at: new Date(Date.now() + expiresIn * 1000).toISOString(),
+  }
+  if (refreshToken) {
+    const { data: refreshSecretId } = await supabase.rpc('store_oauth_secret', { secret: refreshToken })
+    if (refreshSecretId) tokenUpsert.refresh_token_secret_id = refreshSecretId
+  }
+
+  const { error: tokenUpsertError } = await supabase.from('agency_oauth_tokens').upsert(tokenUpsert, { onConflict: 'agency_connection_id' })
+  if (tokenUpsertError) {
+    console.error('[integrations] handleAgencyCallback: guardar agency_oauth_tokens:', tokenUpsertError)
+    await supabase.from('agency_provider_connections').update({ status: 'error' }).eq('id', connection.id)
+    return callbackRedirect(false, 'Não foi possível salvar a conexão. Tente novamente.', '/settings')
+  }
+
+  // Meta: descobre o(s) Business Manager(s) que essa conta enxerga —
+  // só grava sozinho quando é inequívoco (1 só), mesmo padrão já usado
+  // pra conta de Google Ads em handleCallback. Com 0 ou 2+, fica
+  // "conectado" sem external_account_id — o admin escolhe manualmente
+  // depois (rota /agency-accounts, tela de Configurações > Agência).
+  if (connection.provider === 'meta_ads') {
+    try {
+      const businesses = await discoverMetaBusinesses(accessToken)
+      if (businesses.length === 1) {
+        await supabase.from('agency_provider_connections').update({ external_account_id: businesses[0].id }).eq('id', connection.id)
+      } else {
+        console.error(`[integrations] handleAgencyCallback: ${businesses.length} Business Manager(s) encontrado(s) — precisa escolha manual:`, businesses)
+      }
+    } catch (err) {
+      console.error('[integrations] handleAgencyCallback: erro inesperado ao descobrir Business Manager:', err)
+      // segue sem quebrar a conexão — ver comentário acima
+    }
+  }
+
+  const { error: statusUpdateError } = await supabase
+    .from('agency_provider_connections')
+    .update({ status: 'connected' })
+    .eq('id', connection.id)
+  if (statusUpdateError) {
+    console.error('[integrations] handleAgencyCallback: marcar conexão como conectada:', statusUpdateError)
+    return callbackRedirect(false, 'Não foi possível concluir a conexão. Tente novamente.', '/settings')
+  }
+
+  return callbackRedirect(true, 'Conta administradora conectada com sucesso.', '/settings')
+}
+
 function googleAdsHeaders(accessToken: string, loginCustomerId?: string | null): Record<string, string> {
   const headers: Record<string, string> = {
     Authorization: `Bearer ${accessToken}`,
@@ -618,6 +825,91 @@ async function discoverGoogleAdsClientAccounts(accessToken: string): Promise<Goo
   return Array.from(found.values())
 }
 
+type MetaBusiness = { id: string; name: string | null }
+
+/** Fase 28 — lista os Business Managers que a conta do Meta logada
+ * enxerga (`GET /me/businesses`), pra escolher qual usar como conta
+ * administradora da agência. Só roda uma vez, em handleAgencyCallback
+ * (auto-seleção quando há só 1) ou manualmente na tela de
+ * Configurações > Agência (quando há 0 ou 2+). */
+async function discoverMetaBusinesses(accessToken: string): Promise<MetaBusiness[]> {
+  const businessesUrl = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/me/businesses`)
+  businessesUrl.searchParams.set('fields', 'id,name')
+  businessesUrl.searchParams.set('access_token', accessToken)
+
+  const businessesRes = await fetch(businessesUrl.toString())
+  const businessesBody = await businessesRes.json()
+  if (!businessesRes.ok) {
+    console.error('[integrations] discoverMetaBusinesses: falhou:', businessesBody)
+    return []
+  }
+
+  return ((businessesBody.data ?? []) as Array<{ id: string; name?: string }>).map((b) => ({ id: b.id, name: b.name ?? null }))
+}
+
+type MetaClientAdAccount = { id: string; name: string | null }
+
+/** Fase 28 — lista as contas de anúncio compartilhadas com um Business
+ * Manager específico (`GET /{business_id}/client_ad_accounts`) — só
+ * contas de cliente já vinculadas ao BM da agência dentro do próprio
+ * Meta Business Settings (vínculo manual, feito fora do app). */
+async function discoverMetaClientAdAccounts(accessToken: string, businessId: string): Promise<MetaClientAdAccount[]> {
+  const accountsUrl = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/${businessId}/client_ad_accounts`)
+  accountsUrl.searchParams.set('fields', 'id,name')
+  accountsUrl.searchParams.set('access_token', accessToken)
+
+  const accountsRes = await fetch(accountsUrl.toString())
+  const accountsBody = await accountsRes.json()
+  if (!accountsRes.ok) {
+    console.error('[integrations] discoverMetaClientAdAccounts: falhou:', accountsBody)
+    return []
+  }
+
+  return ((accountsBody.data ?? []) as Array<{ id: string; name?: string }>).map((a) => ({ id: a.id, name: a.name ?? null }))
+}
+
+type RefreshResult = { accessToken: string; expiresIn: number } | null
+
+/** Sem "refresh_token" separado no Meta — renova reexecutando a troca
+ * por um token de longa duração novo, usando o token atual (que ainda
+ * precisa estar válido; se já venceu de vez, não tem como renovar e a
+ * conexão precisa ser refeita). Reaproveitada por getValidAccessToken
+ * (conexão por cliente, legada) e getValidAgencyAccessToken (Fase 28). */
+async function refreshMetaAccessToken(currentToken: string): Promise<RefreshResult> {
+  const longTokenUrl = new URL(META_TOKEN_URL)
+  longTokenUrl.searchParams.set('grant_type', 'fb_exchange_token')
+  longTokenUrl.searchParams.set('client_id', Deno.env.get('META_APP_ID') ?? '')
+  longTokenUrl.searchParams.set('client_secret', Deno.env.get('META_APP_SECRET') ?? '')
+  longTokenUrl.searchParams.set('fb_exchange_token', currentToken)
+
+  const longTokenRes = await fetch(longTokenUrl.toString())
+  const longTokenBody = await longTokenRes.json()
+  if (!longTokenRes.ok) return null
+
+  return { accessToken: longTokenBody.access_token as string, expiresIn: (longTokenBody.expires_in as number | undefined) ?? 5_184_000 }
+}
+
+/** Reaproveitada por getValidAccessToken (conexão por cliente, legada)
+ * e getValidAgencyAccessToken (Fase 28). */
+async function refreshGoogleAccessToken(refreshToken: string): Promise<RefreshResult> {
+  const refreshRes = await fetch(GOOGLE_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: Deno.env.get(GOOGLE_OAUTH_CLIENT_ID_ENV) ?? '',
+      client_secret: Deno.env.get(GOOGLE_OAUTH_CLIENT_SECRET_ENV) ?? '',
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  })
+  const refreshBody = await refreshRes.json()
+  if (!refreshRes.ok) return null
+
+  return { accessToken: refreshBody.access_token as string, expiresIn: (refreshBody.expires_in as number | undefined) ?? 3600 }
+}
+
+/** Conexão por cliente (legada, OAuth próprio) — ver getValidAgencyAccessToken
+ * pro caminho novo (Fase 28, conexão de agência). */
 async function getValidAccessToken(supabase: SupabaseClient, connectionId: string, provider: Provider): Promise<string | null> {
   const { data: tokenRow } = await supabase
     .from('oauth_tokens')
@@ -634,65 +926,114 @@ async function getValidAccessToken(supabase: SupabaseClient, connectionId: strin
   }
 
   if (provider === 'meta_ads') {
-    // Sem "refresh_token" separado — renova reexecutando a troca por
-    // um token de longa duração novo, usando o token atual (que
-    // ainda precisa estar válido; se já venceu de vez, não tem como
-    // renovar e a conexão precisa ser refeita — marca "error").
     const { data: currentToken } = await supabase.rpc('read_oauth_secret', { secret_id: tokenRow.access_token_secret_id })
     if (!currentToken) return null
 
-    const longTokenUrl = new URL(META_TOKEN_URL)
-    longTokenUrl.searchParams.set('grant_type', 'fb_exchange_token')
-    longTokenUrl.searchParams.set('client_id', Deno.env.get('META_APP_ID') ?? '')
-    longTokenUrl.searchParams.set('client_secret', Deno.env.get('META_APP_SECRET') ?? '')
-    longTokenUrl.searchParams.set('fb_exchange_token', currentToken as string)
-
-    const longTokenRes = await fetch(longTokenUrl.toString())
-    const longTokenBody = await longTokenRes.json()
-    if (!longTokenRes.ok) {
+    const refreshed = await refreshMetaAccessToken(currentToken as string)
+    if (!refreshed) {
       await supabase.from('digital_asset_connections').update({ status: 'error' }).eq('id', connectionId)
       return null
     }
 
-    const { data: newAccessSecretId } = await supabase.rpc('store_oauth_secret', { secret: longTokenBody.access_token })
+    const { data: newAccessSecretId } = await supabase.rpc('store_oauth_secret', { secret: refreshed.accessToken })
     await supabase
       .from('oauth_tokens')
       .update({
         access_token_secret_id: newAccessSecretId,
-        expires_at: new Date(Date.now() + (longTokenBody.expires_in ?? 5_184_000) * 1000).toISOString(),
+        expires_at: new Date(Date.now() + refreshed.expiresIn * 1000).toISOString(),
       })
       .eq('connection_id', connectionId)
 
-    return longTokenBody.access_token as string
+    return refreshed.accessToken
   }
 
   if (!tokenRow.refresh_token_secret_id) return null
   const { data: refreshToken } = await supabase.rpc('read_oauth_secret', { secret_id: tokenRow.refresh_token_secret_id })
   if (!refreshToken) return null
 
-  const refreshRes = await fetch(GOOGLE_TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: Deno.env.get(GOOGLE_OAUTH_CLIENT_ID_ENV) ?? '',
-      client_secret: Deno.env.get(GOOGLE_OAUTH_CLIENT_SECRET_ENV) ?? '',
-      refresh_token: refreshToken as string,
-      grant_type: 'refresh_token',
-    }),
-  })
-  const refreshBody = await refreshRes.json()
-  if (!refreshRes.ok) return null
+  const refreshed = await refreshGoogleAccessToken(refreshToken as string)
+  if (!refreshed) return null
 
-  const { data: newAccessSecretId } = await supabase.rpc('store_oauth_secret', { secret: refreshBody.access_token })
+  const { data: newAccessSecretId } = await supabase.rpc('store_oauth_secret', { secret: refreshed.accessToken })
   await supabase
     .from('oauth_tokens')
     .update({
       access_token_secret_id: newAccessSecretId,
-      expires_at: new Date(Date.now() + (refreshBody.expires_in ?? 3600) * 1000).toISOString(),
+      expires_at: new Date(Date.now() + refreshed.expiresIn * 1000).toISOString(),
     })
     .eq('connection_id', connectionId)
 
-  return refreshBody.access_token as string
+  return refreshed.accessToken
+}
+
+/** Fase 28 — mesma ideia de getValidAccessToken, só que pra conexão de
+ * agência (1 por provedor, não por cliente): busca pelo provider em
+ * agency_provider_connections/agency_oauth_tokens em vez de por
+ * connection_id. Usada por syncConnection/handleListCampaigns (via
+ * resolveAccessToken) e por handleListAgencyAccounts quando a conexão
+ * do cliente já foi migrada pro modelo novo. */
+async function getValidAgencyAccessToken(supabase: SupabaseClient, provider: 'google_ads' | 'meta_ads'): Promise<string | null> {
+  const { data: agencyConnection } = await supabase
+    .from('agency_provider_connections')
+    .select('id')
+    .eq('provider', provider)
+    .eq('status', 'connected')
+    .maybeSingle()
+  if (!agencyConnection) return null
+
+  const { data: tokenRow } = await supabase
+    .from('agency_oauth_tokens')
+    .select('access_token_secret_id, refresh_token_secret_id, expires_at')
+    .eq('agency_connection_id', agencyConnection.id)
+    .maybeSingle()
+  if (!tokenRow) return null
+
+  const isExpiringSoon = tokenRow.expires_at ? new Date(tokenRow.expires_at).getTime() < Date.now() + 60_000 : false
+
+  if (!isExpiringSoon) {
+    const { data: accessToken } = await supabase.rpc('read_oauth_secret', { secret_id: tokenRow.access_token_secret_id })
+    return (accessToken as string | null) ?? null
+  }
+
+  if (provider === 'meta_ads') {
+    const { data: currentToken } = await supabase.rpc('read_oauth_secret', { secret_id: tokenRow.access_token_secret_id })
+    if (!currentToken) return null
+
+    const refreshed = await refreshMetaAccessToken(currentToken as string)
+    if (!refreshed) {
+      await supabase.from('agency_provider_connections').update({ status: 'error' }).eq('id', agencyConnection.id)
+      return null
+    }
+
+    const { data: newAccessSecretId } = await supabase.rpc('store_oauth_secret', { secret: refreshed.accessToken })
+    await supabase
+      .from('agency_oauth_tokens')
+      .update({
+        access_token_secret_id: newAccessSecretId,
+        expires_at: new Date(Date.now() + refreshed.expiresIn * 1000).toISOString(),
+      })
+      .eq('agency_connection_id', agencyConnection.id)
+
+    return refreshed.accessToken
+  }
+
+  if (!tokenRow.refresh_token_secret_id) return null
+  const { data: refreshToken } = await supabase.rpc('read_oauth_secret', { secret_id: tokenRow.refresh_token_secret_id })
+  if (!refreshToken) return null
+
+  const refreshed = await refreshGoogleAccessToken(refreshToken as string)
+  if (!refreshed) return null
+
+  const { data: newAccessSecretId } = await supabase.rpc('store_oauth_secret', { secret: refreshed.accessToken })
+  await supabase
+    .from('agency_oauth_tokens')
+    .update({
+      access_token_secret_id: newAccessSecretId,
+      expires_at: new Date(Date.now() + refreshed.expiresIn * 1000).toISOString(),
+    })
+    .eq('agency_connection_id', agencyConnection.id)
+
+  return refreshed.accessToken
 }
 
 type SyncableConnection = {
@@ -700,7 +1041,23 @@ type SyncableConnection = {
   provider: Provider
   external_account_id: string | null
   login_customer_id: string | null
+  agency_provider_connection_id: string | null
   digital_assets: { client_id: string } | { client_id: string }[]
+}
+
+/** Fase 28 — ponto único de decisão entre os dois caminhos de token:
+ * conexão nova (agency_provider_connection_id preenchido, escolhida a
+ * partir da conta administradora) usa getValidAgencyAccessToken;
+ * conexão antiga (OAuth próprio, coluna nula) continua em
+ * getValidAccessToken, sem nenhuma mudança de comportamento. */
+async function resolveAccessToken(
+  supabase: SupabaseClient,
+  connection: { id: string; provider: Provider; agency_provider_connection_id: string | null },
+): Promise<string | null> {
+  if (connection.agency_provider_connection_id && (connection.provider === 'google_ads' || connection.provider === 'meta_ads')) {
+    return await getValidAgencyAccessToken(supabase, connection.provider)
+  }
+  return await getValidAccessToken(supabase, connection.id, connection.provider)
 }
 
 type SyncResult = { ok: true; syncedDays: number } | { ok: false; error: string }
@@ -717,7 +1074,7 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
     return { ok: false, error: 'Conexão incompleta (falta conta de anúncios)' }
   }
 
-  const accessToken = await getValidAccessToken(supabase, connection.id, connection.provider)
+  const accessToken = await resolveAccessToken(supabase, connection)
   if (!accessToken) return { ok: false, error: 'Não foi possível obter um token de acesso válido' }
 
   const byDate = new Map<string, { spend: number; clicks: number; impressions: number; conversions: number }>()
@@ -1122,7 +1479,7 @@ async function handleSync(req: Request) {
 
   const { data: connection, error: connectionError } = await supabase
     .from('digital_asset_connections')
-    .select('id, provider, external_account_id, login_customer_id, digital_assets(client_id)')
+    .select('id, provider, external_account_id, login_customer_id, agency_provider_connection_id, digital_assets(client_id)')
     .eq('id', body.connection_id)
     .maybeSingle()
   if (connectionError) return dbErrorResponse('handleSync: buscar conexão', connectionError)
@@ -1161,7 +1518,7 @@ async function handleListCampaigns(req: Request, url: URL) {
 
   const { data: connection, error: connectionError } = await supabase
     .from('digital_asset_connections')
-    .select('id, provider, external_account_id, login_customer_id')
+    .select('id, provider, external_account_id, login_customer_id, agency_provider_connection_id')
     .eq('id', connectionId)
     .maybeSingle()
   if (connectionError) return dbErrorResponse('handleListCampaigns: buscar conexão', connectionError)
@@ -1173,7 +1530,7 @@ async function handleListCampaigns(req: Request, url: URL) {
     return jsonResponse({ error: 'Conexão incompleta (falta conta de anúncios)' }, 400)
   }
 
-  const accessToken = await getValidAccessToken(supabase, connection.id, connection.provider)
+  const accessToken = await resolveAccessToken(supabase, connection)
   if (!accessToken) return jsonResponse({ error: 'Não foi possível obter um token de acesso válido' }, 502)
 
   if (connection.provider === 'google_ads') {
@@ -1239,7 +1596,7 @@ async function handleSyncAll(req: Request) {
 
   const { data: connections, error: connectionsError } = await supabase
     .from('digital_asset_connections')
-    .select('id, provider, external_account_id, login_customer_id, digital_assets(client_id)')
+    .select('id, provider, external_account_id, login_customer_id, agency_provider_connection_id, digital_assets(client_id)')
     .eq('status', 'connected')
     .in('provider', ['google_ads', 'meta_ads', 'google_forms'])
   if (connectionsError) return dbErrorResponse('handleSyncAll: buscar conexões', connectionsError)
@@ -1388,6 +1745,200 @@ async function handleSelectAccount(req: Request) {
   return jsonResponse({ ok: true })
 }
 
+/** Fase 28 — lista as contas de cliente visíveis pela conta
+ * administradora da agência (MCC/Business Manager), pra popular o
+ * seletor no diálogo "Conectar integração" de um Ativo Digital. */
+async function handleListAgencyAccounts(req: Request, url: URL) {
+  const auth = await requireAdminOrGestor(req)
+  if (auth instanceof Response) return auth
+
+  const provider = url.searchParams.get('provider')
+  if (provider !== 'google_ads' && provider !== 'meta_ads') {
+    return jsonResponse({ error: 'Provedor inválido. Use google_ads ou meta_ads.' }, 400)
+  }
+
+  const supabase = getServiceClient()
+
+  const { data: agencyConnection, error: agencyConnectionError } = await supabase
+    .from('agency_provider_connections')
+    .select('id, status, external_account_id')
+    .eq('provider', provider)
+    .maybeSingle()
+  if (agencyConnectionError) return dbErrorResponse('handleListAgencyAccounts: buscar conexão de agência', agencyConnectionError)
+  if (!agencyConnection || agencyConnection.status !== 'connected') {
+    return jsonResponse({ error: 'Conecte a conta administradora em Configurações > Agência antes.' }, 409)
+  }
+
+  const accessToken = await getValidAgencyAccessToken(supabase, provider)
+  if (!accessToken) return jsonResponse({ error: 'Não foi possível obter um token de acesso válido' }, 502)
+
+  if (provider === 'google_ads') {
+    const accounts = await discoverGoogleAdsClientAccounts(accessToken)
+    return jsonResponse({
+      accounts: accounts.map((a) => ({ id: a.customerId, name: a.name, loginCustomerId: a.loginCustomerId })),
+    })
+  }
+
+  // meta_ads
+  if (!agencyConnection.external_account_id) {
+    return jsonResponse({ error: 'Escolha o Business Manager em Configurações > Agência antes.' }, 409)
+  }
+  const accounts = await discoverMetaClientAdAccounts(accessToken, agencyConnection.external_account_id)
+  return jsonResponse({ accounts: accounts.map((a) => ({ id: a.id, name: a.name })) })
+}
+
+/** Fase 28 — grava a conta escolhida na lista de /agency-accounts numa
+ * conexão de cliente, sem OAuth nenhum nessa etapa (a autenticação já
+ * foi feita uma vez em Configurações > Agência). Cria a linha em
+ * digital_asset_connections se ainda não existir, ou atualiza a que já
+ * existe pra esse ativo+provedor — mesmo upsert de handleConnect. */
+async function handleLinkAgencyAccount(req: Request) {
+  const auth = await requireAdminOrGestor(req)
+  if (auth instanceof Response) return auth
+
+  let body: { digital_asset_id?: string; provider?: string; external_account_id?: string; login_customer_id?: string }
+  try {
+    body = await req.json()
+  } catch {
+    return jsonResponse({ error: 'Corpo inválido' }, 400)
+  }
+  const { digital_asset_id: digitalAssetId, provider, external_account_id: externalAccountId, login_customer_id: loginCustomerId } = body
+  if (!digitalAssetId || (provider !== 'google_ads' && provider !== 'meta_ads') || !externalAccountId) {
+    return jsonResponse({ error: 'digital_asset_id, provider (google_ads/meta_ads) e external_account_id são obrigatórios' }, 400)
+  }
+  if (provider === 'google_ads' && !loginCustomerId) {
+    return jsonResponse({ error: 'login_customer_id é obrigatório pra Google Ads' }, 400)
+  }
+
+  const supabase = getServiceClient()
+
+  const { data: agencyConnection, error: agencyConnectionError } = await supabase
+    .from('agency_provider_connections')
+    .select('id')
+    .eq('provider', provider)
+    .eq('status', 'connected')
+    .maybeSingle()
+  if (agencyConnectionError) return dbErrorResponse('handleLinkAgencyAccount: buscar conexão de agência', agencyConnectionError)
+  if (!agencyConnection) return jsonResponse({ error: 'Conecte a conta administradora em Configurações > Agência antes.' }, 409)
+
+  const { data: asset, error: assetError } = await supabase
+    .from('digital_assets')
+    .select('id, client_id')
+    .eq('id', digitalAssetId)
+    .maybeSingle()
+  if (assetError) return dbErrorResponse('handleLinkAgencyAccount: buscar ativo digital', assetError)
+  if (!asset) return jsonResponse({ error: 'Ativo digital não encontrado' }, 404)
+
+  const siblingError = await assertNoSiblingConnection(supabase, provider, digitalAssetId, asset.client_id)
+  if (siblingError) return siblingError
+
+  const { error: upsertError } = await supabase.from('digital_asset_connections').upsert(
+    {
+      digital_asset_id: digitalAssetId,
+      provider,
+      status: 'connected',
+      agency_provider_connection_id: agencyConnection.id,
+      external_account_id: externalAccountId,
+      login_customer_id: loginCustomerId ?? null,
+    },
+    { onConflict: 'digital_asset_id,provider', ignoreDuplicates: false },
+  )
+  if (upsertError) return dbErrorResponse('handleLinkAgencyAccount: gravar conexão', upsertError)
+
+  return jsonResponse({ ok: true })
+}
+
+/** Fase 28 — só admin. Não desfaz conexões de cliente já vinculadas
+ * (ficam sem token válido até a agência reconectar — mesmo espírito de
+ * uma conexão legada cujo token expira sem conseguir renovar). */
+async function handleAgencyDisconnect(req: Request) {
+  const auth = await requireAdminOrGestor(req)
+  if (auth instanceof Response) return auth
+  if (auth.role !== 'admin') return jsonResponse({ error: 'Só o admin pode desconectar a conta administradora.' }, 403)
+
+  let body: { provider?: string }
+  try {
+    body = await req.json()
+  } catch {
+    return jsonResponse({ error: 'Corpo inválido' }, 400)
+  }
+  if (body.provider !== 'google_ads' && body.provider !== 'meta_ads') {
+    return jsonResponse({ error: 'Provedor inválido. Use google_ads ou meta_ads.' }, 400)
+  }
+
+  const supabase = getServiceClient()
+
+  const { data: agencyConnection } = await supabase
+    .from('agency_provider_connections')
+    .select('id')
+    .eq('provider', body.provider)
+    .maybeSingle()
+
+  const { error: updateError } = await supabase
+    .from('agency_provider_connections')
+    .update({ status: 'disconnected', external_account_id: null })
+    .eq('provider', body.provider)
+  if (updateError) return dbErrorResponse('handleAgencyDisconnect', updateError)
+
+  if (agencyConnection) {
+    await supabase.from('agency_oauth_tokens').delete().eq('agency_connection_id', agencyConnection.id)
+  }
+
+  return jsonResponse({ ok: true })
+}
+
+/** Fase 28 — só existe pro Meta: quando handleAgencyCallback não
+ * conseguiu escolher o Business Manager sozinho (0 ou 2+ encontrados),
+ * lista de novo pra escolha manual em Configurações > Agência. */
+async function handleListAgencyBusinesses(req: Request) {
+  const auth = await requireAdminOrGestor(req)
+  if (auth instanceof Response) return auth
+
+  const supabase = getServiceClient()
+
+  const { data: agencyConnection, error: agencyConnectionError } = await supabase
+    .from('agency_provider_connections')
+    .select('id, status')
+    .eq('provider', 'meta_ads')
+    .maybeSingle()
+  if (agencyConnectionError) return dbErrorResponse('handleListAgencyBusinesses: buscar conexão de agência', agencyConnectionError)
+  if (!agencyConnection || agencyConnection.status !== 'connected') {
+    return jsonResponse({ error: 'Conecte a conta administradora do Meta em Configurações > Agência antes.' }, 409)
+  }
+
+  const accessToken = await getValidAgencyAccessToken(supabase, 'meta_ads')
+  if (!accessToken) return jsonResponse({ error: 'Não foi possível obter um token de acesso válido' }, 502)
+
+  const businesses = await discoverMetaBusinesses(accessToken)
+  return jsonResponse({ businesses })
+}
+
+/** Fase 28 — grava qual Business Manager usar como conta administradora
+ * do Meta, quando handleAgencyCallback não conseguiu decidir sozinho. */
+async function handleSelectAgencyBusiness(req: Request) {
+  const auth = await requireAdminOrGestor(req)
+  if (auth instanceof Response) return auth
+  if (auth.role !== 'admin') return jsonResponse({ error: 'Só o admin pode escolher o Business Manager.' }, 403)
+
+  let body: { business_id?: string }
+  try {
+    body = await req.json()
+  } catch {
+    return jsonResponse({ error: 'Corpo inválido' }, 400)
+  }
+  if (!body.business_id) return jsonResponse({ error: 'business_id é obrigatório' }, 400)
+
+  const supabase = getServiceClient()
+
+  const { error: updateError } = await supabase
+    .from('agency_provider_connections')
+    .update({ external_account_id: body.business_id })
+    .eq('provider', 'meta_ads')
+  if (updateError) return dbErrorResponse('handleSelectAgencyBusiness', updateError)
+
+  return jsonResponse({ ok: true })
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -1396,6 +1947,12 @@ Deno.serve(async (req) => {
   const url = new URL(req.url)
 
   try {
+    if (req.method === 'GET' && url.pathname.endsWith('/agency-connect')) return await handleAgencyConnect(req, url)
+    if (req.method === 'GET' && url.pathname.endsWith('/agency-accounts')) return await handleListAgencyAccounts(req, url)
+    if (req.method === 'GET' && url.pathname.endsWith('/agency-businesses')) return await handleListAgencyBusinesses(req)
+    if (req.method === 'POST' && url.pathname.endsWith('/select-agency-business')) return await handleSelectAgencyBusiness(req)
+    if (req.method === 'POST' && url.pathname.endsWith('/link-agency-account')) return await handleLinkAgencyAccount(req)
+    if (req.method === 'POST' && url.pathname.endsWith('/agency-disconnect')) return await handleAgencyDisconnect(req)
     if (req.method === 'GET' && url.pathname.endsWith('/connect')) return await handleConnect(req, url)
     if (req.method === 'GET' && url.pathname.endsWith('/callback')) return await handleCallback(url)
     if (req.method === 'GET' && url.pathname.endsWith('/campaigns')) return await handleListCampaigns(req, url)
@@ -1407,7 +1964,7 @@ Deno.serve(async (req) => {
     return jsonResponse(
       {
         error:
-          'Rota não encontrada. Use /connect, /callback, /campaigns, /accounts, /select-account, /sync, /sync-all ou /forms-webhook.',
+          'Rota não encontrada. Use /agency-connect, /agency-accounts, /agency-businesses, /select-agency-business, /link-agency-account, /agency-disconnect, /connect, /callback, /campaigns, /accounts, /select-account, /sync, /sync-all ou /forms-webhook.',
       },
       404,
     )
