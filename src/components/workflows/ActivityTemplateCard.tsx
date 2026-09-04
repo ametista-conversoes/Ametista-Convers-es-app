@@ -3,13 +3,38 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
-import type { ActivityTemplateRecord } from '@/hooks/useManagerPortalData'
+import type { ActivityPlanScope, ActivityTemplateItem, ActivityTemplateRecord } from '@/hooks/useManagerPortalData'
 import {
   useDeleteActivityTemplate,
   useSetDefaultActivityTemplate,
   useUnsetDefaultActivityTemplate,
 } from '@/hooks/useManagerPortalData'
+import { planLabels } from '@/lib/status-styles'
 import { ActivityTemplateFormDialog } from './ActivityTemplateFormDialog'
+
+const ALL_PLANS: ActivityPlanScope[] = ['validacao', 'escala', 'dominacao']
+
+/** Fase 29 — resumo tipo "8 itens · 2 exclusivos de Dominação", pra
+ * auditoria rápida sem precisar abrir cada item do checklist. Item sem
+ * plan_scope (dado antigo) ou com os 3 planos marcados conta como
+ * universal. */
+function summarizePlanScope(items: ActivityTemplateItem[]): string {
+  const groups = new Map<string, number>()
+  for (const item of items) {
+    const scope = item.plan_scope && item.plan_scope.length > 0 ? item.plan_scope : ALL_PLANS
+    if (scope.length >= 3) continue
+    const label = ALL_PLANS.filter((plan) => scope.includes(plan))
+      .map((plan) => planLabels[plan])
+      .join(' + ')
+    groups.set(label, (groups.get(label) ?? 0) + 1)
+  }
+  const total = items.length
+  const parts = [`${total} ${total === 1 ? 'item' : 'itens'}`]
+  for (const [label, count] of groups) {
+    parts.push(`${count} exclusivo${count > 1 ? 's' : ''} de ${label}`)
+  }
+  return parts.join(' · ')
+}
 
 interface ActivityTemplateCardProps {
   template: ActivityTemplateRecord
@@ -65,6 +90,7 @@ export function ActivityTemplateCard({ template, deleteMode, canEdit, linkedWork
             ? `Vinculado a: ${linkedWorkflowNames.join(', ')}`
             : 'Nenhum Workflow Operacional vinculado ainda'}
         </p>
+        <p className="text-xs text-muted-foreground">{summarizePlanScope(template.items)}</p>
         <ul className="space-y-1.5">
           {template.items.map((item) => (
             <li key={item.title} className="flex items-center gap-2 text-sm text-foreground">

@@ -952,9 +952,15 @@ export function useApplyClientWorkflow() {
 // activity_template_ids em WorkflowTemplateRecord) ou, quando marcados
 // como padrão, aplicados sozinhos a todo cliente novo (trigger no
 // banco, ver handle_new_client_activity_template).
+export type ActivityPlanScope = 'validacao' | 'escala' | 'dominacao'
+
 export interface ActivityTemplateItem {
   title: string
   category?: string | null
+  /** Fase 29 — em quais planos do cliente (`clients.plan`) esse item entra
+   * ao aplicar o Workflow. Ausente/vazio é tratado como "todos os planos"
+   * (dado antigo, de antes desta fase). */
+  plan_scope?: ActivityPlanScope[]
 }
 
 export interface ActivityTemplateRecord {

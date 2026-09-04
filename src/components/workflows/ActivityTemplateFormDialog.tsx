@@ -5,6 +5,7 @@ import { useFieldArray, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -17,8 +18,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import type { ActivityTemplateRecord } from '@/hooks/useManagerPortalData'
+import type { ActivityPlanScope, ActivityTemplateRecord } from '@/hooks/useManagerPortalData'
 import { useCreateActivityTemplate, useUpdateActivityTemplate } from '@/hooks/useManagerPortalData'
+import { planLabels } from '@/lib/status-styles'
+
+const PLAN_SCOPE_OPTIONS: ActivityPlanScope[] = ['validacao', 'escala', 'dominacao']
+const ALL_PLANS: ActivityPlanScope[] = [...PLAN_SCOPE_OPTIONS]
 
 const templateFormSchema = z.object({
   name: z.string().min(2, 'Digite um nome'),
@@ -28,6 +33,7 @@ const templateFormSchema = z.object({
       z.object({
         title: z.string().min(1, 'Digite o título do item'),
         category: z.string().optional(),
+        planScope: z.array(z.enum(['validacao', 'escala', 'dominacao'])).min(1, 'Marque pelo menos um plano'),
       }),
     )
     .min(1, 'Adicione pelo menos um item'),
@@ -38,7 +44,7 @@ type TemplateFormValues = z.infer<typeof templateFormSchema>
 const EMPTY_VALUES: TemplateFormValues = {
   name: '',
   description: '',
-  items: [{ title: '', category: '' }],
+  items: [{ title: '', category: '', planScope: ALL_PLANS }],
 }
 
 interface ActivityTemplateFormDialogProps {
@@ -70,7 +76,11 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
           ? {
               name: template.name,
               description: template.description ?? '',
-              items: template.items.map((item) => ({ title: item.title, category: item.category ?? '' })),
+              items: template.items.map((item) => ({
+                title: item.title,
+                category: item.category ?? '',
+                planScope: item.plan_scope && item.plan_scope.length > 0 ? item.plan_scope : ALL_PLANS,
+              })),
             }
           : EMPTY_VALUES,
       )
@@ -84,6 +94,7 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
       items: values.items.map((item) => ({
         title: item.title,
         category: item.category?.trim() ? item.category.trim() : null,
+        plan_scope: item.planScope,
       })),
     }
     try {
@@ -167,6 +178,31 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
                           </FormItem>
                         )}
                       />
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.planScope`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <div className="flex flex-wrap gap-3">
+                              {PLAN_SCOPE_OPTIONS.map((plan) => (
+                                <label key={plan} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                  <Checkbox
+                                    checked={field.value?.includes(plan)}
+                                    onCheckedChange={(checked) => {
+                                      const current = field.value ?? []
+                                      field.onChange(
+                                        checked === true ? [...current, plan] : current.filter((p) => p !== plan),
+                                      )
+                                    }}
+                                  />
+                                  {planLabels[plan]}
+                                </label>
+                              ))}
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
                     <Button
                       type="button"
@@ -186,7 +222,7 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
                 type="button"
                 variant="secondary"
                 className="w-full"
-                onClick={() => append({ title: '', category: '' })}
+                onClick={() => append({ title: '', category: '', planScope: ALL_PLANS })}
               >
                 <Plus className="h-4 w-4" />
                 Adicionar item
