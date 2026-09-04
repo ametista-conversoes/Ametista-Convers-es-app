@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { aggregateAudienceInsights, type AudienceRawResponse } from '@/lib/audience-insights'
+import { fetchLinkedClientAccounts, linkClientAccount, unlinkClientAccount } from '@/lib/client-access'
 import type { PerformanceSnapshotRecord } from '@/hooks/useClientPortalData'
 import type { ClientHealthScoreSnapshotRecord, ExecutiveKpiSnapshotRecord } from '@/lib/manager-metrics'
 import { fetchLatestUpdatedAt, latestOf } from '@/lib/nav-activity'
@@ -150,6 +151,44 @@ export function useUpdateClientDetails() {
     },
     onError: () => {
       toast.error('Não foi possível atualizar os dados do cliente.')
+    },
+  })
+}
+
+/** Contas de login (profiles com role='cliente') vinculadas a um
+ * cliente — Fase 26. Não dá pra buscar isso com um select comum: a
+ * RLS de "profiles" só deixa cada um ler a própria linha, então isso
+ * passa pela Edge Function "client-access" (roda com service role). */
+export function useLinkedClientAccounts(clientId: string) {
+  return useQuery({
+    queryKey: ['client-linked-accounts', clientId],
+    queryFn: () => fetchLinkedClientAccounts(clientId),
+    enabled: !!clientId,
+  })
+}
+
+export function useLinkClientAccount(clientId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (email: string) => linkClientAccount(clientId, email),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['client-linked-accounts', clientId] })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Não foi possível vincular a conta.')
+    },
+  })
+}
+
+export function useUnlinkClientAccount(clientId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (profileId: string) => unlinkClientAccount(profileId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['client-linked-accounts', clientId] })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Não foi possível remover o acesso.')
     },
   })
 }

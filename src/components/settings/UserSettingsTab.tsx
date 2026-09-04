@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { LogOut, User as UserIcon } from 'lucide-react'
+import { useState, type ChangeEvent } from 'react'
+import { LogOut, Upload, User as UserIcon } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClient, useUpdateProfile } from '@/hooks/useClientPortalData'
+import { uploadUserAvatar } from '@/lib/storage'
 import { planLabels, planStyles } from '@/lib/status-styles'
 import { PushNotificationsCard } from './PushNotificationsCard'
 
@@ -24,11 +25,27 @@ const userSettingsSchema = z.object({
 type UserSettingsValues = z.infer<typeof userSettingsSchema>
 
 export function UserSettingsTab() {
-  const { user, role, fullName, phone, signOut } = useAuth()
+  const { user, role, fullName, phone, avatarUrl, signOut } = useAuth()
   const navigate = useNavigate()
   const updateProfile = useUpdateProfile()
   const { data: client } = useClient()
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+
+  async function handleAvatarChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+    setUploadingAvatar(true)
+    try {
+      const url = await uploadUserAvatar(file, user.id)
+      await updateProfile.mutateAsync({ fullName: fullName ?? '', phone, avatarUrl: url })
+      toast.success('Foto de perfil atualizada.')
+    } catch {
+      toast.error('Não foi possível enviar a foto.')
+    } finally {
+      setUploadingAvatar(false)
+    }
+  }
 
   const form = useForm<UserSettingsValues>({
     resolver: zodResolver(userSettingsSchema),
@@ -62,6 +79,18 @@ export function UserSettingsTab() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0 pt-4">
+          <label className="relative mb-4 flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-secondary/50 text-muted-foreground hover:opacity-80">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={fullName ?? 'Foto de perfil'} className="h-full w-full object-cover" />
+            ) : (
+              <UserIcon className="h-6 w-6" />
+            )}
+            <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100">
+              <Upload className="h-4 w-4 text-white" />
+            </span>
+            <input type="file" accept="image/*" className="hidden" disabled={uploadingAvatar} onChange={handleAvatarChange} />
+          </label>
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="text-sm">

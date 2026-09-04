@@ -604,10 +604,19 @@ export function useNavActivity(enabled = true) {
 export function useUpdateProfile() {
   const { refreshProfile } = useAuth()
   return useMutation({
-    mutationFn: async ({ fullName, phone }: { fullName: string; phone: string | null }) => {
+    mutationFn: async ({
+      fullName,
+      phone,
+      avatarUrl,
+    }: {
+      fullName: string
+      phone: string | null
+      avatarUrl?: string
+    }) => {
       const { error } = await supabase.rpc('update_own_profile', {
         new_full_name: fullName,
         new_phone: phone,
+        new_avatar_url: avatarUrl ?? null,
       })
       if (error) throw error
     },

@@ -15,6 +15,7 @@ import {
   UsersRound,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { ClientAccessCard } from '@/components/admin/ClientAccessCard'
 import { ClientPerformanceMetricsCard } from '@/components/admin/ClientPerformanceMetricsCard'
 import { MetricAlertThresholdsCard } from '@/components/admin/MetricAlertThresholdsCard'
 import { NewProjectDialog } from '@/components/admin/NewProjectDialog'
@@ -383,6 +384,8 @@ export default function ClientDetail() {
           </Card>
         </div>
       </div>
+
+      <ClientAccessCard clientId={client.id} />
 
       {/* Observações internas */}
       <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">

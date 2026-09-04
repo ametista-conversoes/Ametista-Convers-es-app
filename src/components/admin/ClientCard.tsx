@@ -51,7 +51,12 @@ export function ClientCard({ client, hasProblems }: ClientCardProps) {
     >
       <CardHeader className="p-0">
         <CardTitle className="flex items-start justify-between gap-2 text-base">
-          <span className="truncate">{client.name}</span>
+          <span className="flex min-w-0 items-center gap-2">
+            {client.logo_url && (
+              <img src={client.logo_url} alt="" className="h-6 w-6 shrink-0 rounded-md object-cover" />
+            )}
+            <span className="truncate">{client.name}</span>
+          </span>
           <div className="flex flex-wrap items-center justify-end gap-1.5">
             {hasProblems && <Badge className={clientProblemStatusStyle}>{clientProblemStatusLabel}</Badge>}
             <DropdownMenu>

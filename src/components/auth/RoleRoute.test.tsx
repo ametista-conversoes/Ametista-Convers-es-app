@@ -22,6 +22,7 @@ function renderProtectedRoute(role: UserRole | null, allowedRoles: UserRole[], l
     clientId: null,
     fullName: null,
     phone: null,
+    avatarUrl: null,
     signIn: vi.fn(),
     signUp: vi.fn(),
     signOut: vi.fn(),

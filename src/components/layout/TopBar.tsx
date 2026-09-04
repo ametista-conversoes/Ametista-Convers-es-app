@@ -27,7 +27,7 @@ const roleLabels: Record<string, string> = {
 }
 
 export function TopBar({ onMenuClick }: TopBarProps) {
-  const { user, role, signOut } = useAuth()
+  const { user, role, avatarUrl, signOut } = useAuth()
   const navigate = useNavigate()
   const { data: client } = useClient()
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -55,10 +55,14 @@ export function TopBar({ onMenuClick }: TopBarProps) {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-muted-foreground transition-colors hover:text-foreground"
+            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-secondary text-muted-foreground transition-colors hover:text-foreground"
             aria-label="Menu do usuário"
           >
-            <UserIcon className="h-4 w-4" />
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <UserIcon className="h-4 w-4" />
+            )}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">

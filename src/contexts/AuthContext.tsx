@@ -11,6 +11,7 @@ interface AuthContextValue {
   clientId: string | null
   fullName: string | null
   phone: string | null
+  avatarUrl: string | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null; isOffline: boolean }>
   signUp: (
@@ -32,18 +33,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [clientId, setClientId] = useState<string | null>(null)
   const [fullName, setFullName] = useState<string | null>(null)
   const [phone, setPhone] = useState<string | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   async function loadProfile(userId: string) {
     const { data } = await supabase
       .from('profiles')
-      .select('role, client_id, full_name, phone')
+      .select('role, client_id, full_name, phone, avatar_url')
       .eq('id', userId)
       .single()
     setRole((data?.role as UserRole) ?? null)
     setClientId(data?.client_id ?? null)
     setFullName(data?.full_name ?? null)
     setPhone(data?.phone ?? null)
+    setAvatarUrl(data?.avatar_url ?? null)
   }
 
   useEffect(() => {
@@ -70,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setClientId(null)
         setFullName(null)
         setPhone(null)
+        setAvatarUrl(null)
       }
     })
 
@@ -133,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clientId,
         fullName,
         phone,
+        avatarUrl,
         loading,
         signIn,
         signUp,
