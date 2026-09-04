@@ -15,7 +15,7 @@ interface ClientAccessCardProps {
  * existir. Antes só dava pra fazer isso com um UPDATE manual em
  * profiles.client_id no SQL Editor do Supabase. */
 export function ClientAccessCard({ clientId }: ClientAccessCardProps) {
-  const { data: accounts, isLoading } = useLinkedClientAccounts(clientId)
+  const { data: accounts, isLoading, isError } = useLinkedClientAccounts(clientId)
   const link = useLinkClientAccount(clientId)
   const unlink = useUnlinkClientAccount(clientId)
   const [email, setEmail] = useState('')
@@ -48,6 +48,8 @@ export function ClientAccessCard({ clientId }: ClientAccessCardProps) {
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Carregando...</p>
+        ) : isError ? (
+          <p className="text-sm text-destructive">Erro ao carregar as contas vinculadas. Tente novamente.</p>
         ) : accounts && accounts.length > 0 ? (
           <div className="space-y-2">
             {accounts.map((account) => (
