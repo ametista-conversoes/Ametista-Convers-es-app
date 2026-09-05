@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Plus, Search } from 'lucide-react'
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
-import { KanbanBulkDeleteToggle } from '@/components/kanban/KanbanBulkDeleteToggle'
 import { KanbanTaskFormDialog } from '@/components/kanban/KanbanTaskFormDialog'
+import { BulkDeleteToggle } from '@/components/shared/BulkDeleteToggle'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -57,10 +57,13 @@ export default function Kanban() {
             <p className="text-sm text-muted-foreground">Portal Gestor</p>
             <h1 className="text-2xl font-semibold text-foreground">Kanban</h1>
           </div>
-          <KanbanBulkDeleteToggle
+          <BulkDeleteToggle
             active={selectMode}
             selectedCount={selectedIds.size}
             isDeleting={deleteTasks.isPending}
+            nounSingular="tarefa"
+            nounPlural="tarefas"
+            selectedAdjective="selecionada"
             onActivate={() => setSelectMode(true)}
             onRequestExit={exitSelectMode}
             onConfirmDelete={handleConfirmDelete}

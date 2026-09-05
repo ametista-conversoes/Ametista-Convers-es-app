@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { ListChecks } from 'lucide-react'
+import { ListChecks, Trash2 } from 'lucide-react'
 import { NewActivityChecklistItemDialog } from '@/components/onboarding/NewActivityChecklistItemDialog'
-import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
-import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
+import { BulkDeleteToggle } from '@/components/shared/BulkDeleteToggle'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Progress } from '@/components/ui/progress'
@@ -11,10 +11,11 @@ import type { ActivityChecklistItemRecord } from '@/hooks/useManagerPortalData'
 import {
   useAllClients,
   useActivityChecklistItems,
-  useDeleteActivityChecklistItem,
+  useDeleteActivityChecklistItems,
   useToggleActivityChecklistItem,
 } from '@/hooks/useManagerPortalData'
 import { useMarkNavSeen } from '@/hooks/useNavSeen'
+import { cn } from '@/lib/utils'
 
 const ALL_CLIENTS = 'all'
 const AVULSAS_LABEL = 'Avulsas'
@@ -24,12 +25,32 @@ export default function Activities() {
   const { data: clients } = useAllClients()
   const { data: items, isLoading } = useActivityChecklistItems()
   const toggleItem = useToggleActivityChecklistItem()
-  const deleteItem = useDeleteActivityChecklistItem()
+  const deleteItems = useDeleteActivityChecklistItems()
   const [clientFilter, setClientFilter] = useState(ALL_CLIENTS)
-  const [deleteMode, setDeleteMode] = useState(false)
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Carregando...</p>
+  }
+
+  function toggleSelected(itemId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(itemId)) next.delete(itemId)
+      else next.add(itemId)
+      return next
+    })
+  }
+
+  function exitSelectMode() {
+    setSelectMode(false)
+    setSelectedIds(new Set())
+  }
+
+  async function handleConfirmDelete() {
+    await deleteItems.mutateAsync(Array.from(selectedIds))
+    exitSelectMode()
   }
 
   const visibleClients = (clients ?? []).filter(
@@ -51,7 +72,17 @@ export default function Activities() {
             <p className="text-sm text-muted-foreground">Portal Gestor</p>
             <h1 className="text-2xl font-semibold text-foreground">Atividades</h1>
           </div>
-          <DeleteModeToggle active={deleteMode} onToggle={() => setDeleteMode((v) => !v)} />
+          <BulkDeleteToggle
+            active={selectMode}
+            selectedCount={selectedIds.size}
+            isDeleting={deleteItems.isPending}
+            nounSingular="item"
+            nounPlural="itens"
+            selectedAdjective="selecionado"
+            onActivate={() => setSelectMode(true)}
+            onRequestExit={exitSelectMode}
+            onConfirmDelete={handleConfirmDelete}
+          />
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Select value={clientFilter} onValueChange={setClientFilter}>
@@ -112,33 +143,52 @@ export default function Activities() {
                   {Array.from(itemsByGroup.entries()).map(([groupName, groupItems]) => (
                     <div key={groupName} className="space-y-2">
                       <p className="text-xs font-medium text-muted-foreground">{groupName}</p>
-                      {groupItems.map((item) => (
-                        <div key={item.id} className="flex items-start gap-2 rounded-lg bg-secondary/50 px-3 py-2">
-                          <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
-                            <Checkbox
-                              checked={item.completed}
-                              disabled={toggleItem.isPending}
-                              onCheckedChange={(checked) =>
-                                toggleItem.mutate({ itemId: item.id, completed: checked === true })
-                              }
-                            />
-                            <div className="min-w-0">
-                              <p
-                                className={`break-words text-sm ${item.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}
+                      {groupItems.map((item) => {
+                        const selected = selectedIds.has(item.id)
+                        return (
+                          <div
+                            key={item.id}
+                            className={cn(
+                              'flex items-start gap-2 rounded-lg bg-secondary/50 px-3 py-2',
+                              selectMode && selected && 'bg-red-500/10 ring-1 ring-red-500/60',
+                            )}
+                          >
+                            <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+                              <Checkbox
+                                checked={item.completed}
+                                disabled={toggleItem.isPending}
+                                onCheckedChange={(checked) =>
+                                  toggleItem.mutate({ itemId: item.id, completed: checked === true })
+                                }
+                              />
+                              <div className="min-w-0">
+                                <p
+                                  className={`break-words text-sm ${item.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}
+                                >
+                                  {item.title}
+                                </p>
+                                {item.category && <p className="text-xs text-muted-foreground">{item.category}</p>}
+                              </div>
+                            </label>
+                            {selectMode && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className={cn(
+                                  'h-8 w-8 shrink-0',
+                                  selected ? 'text-red-500' : 'text-muted-foreground hover:text-destructive',
+                                )}
+                                aria-label={selected ? `Remover "${item.title}" da seleção` : `Selecionar "${item.title}" para apagar`}
+                                aria-pressed={selected}
+                                onClick={() => toggleSelected(item.id)}
                               >
-                                {item.title}
-                              </p>
-                              {item.category && <p className="text-xs text-muted-foreground">{item.category}</p>}
-                            </div>
-                          </label>
-                          {deleteMode && (
-                            <DeleteItemButton
-                              label={`o item "${item.title}"`}
-                              onDelete={() => deleteItem.mutateAsync(item.id)}
-                            />
-                          )}
-                        </div>
-                      ))}
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   ))}
                 </CardContent>

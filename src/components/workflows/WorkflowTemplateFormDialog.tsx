@@ -21,7 +21,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import type { WorkflowTemplateRecord } from '@/hooks/useManagerPortalData'
+import type { ActivityTemplateRecord, WorkflowTemplateRecord } from '@/hooks/useManagerPortalData'
 import { useActivityTemplates, useCreateWorkflowTemplate, useUpdateWorkflowTemplate } from '@/hooks/useManagerPortalData'
 
 const templateFormSchema = z.object({
@@ -125,6 +125,39 @@ function SortableStepRow({ id, index, control, onRemove, disableRemove }: Sortab
       >
         <Trash2 className="h-4 w-4" />
       </Button>
+    </div>
+  )
+}
+
+interface SortableActivityOrderRowProps {
+  id: string
+  index: number
+  name: string
+}
+
+/** Linha arrastável de "Ordem de aplicação" — só mostra a posição e o
+ * nome, sem campos de formulário (diferente de `SortableStepRow`). */
+function SortableActivityOrderRow({ id, index, name }: SortableActivityOrderRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 rounded-lg bg-secondary/50 px-3 py-2 text-sm"
+    >
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className="shrink-0 cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+        aria-label={`Arrastar "${name}" para reordenar`}
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <span className="shrink-0 text-xs text-muted-foreground">{index + 1}.</span>
+      <span className="truncate text-foreground">{name}</span>
     </div>
   )
 }
@@ -277,35 +310,71 @@ export function WorkflowTemplateFormDialog({ trigger, template }: WorkflowTempla
             <FormField
               control={form.control}
               name="activity_template_ids"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Workflows de Atividades vinculados (opcional)</FormLabel>
-                  <div className="max-h-40 space-y-2 overflow-y-auto">
-                    {(activityTemplates ?? []).map((activityTemplate) => (
-                      <label
-                        key={activityTemplate.id}
-                        className="flex items-center gap-2 rounded-lg bg-secondary/50 px-3 py-2 text-sm"
-                      >
-                        <Checkbox
-                          checked={field.value.includes(activityTemplate.id)}
-                          onCheckedChange={(checked) =>
-                            field.onChange(
-                              checked === true
-                                ? [...field.value, activityTemplate.id]
-                                : field.value.filter((id) => id !== activityTemplate.id),
-                            )
-                          }
-                        />
-                        <span className="text-foreground">{activityTemplate.name}</span>
-                      </label>
-                    ))}
-                    {(activityTemplates ?? []).length === 0 && (
-                      <p className="text-xs text-muted-foreground">Nenhum Workflow de Atividades cadastrado ainda.</p>
+              render={({ field }) => {
+                const selectedTemplates = field.value
+                  .map((id) => (activityTemplates ?? []).find((t) => t.id === id))
+                  .filter((t): t is ActivityTemplateRecord => !!t)
+
+                function handleOrderDragEnd(event: DragEndEvent) {
+                  const { active, over } = event
+                  if (!over || active.id === over.id) return
+                  const oldIndex = field.value.indexOf(String(active.id))
+                  const newIndex = field.value.indexOf(String(over.id))
+                  if (oldIndex === -1 || newIndex === -1) return
+                  const next = [...field.value]
+                  const [moved] = next.splice(oldIndex, 1)
+                  next.splice(newIndex, 0, moved)
+                  field.onChange(next)
+                }
+
+                return (
+                  <FormItem>
+                    <FormLabel>Workflows de Atividades vinculados (opcional)</FormLabel>
+                    <div className="max-h-40 space-y-2 overflow-y-auto">
+                      {(activityTemplates ?? []).map((activityTemplate) => (
+                        <label
+                          key={activityTemplate.id}
+                          className="flex items-center gap-2 rounded-lg bg-secondary/50 px-3 py-2 text-sm"
+                        >
+                          <Checkbox
+                            checked={field.value.includes(activityTemplate.id)}
+                            onCheckedChange={(checked) =>
+                              field.onChange(
+                                checked === true
+                                  ? [...field.value, activityTemplate.id]
+                                  : field.value.filter((id) => id !== activityTemplate.id),
+                              )
+                            }
+                          />
+                          <span className="text-foreground">{activityTemplate.name}</span>
+                        </label>
+                      ))}
+                      {(activityTemplates ?? []).length === 0 && (
+                        <p className="text-xs text-muted-foreground">Nenhum Workflow de Atividades cadastrado ainda.</p>
+                      )}
+                    </div>
+
+                    {selectedTemplates.length > 1 && (
+                      <div className="space-y-2 pt-1">
+                        <p className="text-xs text-muted-foreground">
+                          Ordem de aplicação (o primeiro da lista é criado primeiro — arraste pra reordenar):
+                        </p>
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleOrderDragEnd}>
+                          <SortableContext items={selectedTemplates.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                            <div className="space-y-1.5">
+                              {selectedTemplates.map((t, index) => (
+                                <SortableActivityOrderRow key={t.id} id={t.id} index={index} name={t.name} />
+                              ))}
+                            </div>
+                          </SortableContext>
+                        </DndContext>
+                      </div>
                     )}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
+
+                    <FormMessage />
+                  </FormItem>
+                )
+              }}
             />
 
             <DialogFooter>

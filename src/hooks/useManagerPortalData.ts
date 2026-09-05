@@ -1159,18 +1159,19 @@ export function useToggleActivityChecklistItem() {
   })
 }
 
-export function useDeleteActivityChecklistItem() {
+/** Apaga vários itens de Atividades de uma vez (modo de seleção múltipla). */
+export function useDeleteActivityChecklistItems() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (itemId: string) => {
-      const { error } = await supabase.from('activity_checklist_items').delete().eq('id', itemId)
+    mutationFn: async (itemIds: string[]) => {
+      const { error } = await supabase.from('activity_checklist_items').delete().in('id', itemIds)
       if (error) throw error
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activity-checklist-items'] })
     },
     onError: () => {
-      toast.error('Não foi possível excluir o item da checklist.')
+      toast.error('Não foi possível excluir os itens selecionados.')
     },
   })
 }
