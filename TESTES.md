@@ -18,14 +18,10 @@
 - Clicar de novo na lixeira do cabeçalho sem nada marcado → só desliga o modo de seleção, sem popup.
 - Kanban: confirmar que arrastar um card entre colunas continua desativado enquanto o modo de seleção estiver ligado.
 
-## 2. Apagar cliente com conta de login vinculada (correção de FK)
-- Apagar um cliente que **tem** uma conta de acesso vinculada (Fase 26) → antes travava com "Não foi possível excluir o cliente" (FK sem `on delete` em `profiles.client_id`); agora precisa apagar o cliente normalmente e deixar a conta de login intacta, só desvinculada (some da lista de contas vinculadas, sem apagar o usuário/login em si).
-- Depois de apagado, essa conta consegue logar normalmente (só não cai mais em nenhum Portal Cliente até ser vinculada de novo a outro cliente).
-
-## 3. Ordem de aplicação de Workflows de Atividades vinculados
-- Editar um Workflow Operacional com 2+ Workflows de Atividades vinculados → aparece uma lista "Ordem de aplicação" arrastável, abaixo dos checkboxes, refletindo a ordem atual do vínculo.
-- Reordenar essa lista (arrastar), salvar, e aplicar o Workflow Operacional num cliente → os itens de Atividades precisam nascer na aba Atividades na mesma ordem escolhida (o primeiro da lista aparece primeiro), sem misturar com os itens do segundo workflow.
-- Causa raiz corrigida: `apply_workflow` reiniciava o `step_order` do zero pra cada Workflow de Atividades do array, então 2+ workflows vinculados colidiam no mesmo `step_order` e a ordem exibida virava imprevisível — agora usa um contador único contínuo pra todos, na ordem do array.
+## 2. Apagar cliente — 2 causas de 409 corrigidas
+- Apagar um cliente que **tem** uma conta de acesso vinculada (Fase 26) → antes travava (FK sem `on delete` em `profiles.client_id`, migration-055); depois de apagado, a conta de login continua intacta, só desvinculada.
+- Apagar um cliente que tenha **Meta SMART, Reunião, Ativo Digital, Incidente ou Alerta** → também travava com 409 Conflict, causa diferente: os gatilhos de log de exclusão dessas 5 tabelas tentavam gravar um `audit_logs` novo referenciando o cliente, mas nesse momento do cascade o cliente já tinha sido removido — violava a própria FK (`migration-057`). Testar apagando um cliente de teste que tenha pelo menos um item de cada uma dessas 5 categorias.
+- Confirmar que apagar isoladamente uma Meta/Reunião/Ativo/Incidente/Alerta (sem apagar o cliente inteiro) continua gerando o registro normal em Timeline/Auditoria, sem mudança de comportamento.
 
 ## 4. Fase 29 — Atividades filtradas por plano do cliente
 - Teste de aceite do próprio pedido: Workflow de Atividades com item A (todos os planos marcados) e item B (só Dominação) — aplicar no Kanban/projeto de um cliente Validação cria só A; aplicar num cliente Dominação cria A e B.
