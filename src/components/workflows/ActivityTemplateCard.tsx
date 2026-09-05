@@ -36,6 +36,29 @@ function summarizePlanScope(items: ActivityTemplateItem[]): string {
   return parts.join(' · ')
 }
 
+/** Cor da bolinha de cada item — roxo normal quando vale pra todos os
+ * planos, uma cor por plano quando é exclusivo de um só, e um cinza
+ * neutro pra combinações de 2 planos (caso raro, sem cor própria
+ * pedida). */
+const PLAN_DOT_COLORS: Record<ActivityPlanScope, string> = {
+  validacao: 'bg-sky-400',
+  escala: 'bg-amber-400',
+  dominacao: 'bg-purple-700',
+}
+
+function dotColorForScope(planScope: ActivityPlanScope[] | null | undefined): string {
+  const scope = planScope && planScope.length > 0 ? planScope : ALL_PLANS
+  if (scope.length >= 3) return 'bg-purple-400'
+  if (scope.length === 1) return PLAN_DOT_COLORS[scope[0]]
+  return 'bg-slate-400'
+}
+
+function dotTitleForScope(planScope: ActivityPlanScope[] | null | undefined): string {
+  const scope = planScope && planScope.length > 0 ? planScope : ALL_PLANS
+  if (scope.length >= 3) return 'Aplicado em todos os planos'
+  return 'Exclusivo de ' + scope.map((plan) => planLabels[plan]).join(' + ')
+}
+
 interface ActivityTemplateCardProps {
   template: ActivityTemplateRecord
   deleteMode?: boolean
@@ -94,7 +117,10 @@ export function ActivityTemplateCard({ template, deleteMode, canEdit, linkedWork
         <ul className="space-y-1.5">
           {template.items.map((item) => (
             <li key={item.title} className="flex items-center gap-2 text-sm text-foreground">
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-purple-400" />
+              <span
+                className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotColorForScope(item.plan_scope)}`}
+                title={dotTitleForScope(item.plan_scope)}
+              />
               {item.title}
             </li>
           ))}
