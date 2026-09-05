@@ -23,6 +23,10 @@
 - Apagar um cliente que tenha **Meta SMART, Reunião, Ativo Digital, Incidente ou Alerta** → também travava com 409 Conflict, causa diferente: os gatilhos de log de exclusão dessas 5 tabelas tentavam gravar um `audit_logs` novo referenciando o cliente, mas nesse momento do cascade o cliente já tinha sido removido — violava a própria FK (`migration-057`). Testar apagando um cliente de teste que tenha pelo menos um item de cada uma dessas 5 categorias.
 - Confirmar que apagar isoladamente uma Meta/Reunião/Ativo/Incidente/Alerta (sem apagar o cliente inteiro) continua gerando o registro normal em Timeline/Auditoria, sem mudança de comportamento.
 
+## 3. Link de convite/recuperação de senha expirado
+- Clicar num link de convite ou de "esqueci a senha" já expirado/já usado → antes disso podia deixar entrar no app mesmo assim (sessão antiga guardada no navegador); agora o app detecta o erro que o Supabase manda no fragmento da URL (`#error=access_denied&error_code=otp_expired...`), desloga de propósito e mostra um aviso pra pedir um novo link.
+- Confirmar que um link válido (recém-recebido, não expirado) continua funcionando normalmente — não pode ter virado um falso positivo.
+
 ## 4. Fase 29 — Atividades filtradas por plano do cliente
 - Teste de aceite do próprio pedido: Workflow de Atividades com item A (todos os planos marcados) e item B (só Dominação) — aplicar no Kanban/projeto de um cliente Validação cria só A; aplicar num cliente Dominação cria A e B.
 - Cliente novo cadastrado já com um plano definido → gatilho automático do Workflow de Atividades padrão (`handle_new_client_activity_template`) já nasce filtrado certo pelo plano.
@@ -36,6 +40,7 @@
 - Ainda não sabemos exatamente o que quebra. Antes de virar um teste de aceite de verdade, precisa o usuário reproduzir e descrever: o que acontece ao mudar o campo Plano do cliente e clicar em Salvar (mensagem de erro? não salva? salva errado?).
 
 ## 7. Fase 28 — Integrações via MCC (Google Ads) / Business Manager (Meta)
+- **Bloqueado agora por config externa**: conectar o Google Ads (MCC) deu `Error 400: redirect_uri_mismatch` no Google — o código monta o redirect_uri certo (`https://ametistaconversoes.app/oauth/google-callback`, igual ao que a Fase 6.2/20 já usava antes da troca de domínio da Fase 25), mas precisa conferir se essa URI exata está cadastrada em Google Cloud Console → APIs & Services → Credentials → o Client ID OAuth em uso → "Authorized redirect URIs" (o mais provável é ainda estar cadastrado o domínio antigo do Vercel, de antes da Fase 25).
 - Configurações → Agência: conectar a conta administradora do Google Ads (MCC) e o Business Manager do Meta — cada um pelo próprio OAuth, uma única vez.
 - Status muda pra "Conectado" nos dois; pro Meta, se a conta enxergar mais de 1 Business Manager, confirma que aparece o seletor manual.
 - Ativos Digitais → "Conectar integração" num ativo de cliente (Google Ads ou Meta Ads) → precisa aparecer a lista de contas do cliente (via MCC/BM), **sem pedir login de novo**.

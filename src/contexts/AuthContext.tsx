@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 
 export type UserRole = 'admin' | 'gestor' | 'cliente'
@@ -52,15 +53,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!active) return
-      setSession(data.session)
-      if (data.session?.user) {
-        loadProfile(data.session.user.id).finally(() => active && setLoading(false))
-      } else {
-        setLoading(false)
-      }
-    })
+    // Link de convite/recuperação expirado ou já usado: o Supabase ainda
+    // redireciona pra cá, só que com o erro no fragmento da URL em vez de
+    // uma sessão válida (#error=access_denied&error_code=otp_expired&...).
+    // Sem essa checagem, uma sessão antiga que já estivesse guardada no
+    // navegador (localStorage) passava despercebida e a pessoa entrava
+    // mesmo assim — desloga de propósito pra nunca depender de sessão
+    // antiga nesse caso.
+    async function handleAuthErrorInUrl() {
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+      const authError = hashParams.get('error')
+      if (!authError) return
+      window.history.replaceState(null, '', window.location.pathname)
+      await supabase.auth.signOut()
+      toast.error(
+        hashParams.get('error_code') === 'otp_expired'
+          ? 'Esse link expirou. Peça um novo.'
+          : 'Não foi possível continuar com esse link. Peça um novo.',
+      )
+    }
+
+    handleAuthErrorInUrl().then(() =>
+      supabase.auth.getSession().then(({ data }) => {
+        if (!active) return
+        setSession(data.session)
+        if (data.session?.user) {
+          loadProfile(data.session.user.id).finally(() => active && setLoading(false))
+        } else {
+          setLoading(false)
+        }
+      }),
+    )
 
     const {
       data: { subscription },
