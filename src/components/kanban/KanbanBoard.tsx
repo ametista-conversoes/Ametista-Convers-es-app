@@ -8,10 +8,12 @@ const COLUMNS = ['backlog', 'todo', 'in_progress', 'review', 'done'] as const
 
 interface KanbanBoardProps {
   tasks: ManagerTaskRecord[]
-  deleteMode?: boolean
+  selectMode?: boolean
+  selectedIds?: Set<string>
+  onToggleSelect?: (taskId: string) => void
 }
 
-export function KanbanBoard({ tasks, deleteMode }: KanbanBoardProps) {
+export function KanbanBoard({ tasks, selectMode, selectedIds, onToggleSelect }: KanbanBoardProps) {
   const updateTaskStatus = useUpdateTaskStatus()
   // Mouse: arrasta ao mover um pouquinho (resposta rápida no desktop).
   // Touch: só começa a arrastar depois de segurar ~200ms — assim um
@@ -23,6 +25,7 @@ export function KanbanBoard({ tasks, deleteMode }: KanbanBoardProps) {
   )
 
   async function handleDragEnd(event: DragEndEvent) {
+    if (selectMode) return
     const { active, over } = event
     if (!over) return
 
@@ -47,7 +50,9 @@ export function KanbanBoard({ tasks, deleteMode }: KanbanBoardProps) {
             id={status}
             title={taskStatusLabels[status]}
             tasks={tasks.filter((t) => t.status === status)}
-            deleteMode={deleteMode}
+            selectMode={selectMode}
+            selectedIds={selectedIds}
+            onToggleSelect={onToggleSelect}
           />
         ))}
       </div>

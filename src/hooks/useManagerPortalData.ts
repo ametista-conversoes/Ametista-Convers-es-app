@@ -662,6 +662,23 @@ export function useDeleteManagerTask() {
   })
 }
 
+/** Apaga várias tarefas do Kanban de uma vez (modo de seleção múltipla). */
+export function useDeleteManagerTasks() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (taskIds: string[]) => {
+      const { error } = await supabase.from('tasks').delete().in('id', taskIds)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-tasks'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível excluir as tarefas selecionadas.')
+    },
+  })
+}
+
 export interface NewManagerTaskInput {
   title: string
   client_id: string

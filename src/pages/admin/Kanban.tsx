@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Plus, Search } from 'lucide-react'
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
+import { KanbanBulkDeleteToggle } from '@/components/kanban/KanbanBulkDeleteToggle'
 import { KanbanTaskFormDialog } from '@/components/kanban/KanbanTaskFormDialog'
-import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useAllClients, useAllTasks } from '@/hooks/useManagerPortalData'
+import { useAllClients, useAllTasks, useDeleteManagerTasks } from '@/hooks/useManagerPortalData'
 import { useMarkNavSeen } from '@/hooks/useNavSeen'
 
 const ALL_CLIENTS = 'all'
@@ -15,8 +15,10 @@ export default function Kanban() {
   useMarkNavSeen('/kanban')
   const { data: clients } = useAllClients()
   const { data: tasks, isLoading } = useAllTasks()
+  const deleteTasks = useDeleteManagerTasks()
   const [clientFilter, setClientFilter] = useState(ALL_CLIENTS)
-  const [deleteMode, setDeleteMode] = useState(false)
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState('')
 
   if (isLoading) {
@@ -28,6 +30,25 @@ export default function Kanban() {
     .filter((task) => clientFilter === ALL_CLIENTS || task.client_id === clientFilter)
     .filter((task) => !term || task.title.toLowerCase().includes(term))
 
+  function toggleSelected(taskId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(taskId)) next.delete(taskId)
+      else next.add(taskId)
+      return next
+    })
+  }
+
+  function exitSelectMode() {
+    setSelectMode(false)
+    setSelectedIds(new Set())
+  }
+
+  async function handleConfirmDelete() {
+    await deleteTasks.mutateAsync(Array.from(selectedIds))
+    exitSelectMode()
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -36,7 +57,14 @@ export default function Kanban() {
             <p className="text-sm text-muted-foreground">Portal Gestor</p>
             <h1 className="text-2xl font-semibold text-foreground">Kanban</h1>
           </div>
-          <DeleteModeToggle active={deleteMode} onToggle={() => setDeleteMode((v) => !v)} />
+          <KanbanBulkDeleteToggle
+            active={selectMode}
+            selectedCount={selectedIds.size}
+            isDeleting={deleteTasks.isPending}
+            onActivate={() => setSelectMode(true)}
+            onRequestExit={exitSelectMode}
+            onConfirmDelete={handleConfirmDelete}
+          />
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative">
@@ -72,7 +100,12 @@ export default function Kanban() {
         </div>
       </div>
 
-      <KanbanBoard tasks={filteredTasks} deleteMode={deleteMode} />
+      <KanbanBoard
+        tasks={filteredTasks}
+        selectMode={selectMode}
+        selectedIds={selectedIds}
+        onToggleSelect={toggleSelected}
+      />
     </div>
   )
 }

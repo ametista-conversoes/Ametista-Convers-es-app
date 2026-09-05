@@ -113,8 +113,8 @@ export default function Activities() {
                     <div key={groupName} className="space-y-2">
                       <p className="text-xs font-medium text-muted-foreground">{groupName}</p>
                       {groupItems.map((item) => (
-                        <div key={item.id} className="flex items-center gap-2 rounded-lg bg-secondary/50 px-3 py-2">
-                          <label className="flex flex-1 cursor-pointer items-center gap-3">
+                        <div key={item.id} className="flex items-start gap-2 rounded-lg bg-secondary/50 px-3 py-2">
+                          <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
                             <Checkbox
                               checked={item.completed}
                               disabled={toggleItem.isPending}
@@ -124,7 +124,7 @@ export default function Activities() {
                             />
                             <div className="min-w-0">
                               <p
-                                className={`truncate text-sm ${item.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}
+                                className={`break-words text-sm ${item.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}
                               >
                                 {item.title}
                               </p>

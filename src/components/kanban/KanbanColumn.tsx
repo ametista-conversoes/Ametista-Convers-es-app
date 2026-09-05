@@ -7,10 +7,12 @@ interface KanbanColumnProps {
   id: string
   title: string
   tasks: ManagerTaskRecord[]
-  deleteMode?: boolean
+  selectMode?: boolean
+  selectedIds?: Set<string>
+  onToggleSelect?: (taskId: string) => void
 }
 
-export function KanbanColumn({ id, title, tasks, deleteMode }: KanbanColumnProps) {
+export function KanbanColumn({ id, title, tasks, selectMode, selectedIds, onToggleSelect }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id })
 
   return (
@@ -32,7 +34,13 @@ export function KanbanColumn({ id, title, tasks, deleteMode }: KanbanColumnProps
           </p>
         )}
         {tasks.map((task) => (
-          <KanbanCard key={task.id} task={task} deleteMode={deleteMode} />
+          <KanbanCard
+            key={task.id}
+            task={task}
+            selectMode={selectMode}
+            selected={selectedIds?.has(task.id)}
+            onToggleSelect={() => onToggleSelect?.(task.id)}
+          />
         ))}
       </div>
     </div>
