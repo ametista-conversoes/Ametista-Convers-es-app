@@ -9,23 +9,26 @@
 -- Supabase (SQL Editor > New query), depois clique em "Run".
 
 -- =========================================================
--- 1. Converte a coluna já instanciada de text pra text[].
+-- 1. Converte a coluna já instanciada de text pra text[] — via coluna
+--    nova + UPDATE comum (em vez de ALTER COLUMN ... TYPE ... USING),
+--    porque esse USING dava erro 22P02 ("malformed array literal"): o
+--    Postgres resolve o tipo de `platform_scope` dentro desse USING já
+--    como o tipo NOVO (text[]), então comparar `platform_scope = 'meta'`
+--    ali dentro força 'meta' a virar array e quebra. Um UPDATE comum
+--    não tem esse problema — a coluna é lida com o tipo de sempre.
 -- =========================================================
-alter table public.activity_checklist_items alter column platform_scope drop default;
-alter table public.activity_checklist_items drop constraint if exists activity_checklist_items_platform_scope_check;
-
 alter table public.activity_checklist_items
-  alter column platform_scope type text[]
-  using (
-    case
-      when platform_scope = 'meta' then '{meta}'::text[]
-      when platform_scope = 'google' then '{google}'::text[]
-      else '{meta,google}'::text[]
-    end
-  );
+  add column platform_scope_new text[] not null default '{meta,google}'::text[];
 
-alter table public.activity_checklist_items
-  alter column platform_scope set default '{meta,google}'::text[];
+update public.activity_checklist_items
+set platform_scope_new = case
+  when platform_scope = 'meta' then '{meta}'::text[]
+  when platform_scope = 'google' then '{google}'::text[]
+  else '{meta,google}'::text[]
+end;
+
+alter table public.activity_checklist_items drop column platform_scope;
+alter table public.activity_checklist_items rename column platform_scope_new to platform_scope;
 
 alter table public.activity_checklist_items
   add constraint activity_checklist_items_platform_scope_check
