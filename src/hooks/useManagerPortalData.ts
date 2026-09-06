@@ -25,6 +25,8 @@ export interface ManagerClientRecord {
   default_workflow_template_id: string | null
   leads_to_close: number | null
   average_ticket: number | null
+  /** Fase 31 — só relevante quando `plan === 'validacao'`. */
+  chosen_platform: 'meta' | 'google' | null
 }
 
 export interface ManagerIncidentRecord {
@@ -785,6 +787,26 @@ export function useSetClientDefaultWorkflow() {
   })
 }
 
+/** Fase 31 — só relevante pra clientes do plano Validação; passar
+ * `null` volta pro estado "ainda não definida". */
+export function useSetClientChosenPlatform() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ clientId, chosenPlatform }: { clientId: string; chosenPlatform: 'meta' | 'google' | null }) => {
+      const { error } = await supabase.from('clients').update({ chosen_platform: chosenPlatform }).eq('id', clientId)
+      if (error) throw error
+    },
+    onSuccess: (_data, { clientId }) => {
+      queryClient.invalidateQueries({ queryKey: ['manager-clients'] })
+      queryClient.invalidateQueries({ queryKey: ['manager-client', clientId] })
+      queryClient.invalidateQueries({ queryKey: ['activity-checklist-items'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível salvar a plataforma escolhida.')
+    },
+  })
+}
+
 export interface WorkflowTemplateStep {
   title: string
   category: string
@@ -977,6 +999,7 @@ export function useApplyClientWorkflow() {
 // como padrão, aplicados sozinhos a todo cliente novo (trigger no
 // banco, ver handle_new_client_activity_template).
 export type ActivityPlanScope = 'validacao' | 'escala' | 'dominacao'
+export type ActivityPlatformScope = 'comum' | 'meta' | 'google'
 
 export interface ActivityTemplateItem {
   title: string
@@ -985,6 +1008,11 @@ export interface ActivityTemplateItem {
    * ao aplicar o Workflow. Ausente/vazio é tratado como "todos os planos"
    * (dado antigo, de antes desta fase). */
   plan_scope?: ActivityPlanScope[]
+  /** Fase 31 — só distingue algo pra clientes Validação: 'comum' entra
+   * pra qualquer plataforma escolhida; 'meta'/'google' só aparece pro
+   * cliente que escolheu aquela plataforma (ver `clients.chosen_platform`).
+   * Ausente é tratado como 'comum'. */
+  platform_scope?: ActivityPlatformScope
 }
 
 export interface ActivityTemplateRecord {
@@ -1109,6 +1137,9 @@ export interface ActivityChecklistItemRecord {
   completed: boolean
   step_order: number
   source_template_name: string | null
+  /** Fase 31 — 'comum' aparece pra qualquer plano; 'meta'/'google' só
+   * aparecem pro cliente Validação que escolheu essa plataforma. */
+  platform_scope: 'comum' | 'meta' | 'google'
   client: { name: string } | null
 }
 
@@ -1119,7 +1150,7 @@ export function useActivityChecklistItems() {
       const { data, error } = await supabase
         .from('activity_checklist_items')
         .select(
-          'id, client_id, project_id, title, category, completed, step_order, source_template_name, client:clients(name)',
+          'id, client_id, project_id, title, category, completed, step_order, source_template_name, platform_scope, client:clients(name)',
         )
         .order('step_order', { ascending: true })
       if (error) throw error

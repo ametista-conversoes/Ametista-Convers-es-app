@@ -17,13 +17,20 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import type { ActivityPlanScope, ActivityTemplateRecord } from '@/hooks/useManagerPortalData'
+import type { ActivityPlanScope, ActivityPlatformScope, ActivityTemplateRecord } from '@/hooks/useManagerPortalData'
 import { useCreateActivityTemplate, useUpdateActivityTemplate } from '@/hooks/useManagerPortalData'
 import { planLabels } from '@/lib/status-styles'
 
 const PLAN_SCOPE_OPTIONS: ActivityPlanScope[] = ['validacao', 'escala', 'dominacao']
 const ALL_PLANS: ActivityPlanScope[] = [...PLAN_SCOPE_OPTIONS]
+
+const PLATFORM_SCOPE_LABELS: Record<ActivityPlatformScope, string> = {
+  comum: 'Comum',
+  meta: 'Só Meta Ads',
+  google: 'Só Google Ads',
+}
 
 const templateFormSchema = z.object({
   name: z.string().min(2, 'Digite um nome'),
@@ -34,6 +41,7 @@ const templateFormSchema = z.object({
         title: z.string().min(1, 'Digite o título do item'),
         category: z.string().optional(),
         planScope: z.array(z.enum(['validacao', 'escala', 'dominacao'])).min(1, 'Marque pelo menos um plano'),
+        platformScope: z.enum(['comum', 'meta', 'google']),
       }),
     )
     .min(1, 'Adicione pelo menos um item'),
@@ -44,7 +52,7 @@ type TemplateFormValues = z.infer<typeof templateFormSchema>
 const EMPTY_VALUES: TemplateFormValues = {
   name: '',
   description: '',
-  items: [{ title: '', category: '', planScope: ALL_PLANS }],
+  items: [{ title: '', category: '', planScope: ALL_PLANS, platformScope: 'comum' }],
 }
 
 interface ActivityTemplateFormDialogProps {
@@ -80,6 +88,7 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
                 title: item.title,
                 category: item.category ?? '',
                 planScope: item.plan_scope && item.plan_scope.length > 0 ? item.plan_scope : ALL_PLANS,
+                platformScope: item.platform_scope ?? 'comum',
               })),
             }
           : EMPTY_VALUES,
@@ -95,6 +104,7 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
         title: item.title,
         category: item.category?.trim() ? item.category.trim() : null,
         plan_scope: item.planScope,
+        platform_scope: item.platformScope,
       })),
     }
     try {
@@ -203,6 +213,27 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
                           </FormItem>
                         )}
                       />
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.platformScope`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(PLATFORM_SCOPE_LABELS).map(([value, label]) => (
+                                  <SelectItem key={value} value={value}>
+                                    {label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
                     <Button
                       type="button"
@@ -222,7 +253,7 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
                 type="button"
                 variant="secondary"
                 className="w-full"
-                onClick={() => append({ title: '', category: '', planScope: ALL_PLANS })}
+                onClick={() => append({ title: '', category: '', planScope: ALL_PLANS, platformScope: 'comum' })}
               >
                 <Plus className="h-4 w-4" />
                 Adicionar item

@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner'
 import { ClientAccessCard } from '@/components/admin/ClientAccessCard'
 import { ClientPerformanceMetricsCard } from '@/components/admin/ClientPerformanceMetricsCard'
+import { ClientPlatformCard } from '@/components/admin/ClientPlatformCard'
 import { MetricAlertThresholdsCard } from '@/components/admin/MetricAlertThresholdsCard'
 import { NewProjectDialog } from '@/components/admin/NewProjectDialog'
 import { CassieChatThread } from '@/components/cassie/CassieChatThread'
@@ -384,6 +385,8 @@ export default function ClientDetail() {
           </Card>
         </div>
       </div>
+
+      <ClientPlatformCard clientId={client.id} />
 
       <ClientAccessCard clientId={client.id} />
 

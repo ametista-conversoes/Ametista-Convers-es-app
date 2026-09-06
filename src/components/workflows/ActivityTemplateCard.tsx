@@ -3,7 +3,12 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
-import type { ActivityPlanScope, ActivityTemplateItem, ActivityTemplateRecord } from '@/hooks/useManagerPortalData'
+import type {
+  ActivityPlanScope,
+  ActivityPlatformScope,
+  ActivityTemplateItem,
+  ActivityTemplateRecord,
+} from '@/hooks/useManagerPortalData'
 import {
   useDeleteActivityTemplate,
   useSetDefaultActivityTemplate,
@@ -57,6 +62,14 @@ function dotTitleForScope(planScope: ActivityPlanScope[] | null | undefined): st
   const scope = planScope && planScope.length > 0 ? planScope : ALL_PLANS
   if (scope.length >= 3) return 'Aplicado em todos os planos'
   return 'Exclusivo de ' + scope.map((plan) => planLabels[plan]).join(' + ')
+}
+
+/** Fase 31 — item exclusivo de Meta/Google (só faz diferença pra
+ * clientes Validação, ver `Activities.tsx`) ganha uma tag discreta ao
+ * lado do título — separado da bolinha, que já indica o plano. */
+const PLATFORM_TAG_LABELS: Record<Exclude<ActivityPlatformScope, 'comum'>, string> = {
+  meta: 'Meta',
+  google: 'Google',
 }
 
 interface ActivityTemplateCardProps {
@@ -121,7 +134,12 @@ export function ActivityTemplateCard({ template, deleteMode, canEdit, linkedWork
                 className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotColorForScope(item.plan_scope)}`}
                 title={dotTitleForScope(item.plan_scope)}
               />
-              {item.title}
+              <span className="min-w-0 truncate">{item.title}</span>
+              {item.platform_scope && item.platform_scope !== 'comum' && (
+                <Badge className="shrink-0 border-[#1A2540] bg-secondary/50 text-[10px] text-muted-foreground">
+                  {PLATFORM_TAG_LABELS[item.platform_scope]}
+                </Badge>
+              )}
             </li>
           ))}
         </ul>

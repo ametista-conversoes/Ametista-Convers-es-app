@@ -109,7 +109,16 @@ export default function Activities() {
       <div className="content-grid-container">
         <div className="content-grid gap-4">
           {clientsWithItems.map((client) => {
-            const clientItems = itemsByClient.get(client.id) ?? []
+            const allClientItems = itemsByClient.get(client.id) ?? []
+            // Fase 31 — Validação escolhe 1 plataforma (Meta ou Google);
+            // itens 'comum' aparecem sempre, itens da outra plataforma
+            // nem chegam a renderizar (não é só esconder visualmente).
+            const isValidacao = client.plan === 'validacao'
+            const clientItems = isValidacao
+              ? allClientItems.filter(
+                  (item) => item.platform_scope === 'comum' || item.platform_scope === client.chosen_platform,
+                )
+              : allClientItems
             const total = clientItems.length
             const done = clientItems.filter((item) => item.completed).length
             const percent = total > 0 ? Math.round((done / total) * 100) : 0
@@ -140,6 +149,12 @@ export default function Activities() {
                       {done} de {total} itens concluídos ({percent}%)
                     </p>
                   </div>
+                  {isValidacao && !client.chosen_platform && (
+                    <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
+                      Plataforma (Meta ou Google) ainda não definida na Central de Informações — só as tarefas comuns
+                      aparecem até lá.
+                    </p>
+                  )}
                   {Array.from(itemsByGroup.entries()).map(([groupName, groupItems]) => (
                     <div key={groupName} className="space-y-2">
                       <p className="text-xs font-medium text-muted-foreground">{groupName}</p>
