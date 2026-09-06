@@ -96,8 +96,8 @@ export function MetricAlertThresholdsCard({ clientId }: MetricAlertThresholdsCar
             <div key={key} className="flex flex-wrap items-center gap-3 rounded-lg bg-secondary/50 px-3 py-2">
               <span className="w-28 shrink-0 text-sm text-foreground">{label}</span>
               <Select value={row.comparison} onValueChange={(value) => updateRow(key, { comparison: value as 'above' | 'below' })}>
-                <SelectTrigger className="h-8 w-28">
-                  <SelectValue />
+                <SelectTrigger className="h-8 w-36 shrink-0">
+                  <SelectValue className="whitespace-nowrap" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="above">Acima de</SelectItem>
