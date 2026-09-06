@@ -729,12 +729,17 @@ export function useApplyWorkflow() {
       workflowName,
       steps,
       activityTemplateIds,
+      target,
     }: {
       clientId: string
       projectId: string | null
       workflowName: string
       steps: { title: string; category: string }[]
       activityTemplateIds?: string[]
+      /** Fase 30 — 'kanban' (padrão) cria em `tasks` (interno da
+       * agência); 'client_tasks' cria em `client_tasks` (aparece pro
+       * cliente em /tasks do Portal Cliente). */
+      target?: 'kanban' | 'client_tasks'
     }) => {
       const { error } = await supabase.rpc('apply_workflow', {
         p_client_id: clientId,
@@ -742,6 +747,7 @@ export function useApplyWorkflow() {
         p_workflow_name: workflowName,
         p_steps: steps,
         p_activity_template_ids: activityTemplateIds ?? [],
+        p_target: target ?? 'kanban',
       })
       if (error) throw error
     },
@@ -749,6 +755,7 @@ export function useApplyWorkflow() {
       queryClient.invalidateQueries({ queryKey: ['manager-tasks'] })
       queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
       queryClient.invalidateQueries({ queryKey: ['activity-checklist-items'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
     },
     onError: () => {
       toast.error('Não foi possível aplicar o workflow.')

@@ -168,13 +168,17 @@ export function useProjects() {
   })
 }
 
+/** Tarefas do Portal Cliente (Fase 30) — tabela própria (`client_tasks`),
+ * separada de `public.tasks` (Kanban interno da agência, ver
+ * `useManagerPortalData.ts`). As duas nunca compartilham linha: o que o
+ * gestor cria/aplica pro Kanban não aparece aqui, e vice-versa. */
 export function useTasks() {
   const { clientId } = useAuth()
   return useQuery({
     queryKey: ['tasks', clientId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('tasks')
+        .from('client_tasks')
         .select('*')
         .eq('client_id', clientId as string)
         .order('due_date', { ascending: true, nullsFirst: false })
@@ -303,7 +307,7 @@ export function useCreateTask() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (input: NewTaskInput) => {
-      const { error } = await supabase.from('tasks').insert({ ...input, client_id: clientId })
+      const { error } = await supabase.from('client_tasks').insert({ ...input, client_id: clientId })
       if (error) throw error
     },
     onSuccess: () => {
@@ -320,7 +324,7 @@ export function useSetTaskStatus() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ taskId, status }: { taskId: string; status: string }) => {
-      const { error } = await supabase.rpc('set_task_status', { task_id: taskId, new_status: status })
+      const { error } = await supabase.rpc('set_client_task_status', { task_id: taskId, new_status: status })
       if (error) throw error
     },
     onSuccess: () => {
@@ -337,7 +341,7 @@ export function useDeleteTask() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (taskId: string) => {
-      const { error } = await supabase.from('tasks').delete().eq('id', taskId)
+      const { error } = await supabase.from('client_tasks').delete().eq('id', taskId)
       if (error) throw error
     },
     onSuccess: () => {
