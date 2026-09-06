@@ -17,15 +17,15 @@ alter table public.activity_checklist_items drop constraint if exists activity_c
 alter table public.activity_checklist_items
   alter column platform_scope type text[]
   using (
-    case platform_scope
-      when 'meta' then array['meta']
-      when 'google' then array['google']
-      else array['meta', 'google']
+    case
+      when platform_scope = 'meta' then '{meta}'::text[]
+      when platform_scope = 'google' then '{google}'::text[]
+      else '{meta,google}'::text[]
     end
   );
 
 alter table public.activity_checklist_items
-  alter column platform_scope set default array['meta', 'google']::text[];
+  alter column platform_scope set default '{meta,google}'::text[];
 
 alter table public.activity_checklist_items
   add constraint activity_checklist_items_platform_scope_check
