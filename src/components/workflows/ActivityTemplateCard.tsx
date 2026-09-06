@@ -64,12 +64,18 @@ function dotTitleForScope(planScope: ActivityPlanScope[] | null | undefined): st
   return 'Exclusivo de ' + scope.map((plan) => planLabels[plan]).join(' + ')
 }
 
-/** Fase 31 — item exclusivo de Meta/Google (só faz diferença pra
+/** Fase 31/31b — item exclusivo de Meta OU Google (só faz diferença pra
  * clientes Validação, ver `Activities.tsx`) ganha uma tag discreta ao
- * lado do título — separado da bolinha, que já indica o plano. */
-const PLATFORM_TAG_LABELS: Record<Exclude<ActivityPlatformScope, 'comum'>, string> = {
+ * lado do título — separado da bolinha, que já indica o plano. Os 2
+ * marcados (ou ausente) não ganha tag nenhuma (universal). */
+const PLATFORM_TAG_LABELS: Record<ActivityPlatformScope, string> = {
   meta: 'Meta',
   google: 'Google',
+}
+
+function platformTagFor(platformScope: ActivityPlatformScope[] | null | undefined): string | null {
+  if (!platformScope || platformScope.length !== 1) return null
+  return PLATFORM_TAG_LABELS[platformScope[0]]
 }
 
 interface ActivityTemplateCardProps {
@@ -128,20 +134,23 @@ export function ActivityTemplateCard({ template, deleteMode, canEdit, linkedWork
         </p>
         <p className="text-xs text-muted-foreground">{summarizePlanScope(template.items)}</p>
         <ul className="space-y-1.5">
-          {template.items.map((item) => (
-            <li key={item.title} className="flex items-center gap-2 text-sm text-foreground">
-              <span
-                className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotColorForScope(item.plan_scope)}`}
-                title={dotTitleForScope(item.plan_scope)}
-              />
-              <span className="min-w-0 truncate">{item.title}</span>
-              {item.platform_scope && item.platform_scope !== 'comum' && (
-                <Badge className="shrink-0 border-[#1A2540] bg-secondary/50 text-[10px] text-muted-foreground">
-                  {PLATFORM_TAG_LABELS[item.platform_scope]}
-                </Badge>
-              )}
-            </li>
-          ))}
+          {template.items.map((item) => {
+            const platformTag = platformTagFor(item.platform_scope)
+            return (
+              <li key={item.title} className="flex items-center gap-2 text-sm text-foreground">
+                <span
+                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotColorForScope(item.plan_scope)}`}
+                  title={dotTitleForScope(item.plan_scope)}
+                />
+                <span className="min-w-0 truncate">{item.title}</span>
+                {platformTag && (
+                  <Badge className="shrink-0 border-[#1A2540] bg-secondary/50 text-[10px] text-muted-foreground">
+                    {platformTag}
+                  </Badge>
+                )}
+              </li>
+            )
+          })}
         </ul>
         {canEdit && (
           <div className="mt-auto pt-2">

@@ -999,7 +999,7 @@ export function useApplyClientWorkflow() {
 // como padrão, aplicados sozinhos a todo cliente novo (trigger no
 // banco, ver handle_new_client_activity_template).
 export type ActivityPlanScope = 'validacao' | 'escala' | 'dominacao'
-export type ActivityPlatformScope = 'comum' | 'meta' | 'google'
+export type ActivityPlatformScope = 'meta' | 'google'
 
 export interface ActivityTemplateItem {
   title: string
@@ -1008,11 +1008,11 @@ export interface ActivityTemplateItem {
    * ao aplicar o Workflow. Ausente/vazio é tratado como "todos os planos"
    * (dado antigo, de antes desta fase). */
   plan_scope?: ActivityPlanScope[]
-  /** Fase 31 — só distingue algo pra clientes Validação: 'comum' entra
-   * pra qualquer plataforma escolhida; 'meta'/'google' só aparece pro
-   * cliente que escolheu aquela plataforma (ver `clients.chosen_platform`).
-   * Ausente é tratado como 'comum'. */
-  platform_scope?: ActivityPlatformScope
+  /** Fase 31/31b — mesmo padrão do plan_scope: os 2 marcados = aparece
+   * pra qualquer plataforma escolhida (só distingue algo pra clientes
+   * Validação, ver `clients.chosen_platform`); só 1 marcado = exclusivo
+   * daquela plataforma. Ausente/vazio é tratado como "as duas". */
+  platform_scope?: ActivityPlatformScope[]
 }
 
 export interface ActivityTemplateRecord {
@@ -1137,9 +1137,9 @@ export interface ActivityChecklistItemRecord {
   completed: boolean
   step_order: number
   source_template_name: string | null
-  /** Fase 31 — 'comum' aparece pra qualquer plano; 'meta'/'google' só
-   * aparecem pro cliente Validação que escolheu essa plataforma. */
-  platform_scope: 'comum' | 'meta' | 'google'
+  /** Fase 31/31b — os 2 juntos aparecem pra qualquer plataforma; só 1
+   * aparece pro cliente Validação que escolheu essa plataforma. */
+  platform_scope: ActivityPlatformScope[]
   client: { name: string } | null
 }
 

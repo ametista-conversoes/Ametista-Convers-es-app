@@ -110,13 +110,16 @@ export default function Activities() {
         <div className="content-grid gap-4">
           {clientsWithItems.map((client) => {
             const allClientItems = itemsByClient.get(client.id) ?? []
-            // Fase 31 — Validação escolhe 1 plataforma (Meta ou Google);
-            // itens 'comum' aparecem sempre, itens da outra plataforma
-            // nem chegam a renderizar (não é só esconder visualmente).
+            // Fase 31/31b — Validação escolhe 1 plataforma (Meta ou
+            // Google); item com as 2 marcadas (ou sem chosen_platform
+            // ainda) aparece sempre, item exclusivo de uma plataforma
+            // só aparece pra quem escolheu ela — nem chega a renderizar.
             const isValidacao = client.plan === 'validacao'
             const clientItems = isValidacao
               ? allClientItems.filter(
-                  (item) => item.platform_scope === 'comum' || item.platform_scope === client.chosen_platform,
+                  (item) =>
+                    item.platform_scope.length !== 1 ||
+                    (client.chosen_platform != null && item.platform_scope.includes(client.chosen_platform)),
                 )
               : allClientItems
             const total = clientItems.length

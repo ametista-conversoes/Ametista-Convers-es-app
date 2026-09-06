@@ -17,7 +17,6 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import type { ActivityPlanScope, ActivityPlatformScope, ActivityTemplateRecord } from '@/hooks/useManagerPortalData'
 import { useCreateActivityTemplate, useUpdateActivityTemplate } from '@/hooks/useManagerPortalData'
@@ -26,10 +25,12 @@ import { planLabels } from '@/lib/status-styles'
 const PLAN_SCOPE_OPTIONS: ActivityPlanScope[] = ['validacao', 'escala', 'dominacao']
 const ALL_PLANS: ActivityPlanScope[] = [...PLAN_SCOPE_OPTIONS]
 
+const PLATFORM_SCOPE_OPTIONS: ActivityPlatformScope[] = ['meta', 'google']
+const ALL_PLATFORMS: ActivityPlatformScope[] = [...PLATFORM_SCOPE_OPTIONS]
+
 const PLATFORM_SCOPE_LABELS: Record<ActivityPlatformScope, string> = {
-  comum: 'Comum',
-  meta: 'Só Meta Ads',
-  google: 'Só Google Ads',
+  meta: 'Meta Ads',
+  google: 'Google Ads',
 }
 
 const templateFormSchema = z.object({
@@ -41,7 +42,7 @@ const templateFormSchema = z.object({
         title: z.string().min(1, 'Digite o título do item'),
         category: z.string().optional(),
         planScope: z.array(z.enum(['validacao', 'escala', 'dominacao'])).min(1, 'Marque pelo menos um plano'),
-        platformScope: z.enum(['comum', 'meta', 'google']),
+        platformScope: z.array(z.enum(['meta', 'google'])).min(1, 'Marque pelo menos uma plataforma'),
       }),
     )
     .min(1, 'Adicione pelo menos um item'),
@@ -52,7 +53,7 @@ type TemplateFormValues = z.infer<typeof templateFormSchema>
 const EMPTY_VALUES: TemplateFormValues = {
   name: '',
   description: '',
-  items: [{ title: '', category: '', planScope: ALL_PLANS, platformScope: 'comum' }],
+  items: [{ title: '', category: '', planScope: ALL_PLANS, platformScope: ALL_PLATFORMS }],
 }
 
 interface ActivityTemplateFormDialogProps {
@@ -88,7 +89,8 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
                 title: item.title,
                 category: item.category ?? '',
                 planScope: item.plan_scope && item.plan_scope.length > 0 ? item.plan_scope : ALL_PLANS,
-                platformScope: item.platform_scope ?? 'comum',
+                platformScope:
+                  item.platform_scope && item.platform_scope.length > 0 ? item.platform_scope : ALL_PLATFORMS,
               })),
             }
           : EMPTY_VALUES,
@@ -193,6 +195,7 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
                         name={`items.${index}.planScope`}
                         render={({ field }) => (
                           <FormItem>
+                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Plano</p>
                             <div className="flex flex-wrap gap-3">
                               {PLAN_SCOPE_OPTIONS.map((plan) => (
                                 <label key={plan} className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -217,19 +220,26 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
                         control={form.control}
                         name={`items.${index}.platformScope`}
                         render={({ field }) => (
-                          <FormItem>
-                            <Select value={field.value} onValueChange={field.onChange}>
-                              <SelectTrigger className="h-8 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Object.entries(PLATFORM_SCOPE_LABELS).map(([value, label]) => (
-                                  <SelectItem key={value} value={value}>
-                                    {label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                          <FormItem className="border-t border-[#1A2540] pt-2">
+                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Plataforma</p>
+                            <div className="flex flex-wrap gap-3">
+                              {PLATFORM_SCOPE_OPTIONS.map((platform) => (
+                                <label key={platform} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                  <Checkbox
+                                    checked={field.value?.includes(platform)}
+                                    onCheckedChange={(checked) => {
+                                      const current = field.value ?? []
+                                      field.onChange(
+                                        checked === true
+                                          ? [...current, platform]
+                                          : current.filter((p) => p !== platform),
+                                      )
+                                    }}
+                                  />
+                                  {PLATFORM_SCOPE_LABELS[platform]}
+                                </label>
+                              ))}
+                            </div>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -253,7 +263,7 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
                 type="button"
                 variant="secondary"
                 className="w-full"
-                onClick={() => append({ title: '', category: '', planScope: ALL_PLANS, platformScope: 'comum' })}
+                onClick={() => append({ title: '', category: '', planScope: ALL_PLANS, platformScope: ALL_PLATFORMS })}
               >
                 <Plus className="h-4 w-4" />
                 Adicionar item

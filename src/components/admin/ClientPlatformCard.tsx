@@ -51,19 +51,21 @@ export function ClientPlatformCard({ clientId }: ClientPlatformCardProps) {
     const next = value === NONE_VALUE ? null : (value as 'meta' | 'google')
     if (next === currentPlatform) return
 
-    // Trocar de plataforma esconde os itens concluídos da plataforma
-    // antiga — avisa antes, em vez de sumir sem explicação.
+    // Trocar de plataforma esconde os itens concluídos EXCLUSIVOS da
+    // plataforma antiga (as 2 marcadas continuam aparecendo do mesmo
+    // jeito) — avisa antes, em vez de sumir sem explicação.
     if (currentPlatform) {
       setChecking(true)
-      const { count, error } = await supabase
+      const { data, error } = await supabase
         .from('activity_checklist_items')
-        .select('id', { count: 'exact', head: true })
+        .select('id, platform_scope')
         .eq('client_id', clientId)
         .eq('completed', true)
-        .eq('platform_scope', currentPlatform)
+        .contains('platform_scope', [currentPlatform])
       setChecking(false)
-      if (!error && (count ?? 0) > 0) {
-        setPendingSwitch({ next, completedCount: count ?? 0 })
+      const exclusiveCount = (data ?? []).filter((item) => item.platform_scope.length === 1).length
+      if (!error && exclusiveCount > 0) {
+        setPendingSwitch({ next, completedCount: exclusiveCount })
         return
       }
     }
