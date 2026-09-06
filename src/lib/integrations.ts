@@ -1,3 +1,4 @@
+import { fetchFriendly } from '@/lib/fetch-friendly'
 import { supabase } from '@/lib/supabase'
 
 // Cliente da Edge Function "integrations" (Fase 6.1/6.2) — chamado
@@ -27,7 +28,7 @@ export async function connectIntegration(params: ConnectIntegrationParams): Prom
   const search = new URLSearchParams({ provider: params.provider, digital_asset_id: params.digitalAssetId })
   if (params.formId) search.set('form_id', params.formId)
 
-  const res = await fetch(`${FUNCTIONS_BASE}/connect?${search.toString()}`, { headers: await authHeaders() })
+  const res = await fetchFriendly(`${FUNCTIONS_BASE}/connect?${search.toString()}`, { headers: await authHeaders() })
   const body = await res.json()
   if (!res.ok) throw new Error(body.error ?? 'Não foi possível iniciar a conexão.')
   return body.authorizationUrl as string
@@ -40,7 +41,7 @@ export interface SyncIntegrationResult {
 }
 
 export async function syncIntegration(connectionId: string): Promise<SyncIntegrationResult> {
-  const res = await fetch(`${FUNCTIONS_BASE}/sync`, {
+  const res = await fetchFriendly(`${FUNCTIONS_BASE}/sync`, {
     method: 'POST',
     headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify({ connection_id: connectionId }),
@@ -62,7 +63,7 @@ export interface GoogleAdsAccount {
  * 1 conta encontrada). */
 export async function listGoogleAdsAccounts(connectionId: string): Promise<GoogleAdsAccount[]> {
   const search = new URLSearchParams({ connection_id: connectionId })
-  const res = await fetch(`${FUNCTIONS_BASE}/accounts?${search.toString()}`, { headers: await authHeaders() })
+  const res = await fetchFriendly(`${FUNCTIONS_BASE}/accounts?${search.toString()}`, { headers: await authHeaders() })
   const body = await res.json()
   if (!res.ok) throw new Error(body.error ?? 'Não foi possível buscar as contas de anúncios.')
   return body.accounts as GoogleAdsAccount[]
@@ -71,7 +72,7 @@ export async function listGoogleAdsAccounts(connectionId: string): Promise<Googl
 /** Grava qual conta de anúncios do Google Ads usar numa conexão, depois
  * de escolhida numa lista (Fase 20). */
 export async function selectGoogleAdsAccount(connectionId: string, account: GoogleAdsAccount): Promise<void> {
-  const res = await fetch(`${FUNCTIONS_BASE}/select-account`, {
+  const res = await fetchFriendly(`${FUNCTIONS_BASE}/select-account`, {
     method: 'POST',
     headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify({ connection_id: connectionId, customer_id: account.id, login_customer_id: account.loginCustomerId }),
@@ -90,14 +91,14 @@ export type AgencyProvider = 'google_ads' | 'meta_ads'
  * da agência, não de um cliente específico). */
 export async function connectAgencyProvider(provider: AgencyProvider): Promise<string> {
   const search = new URLSearchParams({ provider })
-  const res = await fetch(`${FUNCTIONS_BASE}/agency-connect?${search.toString()}`, { headers: await authHeaders() })
+  const res = await fetchFriendly(`${FUNCTIONS_BASE}/agency-connect?${search.toString()}`, { headers: await authHeaders() })
   const body = await res.json()
   if (!res.ok) throw new Error(body.error ?? 'Não foi possível iniciar a conexão.')
   return body.authorizationUrl as string
 }
 
 export async function disconnectAgencyProvider(provider: AgencyProvider): Promise<void> {
-  const res = await fetch(`${FUNCTIONS_BASE}/agency-disconnect`, {
+  const res = await fetchFriendly(`${FUNCTIONS_BASE}/agency-disconnect`, {
     method: 'POST',
     headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify({ provider }),
@@ -117,7 +118,7 @@ export interface AgencyAdAccount {
  * "Conectar integração" de um Ativo Digital. */
 export async function listAgencyAccounts(provider: AgencyProvider): Promise<AgencyAdAccount[]> {
   const search = new URLSearchParams({ provider })
-  const res = await fetch(`${FUNCTIONS_BASE}/agency-accounts?${search.toString()}`, { headers: await authHeaders() })
+  const res = await fetchFriendly(`${FUNCTIONS_BASE}/agency-accounts?${search.toString()}`, { headers: await authHeaders() })
   const body = await res.json()
   if (!res.ok) throw new Error(body.error ?? 'Não foi possível buscar as contas.')
   return body.accounts as AgencyAdAccount[]
@@ -131,7 +132,7 @@ export async function linkAgencyAccount(
   provider: AgencyProvider,
   account: AgencyAdAccount,
 ): Promise<void> {
-  const res = await fetch(`${FUNCTIONS_BASE}/link-agency-account`, {
+  const res = await fetchFriendly(`${FUNCTIONS_BASE}/link-agency-account`, {
     method: 'POST',
     headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -154,14 +155,14 @@ export interface AgencyBusiness {
  * conectada, quando a escolha automática (handleAgencyCallback) não
  * conseguiu decidir sozinha (0 ou 2+ encontrados). */
 export async function listAgencyBusinesses(): Promise<AgencyBusiness[]> {
-  const res = await fetch(`${FUNCTIONS_BASE}/agency-businesses?provider=meta_ads`, { headers: await authHeaders() })
+  const res = await fetchFriendly(`${FUNCTIONS_BASE}/agency-businesses?provider=meta_ads`, { headers: await authHeaders() })
   const body = await res.json()
   if (!res.ok) throw new Error(body.error ?? 'Não foi possível buscar os Business Managers.')
   return body.businesses as AgencyBusiness[]
 }
 
 export async function selectAgencyBusiness(businessId: string): Promise<void> {
-  const res = await fetch(`${FUNCTIONS_BASE}/select-agency-business`, {
+  const res = await fetchFriendly(`${FUNCTIONS_BASE}/select-agency-business`, {
     method: 'POST',
     headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify({ business_id: businessId }),
@@ -180,7 +181,7 @@ export interface ExternalCampaign {
  * vincular um projeto a uma campanha específica do Meta/Google Ads). */
 export async function listCampaigns(connectionId: string): Promise<ExternalCampaign[]> {
   const search = new URLSearchParams({ connection_id: connectionId })
-  const res = await fetch(`${FUNCTIONS_BASE}/campaigns?${search.toString()}`, { headers: await authHeaders() })
+  const res = await fetchFriendly(`${FUNCTIONS_BASE}/campaigns?${search.toString()}`, { headers: await authHeaders() })
   const body = await res.json()
   if (!res.ok) throw new Error(body.error ?? 'Não foi possível buscar as campanhas.')
   return body.campaigns as ExternalCampaign[]

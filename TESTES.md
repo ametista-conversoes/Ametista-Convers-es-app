@@ -12,7 +12,22 @@
 
 ---
 
-## 1. Link de convite/recuperação de senha expirado
+## 1. Responsividade no celular — Reuniões, Projetos, alerta de limiar
+- Reuniões (Portal Cliente e Portal Gestor): status "Agendada" não deve mais cortar/sumir ao lado do botão de cancelar/concluir numa tela estreita — a linha quebra pra próxima quando não cabe.
+- Central de Informações do Cliente → card "Projetos": o cabeçalho (título + botões "Aplicar Workflow"/"Novo Projeto") não deve mais vazar pra fora da tela no celular.
+- Card "Alertas por Limiar de Métrica": o checkbox "Ativo" de cada linha não deve mais aparecer sozinho, alinhado estranho à direita, quando a linha quebra.
+- **Sem confirmação visual minha** (não tenho como abrir o app num celular) — só corrigi os 3 pontos com base na descrição; preciso que você confirme se sumiu o corte/vazamento.
+
+## 2. Aviso de retenção do histórico da Cassie
+- Abrir a Cassie (Portal Cliente, Portal Gestor, ou dentro da Central de Informações do Cliente) → confirma que aparece o aviso "O histórico fica salvo enquanto sua conta existir — use 'Limpar Histórico' pra apagar" abaixo do modo selecionado.
+- Nota: o texto é assim (sem prazo fixo) porque não existe nenhuma limpeza automática por tempo no banco — o histórico é isolado por conta de login (`conversation_owner_id`), não por cliente, e some se a conta for apagada.
+
+## 3. Mensagem de erro melhor no "Failed to fetch" (Cassie, Comunicação Persuasiva, MCC, Forms)
+- Não é uma correção de causa raiz — investigado e não achei bug de código; a suspeita é o celular cancelando a conexão sozinho quando a tela bloqueia/troca de app no meio de uma requisição demorada (chat com IA, ou o vai-e-volta do OAuth). Só troquei a mensagem crua "Failed to fetch" por um aviso mais claro nesses 4 fluxos.
+- Testar de propósito: iniciar uma dessas ações no celular e bloquear a tela/trocar de app no meio → confirma que a mensagem agora é legível, e não o erro técnico cru.
+- Se isso continuar acontecendo sem bloquear a tela (ex: no Wi-Fi normal, sem trocar de app), me avisa — nesse caso não seria só um problema de bloqueio de tela e precisaria investigar mais fundo.
+
+## 4. Link de convite/recuperação de senha expirado
 - Clicar num link de convite ou de "esqueci a senha" já expirado/já usado → antes disso podia deixar entrar no app mesmo assim (sessão antiga guardada no navegador); agora o app detecta o erro que o Supabase manda no fragmento da URL (`#error=access_denied&error_code=otp_expired...`), desloga de propósito e mostra um aviso pra pedir um novo link.
 - Confirmar que um link válido (recém-recebido, não expirado) continua funcionando normalmente — não pode ter virado um falso positivo.
 

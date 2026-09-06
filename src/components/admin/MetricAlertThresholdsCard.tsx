@@ -112,7 +112,7 @@ export function MetricAlertThresholdsCard({ clientId }: MetricAlertThresholdsCar
                 onChange={(e) => updateRow(key, { thresholdValue: e.target.value, enabled: e.target.value.trim() !== '' })}
                 className="h-8 w-28"
               />
-              <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Checkbox checked={row.enabled} onCheckedChange={(checked) => updateRow(key, { enabled: checked === true })} />
                 Ativo
               </label>

@@ -444,12 +444,12 @@ export default function ClientDetail() {
 
       {/* Projetos */}
       <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
-        <CardHeader className="flex flex-row items-center justify-between gap-2 p-0">
+        <CardHeader className="flex flex-wrap items-center justify-between gap-2 p-0">
           <CardTitle className="flex items-center gap-2 text-base">
             <FolderKanban className="h-4 w-4 text-purple-400" />
             Projetos
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <ApplyWorkflowDialog lockedClientId={client.id} />
             <NewProjectDialog clientId={client.id} />
           </div>

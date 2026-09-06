@@ -1,4 +1,5 @@
 import type { CassieMode } from '@/lib/cassie-modes'
+import { fetchFriendly } from '@/lib/fetch-friendly'
 import { supabase } from '@/lib/supabase'
 
 // Cliente da Edge Function da Cassie (Fase 7.1) — chamado direto via
@@ -22,7 +23,7 @@ interface SendCassieMessageParams {
 }
 
 export async function sendCassieMessage({ clientId, message, mode }: SendCassieMessageParams): Promise<string> {
-  const res = await fetch(`${FUNCTIONS_BASE}/chat`, {
+  const res = await fetchFriendly(`${FUNCTIONS_BASE}/chat`, {
     method: 'POST',
     headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify({ client_id: clientId, message, mode }),
@@ -42,7 +43,7 @@ interface SendPersuasiveCopyMessageParams {
  * pra Cassie gerar/ajustar headlines e textos de anúncio a partir das
  * respostas abertas de Google Forms do cliente. */
 export async function sendPersuasiveCopyMessage({ clientId, connectionId, message }: SendPersuasiveCopyMessageParams): Promise<string> {
-  const res = await fetch(`${FUNCTIONS_BASE}/persuasive-copy`, {
+  const res = await fetchFriendly(`${FUNCTIONS_BASE}/persuasive-copy`, {
     method: 'POST',
     headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify({ client_id: clientId, connection_id: connectionId, message }),

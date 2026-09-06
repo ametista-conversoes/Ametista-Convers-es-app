@@ -27,7 +27,7 @@ export function MeetingList({ meetings }: MeetingListProps) {
       <CardContent className="space-y-3 p-0 pt-4">
         {meetings.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma reunião agendada.</p>}
         {meetings.map((meeting) => (
-          <div key={meeting.id} className="flex items-center justify-between gap-3 rounded-lg bg-secondary/50 px-3 py-2">
+          <div key={meeting.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-secondary/50 px-3 py-2">
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-foreground">{meeting.title}</p>
               <p className="text-xs text-muted-foreground">{formatDateTime(meeting.date)}</p>

@@ -38,6 +38,9 @@ export function CassieHeader({ plan, allowedModes, mode, onModeChange, onClearHi
             {plan ? `Plano: ${planLabels[plan] ?? plan} · ` : ''}
             Modo: {CASSIE_MODE_INFO[mode].label}
           </p>
+          <p className="text-[11px] text-muted-foreground/70">
+            O histórico fica salvo enquanto sua conta existir — use "Limpar Histórico" pra apagar.
+          </p>
         </div>
       </div>
 
