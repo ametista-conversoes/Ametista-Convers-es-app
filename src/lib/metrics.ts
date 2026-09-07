@@ -210,20 +210,26 @@ export function buildMetricSeries(
     })
 }
 
+/** CTR/CPC/Taxa de Conversão/CPA a partir de totais brutos — mesma
+ * fórmula usada em `sumSnapshotKpis` (conta inteira), `useCampaignPerformance`
+ * (por campanha) e `useAdGroups` (por grupo de anúncios), pra nunca
+ * duplicar/destoar a conta entre os 3 níveis. "Taxa de Conversão" é a
+ * mesma coisa que a coluna personalizada "Taxa Conv. LP" do Google Ads
+ * (Conversões ÷ Cliques) — não é um conceito novo. */
+export function computeRateMetrics(spend: number, clicks: number, impressions: number, conversions: number) {
+  return {
+    ctr: impressions > 0 ? (clicks / impressions) * 100 : null,
+    cpc: clicks > 0 ? spend / clicks : null,
+    conversionRate: clicks > 0 ? (conversions / clicks) * 100 : null,
+    cpa: conversions > 0 ? spend / conversions : null,
+  }
+}
+
 function sumSnapshotKpis(snapshots: PerformanceSnapshotRecord[]): SnapshotKpis {
   const spend = snapshots.reduce((sum, s) => sum + (s.spend ?? 0), 0)
   const impressions = snapshots.reduce((sum, s) => sum + (s.impressions ?? 0), 0)
   const clicks = snapshots.reduce((sum, s) => sum + (s.clicks ?? 0), 0)
   const conversions = snapshots.reduce((sum, s) => sum + (s.conversions ?? 0), 0)
 
-  return {
-    spend,
-    impressions,
-    clicks,
-    conversions,
-    ctr: impressions > 0 ? (clicks / impressions) * 100 : null,
-    cpc: clicks > 0 ? spend / clicks : null,
-    conversionRate: clicks > 0 ? (conversions / clicks) * 100 : null,
-    cpa: conversions > 0 ? spend / conversions : null,
-  }
+  return { spend, impressions, clicks, conversions, ...computeRateMetrics(spend, clicks, impressions, conversions) }
 }

@@ -11,10 +11,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { KanbanTaskFormDialog } from '@/components/kanban/KanbanTaskFormDialog'
+import { AdGroupsTab } from '@/components/project/AdGroupsTab'
 import { CampaignLinkField } from '@/components/project/CampaignLinkField'
 import { ManagerTaskRow } from '@/components/tasks/ManagerTaskRow'
 import type { ManagerProjectRecord, ManagerTaskRecord } from '@/hooks/useManagerPortalData'
-import { useCampaignPerformance, useManagerClient, useUpdateProject } from '@/hooks/useManagerPortalData'
+import {
+  useCampaignPerformance,
+  useDigitalAssetConnections,
+  useManagerClient,
+  useUpdateProject,
+} from '@/hooks/useManagerPortalData'
 import { formatCurrency, formatDate, formatMultiplier, formatPercent } from '@/lib/format'
 import { computeRoas } from '@/lib/metrics'
 import { segmentationOptionGroups } from '@/lib/segmentation-options'
@@ -146,6 +152,9 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
   const usingAutoRevenue = project?.revenue == null && autoRevenue != null
   const effectiveRevenue = usingAutoRevenue ? autoRevenue : (project?.revenue ?? null)
 
+  const digitalAssetConnections = useDigitalAssetConnections()
+  const linkedProvider = digitalAssetConnections.data?.find((c) => c.id === linkedConnectionId)?.provider ?? null
+
   return (
     <Dialog open={!!project} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
@@ -160,6 +169,7 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                 <TabsTrigger value="overview">Visão Geral</TabsTrigger>
                 <TabsTrigger value="tasks">Tarefas</TabsTrigger>
                 <TabsTrigger value="campaign">Campanha</TabsTrigger>
+                <TabsTrigger value="ad-groups">Grupos de Anúncios</TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview" className="space-y-3">
@@ -410,6 +420,15 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                 <Button onClick={form.handleSubmit(onSubmit)} disabled={updateProject.isPending}>
                   {updateProject.isPending ? 'Salvando...' : 'Salvar'}
                 </Button>
+              </TabsContent>
+
+              <TabsContent value="ad-groups">
+                <AdGroupsTab
+                  connectionId={linkedConnectionId}
+                  campaignId={linkedCampaignId}
+                  campaignName={project.external_campaign_name}
+                  provider={linkedProvider}
+                />
               </TabsContent>
             </Tabs>
           </>

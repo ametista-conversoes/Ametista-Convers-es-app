@@ -4,7 +4,9 @@ import { useAuth } from '@/contexts/AuthContext'
 import { aggregateAudienceInsights, type AudienceRawResponse } from '@/lib/audience-insights'
 import { fetchLinkedClientAccounts, linkClientAccount, unlinkClientAccount } from '@/lib/client-access'
 import type { PerformanceSnapshotRecord } from '@/hooks/useClientPortalData'
+import { listAdGroups, type ExternalAdGroup } from '@/lib/integrations'
 import type { ClientHealthScoreSnapshotRecord, ExecutiveKpiSnapshotRecord } from '@/lib/manager-metrics'
+import { computeRateMetrics } from '@/lib/metrics'
 import { fetchLatestUpdatedAt, latestOf } from '@/lib/nav-activity'
 import { severityRank } from '@/lib/status-styles'
 import { supabase } from '@/lib/supabase'
@@ -579,6 +581,15 @@ export interface CampaignPerformance {
   conversions: number
   cpa: number | null
   ctr: number | null
+  cpc: number | null
+  conversionRate: number | null
+  /** Média dos últimos 30 dias com dado (ignora dias null) — só existe
+   * de verdade em campanhas de Pesquisa do Google Ads. */
+  searchRankLostImpressionShare: number | null
+  searchBudgetLostImpressionShare: number | null
+  /** Valor mais recente do período, não uma média — orçamento é um
+   * valor configurado, não algo que faça sentido somar/mediar. */
+  budgetAmount: number | null
 }
 
 /** Últimos 30 dias de `campaign_performance_snapshots` pra uma campanha
@@ -592,15 +603,27 @@ export function useCampaignPerformance(connectionId: string | null, campaignId: 
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
       const { data, error } = await supabase
         .from('campaign_performance_snapshots')
-        .select('spend, clicks, impressions, conversions')
+        .select(
+          'spend, clicks, impressions, conversions, snapshot_date, search_rank_lost_impression_share, search_budget_lost_impression_share, budget_amount',
+        )
         .eq('connection_id', connectionId as string)
         .eq('external_campaign_id', campaignId as string)
         .gte('snapshot_date', since)
+        .order('snapshot_date', { ascending: true })
       if (error) throw error
 
-      type Totals = { spend: number; clicks: number; impressions: number; conversions: number }
-      const rows = data as Array<{ spend: number | null; clicks: number | null; impressions: number | null; conversions: number | null }>
-      const totals = rows.reduce<Totals>(
+      type Row = {
+        spend: number | null
+        clicks: number | null
+        impressions: number | null
+        conversions: number | null
+        snapshot_date: string
+        search_rank_lost_impression_share: number | null
+        search_budget_lost_impression_share: number | null
+        budget_amount: number | null
+      }
+      const rows = data as Row[]
+      const totals = rows.reduce(
         (acc, row) => ({
           spend: acc.spend + (row.spend ?? 0),
           clicks: acc.clicks + (row.clicks ?? 0),
@@ -610,11 +633,45 @@ export function useCampaignPerformance(connectionId: string | null, campaignId: 
         { spend: 0, clicks: 0, impressions: 0, conversions: 0 },
       )
 
+      const average = (values: Array<number | null>) => {
+        const known = values.filter((v): v is number => v != null)
+        return known.length > 0 ? known.reduce((sum, v) => sum + v, 0) / known.length : null
+      }
+      const latestBudget = [...rows].reverse().find((r) => r.budget_amount != null)?.budget_amount ?? null
+
       return {
         ...totals,
-        cpa: totals.conversions > 0 ? totals.spend / totals.conversions : null,
-        ctr: totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : null,
+        ...computeRateMetrics(totals.spend, totals.clicks, totals.impressions, totals.conversions),
+        searchRankLostImpressionShare: average(rows.map((r) => r.search_rank_lost_impression_share)),
+        searchBudgetLostImpressionShare: average(rows.map((r) => r.search_budget_lost_impression_share)),
+        budgetAmount: latestBudget,
       } as CampaignPerformance
+    },
+    enabled: !!connectionId && !!campaignId,
+  })
+}
+
+export interface AdGroupPerformance extends ExternalAdGroup {
+  cpa: number | null
+  ctr: number | null
+  cpc: number | null
+  conversionRate: number | null
+}
+
+/** Grupos de anúncio da campanha vinculada a um projeto (aba "Grupos de
+ * Anúncios") — busca ao vivo (sem histórico salvo), últimos 30 dias.
+ * CTR/CPC/Taxa de Conversão calculados aqui a partir dos números brutos
+ * que a Edge Function devolve (mesma fórmula de `computeRateMetrics`
+ * usada pra conta/campanha, pra nunca destoar). */
+export function useAdGroups(connectionId: string | null, campaignId: string | null) {
+  return useQuery({
+    queryKey: ['ad-groups', connectionId, campaignId],
+    queryFn: async () => {
+      const adGroups = await listAdGroups(connectionId as string, campaignId as string)
+      return adGroups.map((a) => ({
+        ...a,
+        ...computeRateMetrics(a.spend, a.clicks, a.impressions, a.conversions),
+      })) as AdGroupPerformance[]
     },
     enabled: !!connectionId && !!campaignId,
   })

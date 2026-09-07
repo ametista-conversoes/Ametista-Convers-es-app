@@ -210,3 +210,27 @@ export async function listCampaigns(connectionId: string): Promise<ExternalCampa
   if (!res.ok) throw new Error(body.error ?? 'Não foi possível buscar as campanhas.')
   return body.campaigns as ExternalCampaign[]
 }
+
+export interface ExternalAdGroup {
+  id: string
+  name: string
+  status: string
+  spend: number
+  clicks: number
+  impressions: number
+  conversions: number
+  /** Média das keywords desse ad group — null se não tiver keyword com
+   * dado (comum fora de campanhas de Pesquisa). */
+  avgQualityScore: number | null
+}
+
+/** Lista os grupos de anúncio de uma campanha do Google Ads já
+ * vinculada a um projeto (aba "Grupos de Anúncios") — busca ao vivo,
+ * últimos 30 dias, só Google Ads por enquanto. */
+export async function listAdGroups(connectionId: string, campaignId: string): Promise<ExternalAdGroup[]> {
+  const search = new URLSearchParams({ connection_id: connectionId, campaign_id: campaignId })
+  const res = await fetchFriendly(`${FUNCTIONS_BASE}/ad-groups?${search.toString()}`, { headers: await authHeaders() })
+  const body = await res.json()
+  if (!res.ok) throw new Error(body.error ?? 'Não foi possível buscar os grupos de anúncio.')
+  return body.adGroups as ExternalAdGroup[]
+}

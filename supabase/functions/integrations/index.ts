@@ -38,6 +38,9 @@
 //   GET  .../integrations/connect?provider=meta_ads&digital_asset_id=...
 //   GET  .../integrations/callback?state=...&code=...          (aberta pelo Google/Meta)
 //   GET  .../integrations/campaigns?connection_id=...           (vincular projeto a uma campanha — Fase 8.1b)
+//   GET  .../integrations/ad-groups?connection_id=...&campaign_id=...  (aba "Grupos de Anúncios" do
+//                                          projeto — busca ao vivo, só Google Ads, com Índice de
+//                                          Qualidade médio por ad group vindo de keyword_view)
 //   GET  .../integrations/accounts?connection_id=...             (Fase 20: lista as contas de anúncio
 //                                          reais do Google Ads acessíveis por uma conexão — nunca
 //                                          inclui conta gerenciadora/MCC, só contas-cliente de verdade)
@@ -1120,14 +1123,32 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
   // Mesmos números que "byDate", só que quebrados por campanha também —
   // alimenta campaign_performance_snapshots (Fase 8.1b), sem mudar em
   // nada o agregado por conta que já existia (performance_snapshots).
+  // searchRankLostIS/searchBudgetLostIS/budgetAmount só existem no
+  // Google Ads (recurso `campaign`, não somam entre dias — cada linha
+  // já vem segmentada por dia, então é atribuição direta, não soma) e
+  // só têm valor real em campanhas de Pesquisa; nas outras a própria
+  // API devolve 0/ausente, que vira null na UI (mesmo padrão de toda
+  // métrica opcional do app).
   const byCampaign = new Map<
     string,
-    { campaignId: string; campaignName: string; date: string; spend: number; clicks: number; impressions: number; conversions: number }
+    {
+      campaignId: string
+      campaignName: string
+      date: string
+      spend: number
+      clicks: number
+      impressions: number
+      conversions: number
+      searchRankLostIS: number | null
+      searchBudgetLostIS: number | null
+      budgetAmount: number | null
+    }
   >()
 
   if (connection.provider === 'google_ads') {
     const gaqlQuery = `
-      SELECT segments.date, campaign.id, campaign.name, metrics.cost_micros, metrics.clicks, metrics.impressions, metrics.conversions
+      SELECT segments.date, campaign.id, campaign.name, metrics.cost_micros, metrics.clicks, metrics.impressions, metrics.conversions,
+             metrics.search_rank_lost_impression_share, metrics.search_budget_lost_impression_share, campaign_budget.amount_micros
       FROM campaign
       WHERE segments.date DURING LAST_30_DAYS
     `
@@ -1170,11 +1191,20 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
           clicks: 0,
           impressions: 0,
           conversions: 0,
+          searchRankLostIS: null,
+          searchBudgetLostIS: null,
+          budgetAmount: null,
         }
         campAcc.spend += spend
         campAcc.clicks += clicks
         campAcc.impressions += impressions
         campAcc.conversions += conversions
+        const rankLostIS = row.metrics?.searchRankLostImpressionShare
+        const budgetLostIS = row.metrics?.searchBudgetLostImpressionShare
+        const budgetMicros = row.campaignBudget?.amountMicros
+        campAcc.searchRankLostIS = rankLostIS != null ? Number(rankLostIS) * 100 : null
+        campAcc.searchBudgetLostIS = budgetLostIS != null ? Number(budgetLostIS) * 100 : null
+        campAcc.budgetAmount = budgetMicros != null ? Number(budgetMicros) / 1_000_000 : null
         byCampaign.set(key, campAcc)
       }
     }
@@ -1227,6 +1257,9 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
           clicks: 0,
           impressions: 0,
           conversions: 0,
+          searchRankLostIS: null,
+          searchBudgetLostIS: null,
+          budgetAmount: null,
         }
         campAcc.spend += spend
         campAcc.clicks += clicks
@@ -1266,6 +1299,9 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
     clicks: c.clicks,
     impressions: c.impressions,
     conversions: c.conversions,
+    search_rank_lost_impression_share: c.searchRankLostIS,
+    search_budget_lost_impression_share: c.searchBudgetLostIS,
+    budget_amount: c.budgetAmount,
   }))
 
   if (campaignRows.length > 0) {
@@ -1613,6 +1649,136 @@ async function handleListCampaigns(req: Request, url: URL) {
     status: c.status,
   }))
   return jsonResponse({ campaigns })
+}
+
+/** Lista os grupos de anúncio de UMA campanha do Google Ads já
+ * vinculada a um projeto — busca ao vivo (sem histórico salvo, ver
+ * plano da aba "Grupos de Anúncios"), últimos 30 dias, com métricas
+ * brutas (o frontend calcula CTR/CPC/Taxa de Conversão a partir
+ * delas, mesma responsabilidade que `useCampaignPerformance` já tem
+ * hoje). Índice de Qualidade vem de uma consulta SEPARADA
+ * (`keyword_view`) porque é um dado por keyword, não por ad group —
+ * a API não expõe isso agregado; a média por ad group é calculada
+ * aqui em JS. Só Google Ads por enquanto (Meta Ads não expõe
+ * "conjuntos de anúncios" nesta rota ainda). */
+async function handleListAdGroups(req: Request, url: URL) {
+  const auth = await requireAdminOrGestor(req)
+  if (auth instanceof Response) return auth
+
+  const connectionId = url.searchParams.get('connection_id')
+  const campaignId = url.searchParams.get('campaign_id')
+  if (!connectionId || !campaignId) return jsonResponse({ error: 'connection_id e campaign_id são obrigatórios' }, 400)
+
+  const supabase = getServiceClient()
+
+  const { data: connection, error: connectionError } = await supabase
+    .from('digital_asset_connections')
+    .select('id, provider, external_account_id, login_customer_id, agency_provider_connection_id')
+    .eq('id', connectionId)
+    .maybeSingle()
+  if (connectionError) return dbErrorResponse('handleListAdGroups: buscar conexão', connectionError)
+  if (!connection) return jsonResponse({ error: 'Conexão não encontrada' }, 404)
+  if (connection.provider !== 'google_ads') {
+    return jsonResponse({ error: 'Grupos de anúncio só disponíveis pra Google Ads por enquanto' }, 400)
+  }
+  if (!connection.external_account_id) {
+    return jsonResponse({ error: 'Conexão incompleta (falta conta de anúncios)' }, 400)
+  }
+
+  const accessToken = await resolveAccessToken(supabase, connection)
+  if (!accessToken) return jsonResponse({ error: 'Não foi possível obter um token de acesso válido' }, 502)
+
+  const adGroupsQuery = `
+    SELECT ad_group.id, ad_group.name, ad_group.status,
+           metrics.cost_micros, metrics.clicks, metrics.impressions, metrics.conversions
+    FROM ad_group
+    WHERE campaign.id = ${campaignId} AND segments.date DURING LAST_30_DAYS
+  `
+  const adGroupsRes = await fetch(
+    `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${connection.external_account_id}/googleAds:search`,
+    { method: 'POST', headers: googleAdsHeaders(accessToken, connection.login_customer_id), body: JSON.stringify({ query: adGroupsQuery }) },
+  )
+  const adGroupsBody = await adGroupsRes.json()
+  if (!adGroupsRes.ok) {
+    return platformErrorResponse('handleListAdGroups: ad_group', 'Google Ads', adGroupsBody)
+  }
+
+  type AdGroupAcc = {
+    id: string
+    name: string
+    status: string
+    spend: number
+    clicks: number
+    impressions: number
+    conversions: number
+    qualityScoreSum: number
+    qualityScoreCount: number
+  }
+  const byAdGroup = new Map<string, AdGroupAcc>()
+
+  for (const row of (adGroupsBody.results ?? []) as Array<Record<string, Record<string, unknown>>>) {
+    const id = row.adGroup?.id != null ? String(row.adGroup.id) : undefined
+    if (!id) continue
+    const acc = byAdGroup.get(id) ?? {
+      id,
+      name: (row.adGroup?.name as string | undefined) ?? id,
+      status: (row.adGroup?.status as string | undefined) ?? '',
+      spend: 0,
+      clicks: 0,
+      impressions: 0,
+      conversions: 0,
+      qualityScoreSum: 0,
+      qualityScoreCount: 0,
+    }
+    acc.spend += Number(row.metrics?.costMicros ?? 0) / 1_000_000
+    acc.clicks += Number(row.metrics?.clicks ?? 0)
+    acc.impressions += Number(row.metrics?.impressions ?? 0)
+    acc.conversions += Number(row.metrics?.conversions ?? 0)
+    byAdGroup.set(id, acc)
+  }
+
+  // Índice de Qualidade — resource diferente (keyword_view), por
+  // keyword; agrega em JS a média por ad group. Falha aqui não derruba
+  // a resposta inteira (é um extra, não o essencial) — só fica sem a
+  // coluna preenchida.
+  const qualityScoreQuery = `
+    SELECT ad_group.id, ad_group_criterion.quality_info.quality_score
+    FROM keyword_view
+    WHERE campaign.id = ${campaignId} AND ad_group_criterion.type = 'KEYWORD'
+  `
+  const qualityRes = await fetch(
+    `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${connection.external_account_id}/googleAds:search`,
+    { method: 'POST', headers: googleAdsHeaders(accessToken, connection.login_customer_id), body: JSON.stringify({ query: qualityScoreQuery }) },
+  )
+  if (qualityRes.ok) {
+    const qualityBody = await qualityRes.json()
+    for (const row of (qualityBody.results ?? []) as Array<Record<string, Record<string, unknown>>>) {
+      const id = row.adGroup?.id != null ? String(row.adGroup.id) : undefined
+      const score = (row.adGroupCriterion as Record<string, unknown> | undefined)?.qualityInfo as
+        | Record<string, unknown>
+        | undefined
+      const qualityScore = score?.qualityScore
+      if (!id || qualityScore == null) continue
+      const acc = byAdGroup.get(id)
+      if (!acc) continue
+      acc.qualityScoreSum += Number(qualityScore)
+      acc.qualityScoreCount += 1
+    }
+  } else {
+    console.error('[integrations] handleListAdGroups: keyword_view (Índice de Qualidade) falhou:', await qualityRes.text())
+  }
+
+  const adGroups = Array.from(byAdGroup.values()).map((a) => ({
+    id: a.id,
+    name: a.name,
+    status: a.status,
+    spend: a.spend,
+    clicks: a.clicks,
+    impressions: a.impressions,
+    conversions: a.conversions,
+    avgQualityScore: a.qualityScoreCount > 0 ? a.qualityScoreSum / a.qualityScoreCount : null,
+  }))
+  return jsonResponse({ adGroups })
 }
 
 /** Chamada pelo job agendado (pg_cron + pg_net, ver
@@ -2024,6 +2190,7 @@ Deno.serve(async (req) => {
     if (req.method === 'GET' && url.pathname.endsWith('/connect')) return await handleConnect(req, url)
     if (req.method === 'GET' && url.pathname.endsWith('/callback')) return await handleCallback(url)
     if (req.method === 'GET' && url.pathname.endsWith('/campaigns')) return await handleListCampaigns(req, url)
+    if (req.method === 'GET' && url.pathname.endsWith('/ad-groups')) return await handleListAdGroups(req, url)
     if (req.method === 'GET' && url.pathname.endsWith('/accounts')) return await handleListGoogleAdsAccounts(req, url)
     if (req.method === 'POST' && url.pathname.endsWith('/select-account')) return await handleSelectAccount(req)
     if (req.method === 'POST' && url.pathname.endsWith('/sync-all')) return await handleSyncAll(req)
@@ -2032,7 +2199,7 @@ Deno.serve(async (req) => {
     return jsonResponse(
       {
         error:
-          'Rota não encontrada. Use /agency-connect, /agency-accounts, /agency-businesses, /select-agency-business, /link-agency-account, /agency-disconnect, /connect, /callback, /campaigns, /accounts, /select-account, /sync, /sync-all ou /forms-webhook.',
+          'Rota não encontrada. Use /agency-connect, /agency-accounts, /agency-businesses, /select-agency-business, /link-agency-account, /agency-disconnect, /connect, /callback, /campaigns, /ad-groups, /accounts, /select-account, /sync, /sync-all ou /forms-webhook.',
       },
       404,
     )
