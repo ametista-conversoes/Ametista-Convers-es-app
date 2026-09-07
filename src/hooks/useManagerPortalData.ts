@@ -87,6 +87,7 @@ export interface ManagerProjectRecord {
   external_connection_id: string | null
   external_campaign_id: string | null
   external_campaign_name: string | null
+  conversion_type: 'vendas' | 'leads'
 }
 
 export interface ManagerTaskRecord {
@@ -506,7 +507,7 @@ export function useAllProjects() {
       const { data, error } = await supabase
         .from('projects')
         .select(
-          'id, title, client_id, status, spend, objective, description, icp, segmentations, systems, channel, cpa, roas, ctr, revenue, health_score, start_date, end_date, external_connection_id, external_campaign_id, external_campaign_name',
+          'id, title, client_id, status, spend, objective, description, icp, segmentations, systems, channel, cpa, roas, ctr, revenue, health_score, start_date, end_date, external_connection_id, external_campaign_id, external_campaign_name, conversion_type',
         )
       if (error) throw error
       return data as ManagerProjectRecord[]
@@ -522,6 +523,7 @@ export interface NewProjectInput {
   external_connection_id?: string | null
   external_campaign_id?: string | null
   external_campaign_name?: string | null
+  conversion_type: 'vendas' | 'leads'
 }
 
 export function useCreateProject() {
@@ -551,6 +553,7 @@ export interface UpdateProjectCampaignInput {
   external_campaign_id?: string | null
   external_campaign_name?: string | null
   revenue?: number | null
+  conversion_type?: 'vendas' | 'leads'
 }
 
 export function useUpdateProject() {

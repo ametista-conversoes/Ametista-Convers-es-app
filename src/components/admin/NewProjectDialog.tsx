@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { CampaignLinkField } from '@/components/project/CampaignLinkField'
 import { useCreateProject } from '@/hooks/useManagerPortalData'
@@ -26,6 +27,7 @@ const newProjectSchema = z.object({
   external_connection_id: z.string().nullable(),
   external_campaign_id: z.string().nullable(),
   external_campaign_name: z.string().nullable(),
+  conversion_type: z.enum(['vendas', 'leads']),
 })
 
 type NewProjectValues = z.infer<typeof newProjectSchema>
@@ -51,6 +53,7 @@ export function NewProjectDialog({ clientId }: NewProjectDialogProps) {
       external_connection_id: null,
       external_campaign_id: null,
       external_campaign_name: null,
+      conversion_type: 'leads',
     },
   })
 
@@ -69,6 +72,7 @@ export function NewProjectDialog({ clientId }: NewProjectDialogProps) {
         external_connection_id: values.external_connection_id,
         external_campaign_id: values.external_campaign_id,
         external_campaign_name: values.external_campaign_name,
+        conversion_type: values.conversion_type,
       })
       toast.success('Projeto criado.')
       form.reset()
@@ -129,6 +133,33 @@ export function NewProjectDialog({ clientId }: NewProjectDialogProps) {
                   <FormControl>
                     <Textarea placeholder="Detalhes gerais sobre o projeto..." {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="conversion_type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipo de conversão</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="vendas">Vendas (e-commerce, produto direto)</SelectItem>
+                      <SelectItem value="leads">Leads (com processo de fechamento)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {field.value === 'vendas'
+                      ? 'Cada conversão já é uma venda — sem etapa de fechamento.'
+                      : 'Cada conversão é um lead que ainda precisa fechar (ex: casas, carros, serviços).'}
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}

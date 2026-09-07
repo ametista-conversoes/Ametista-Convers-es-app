@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
@@ -13,7 +14,7 @@ import { KanbanTaskFormDialog } from '@/components/kanban/KanbanTaskFormDialog'
 import { CampaignLinkField } from '@/components/project/CampaignLinkField'
 import { ManagerTaskRow } from '@/components/tasks/ManagerTaskRow'
 import type { ManagerProjectRecord, ManagerTaskRecord } from '@/hooks/useManagerPortalData'
-import { useCampaignPerformance, useUpdateProject } from '@/hooks/useManagerPortalData'
+import { useCampaignPerformance, useManagerClient, useUpdateProject } from '@/hooks/useManagerPortalData'
 import { formatCurrency, formatDate, formatMultiplier, formatPercent } from '@/lib/format'
 import { computeRoas } from '@/lib/metrics'
 import { segmentationOptionGroups } from '@/lib/segmentation-options'
@@ -35,6 +36,12 @@ interface CampaignFormValues {
   external_connection_id: string | null
   external_campaign_id: string | null
   external_campaign_name: string | null
+  conversion_type: 'vendas' | 'leads'
+}
+
+const conversionTypeLabels: Record<'vendas' | 'leads', string> = {
+  vendas: 'Vendas',
+  leads: 'Leads',
 }
 
 export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDetailDialogProps) {
@@ -53,6 +60,7 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
       external_connection_id: null,
       external_campaign_id: null,
       external_campaign_name: null,
+      conversion_type: 'leads',
     },
   })
 
@@ -67,6 +75,7 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
       external_connection_id: project.external_connection_id,
       external_campaign_id: project.external_campaign_id,
       external_campaign_name: project.external_campaign_name,
+      conversion_type: project.conversion_type,
     })
     setEditingRevenue(false)
   }, [project, form])
@@ -100,6 +109,7 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
         external_connection_id: values.external_connection_id,
         external_campaign_id: values.external_campaign_id,
         external_campaign_name: values.external_campaign_name,
+        conversion_type: values.conversion_type,
       })
       toast.success('Campanha atualizada.')
     } catch {
@@ -112,6 +122,29 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
   const linkedConnectionId = project?.external_connection_id ?? null
   const campaignPerformance = useCampaignPerformance(linkedConnectionId, linkedCampaignId)
   const effectiveSpend = linkedCampaignId ? (campaignPerformance.data?.spend ?? null) : (project?.spend ?? null)
+
+  // Receita automática (só quando vinculado a uma campanha real e o
+  // cliente tem Ticket Médio configurado): "Vendas" pula a divisão por
+  // leads_to_close porque cada conversão já é uma venda; "Leads" segue
+  // a mesma fórmula de computeRevenueFromLeads (src/lib/metrics.ts),
+  // só que aplicada aqui por projeto em vez de conta inteira. Só entra
+  // em ação enquanto `project.revenue` nunca foi digitado manualmente
+  // (fica null até o gestor editar pela primeira vez) — depois disso o
+  // valor manual sempre vence, mesmo que volte a ficar igual ao
+  // automático por coincidência.
+  const client = useManagerClient(project?.client_id ?? null)
+  const conversionType = project?.conversion_type ?? 'leads'
+  const linkedConversions = linkedCampaignId ? (campaignPerformance.data?.conversions ?? null) : null
+  const averageTicket = client.data?.average_ticket ?? null
+  const leadsToClose = client.data?.leads_to_close ?? null
+  const autoRevenue = (() => {
+    if (linkedConversions == null || averageTicket == null) return null
+    if (conversionType === 'vendas') return linkedConversions * averageTicket
+    if (leadsToClose == null || leadsToClose <= 0) return null
+    return (linkedConversions / leadsToClose) * averageTicket
+  })()
+  const usingAutoRevenue = project?.revenue == null && autoRevenue != null
+  const effectiveRevenue = usingAutoRevenue ? autoRevenue : (project?.revenue ?? null)
 
   return (
     <Dialog open={!!project} onOpenChange={onOpenChange}>
@@ -137,12 +170,17 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                   {project.channel && (
                     <Badge className="border-[#1A2540] bg-secondary/50 text-muted-foreground">{project.channel}</Badge>
                   )}
+                  <Badge className="border-[#1A2540] bg-secondary/50 text-muted-foreground">
+                    {conversionTypeLabels[conversionType]}
+                  </Badge>
                 </div>
 
                 {linkedCampaignId && (
                   <p className="text-xs text-muted-foreground">
-                    CPA, CTR e gasto abaixo vêm da campanha vinculada ({project.external_campaign_name}), últimos 30 dias.
-                    Receita continua manual — os provedores de anúncio não reportam faturamento nessa sincronização.
+                    CPA, CTR e gasto abaixo vêm da campanha vinculada ({project.external_campaign_name}), últimos 30 dias.{' '}
+                    {usingAutoRevenue
+                      ? 'Receita calculada automaticamente a partir das conversões e do Ticket Médio do cliente.'
+                      : 'Os provedores de anúncio não reportam faturamento — configure o Ticket Médio do cliente pra calcular a Receita automaticamente, ou digite manualmente.'}
                   </p>
                 )}
 
@@ -155,7 +193,7 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">ROAS</p>
-                    <p className="text-foreground">{formatMultiplier(computeRoas(project.revenue ?? 0, effectiveSpend ?? 0))}</p>
+                    <p className="text-foreground">{formatMultiplier(computeRoas(effectiveRevenue ?? 0, effectiveSpend ?? 0))}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">CTR</p>
@@ -200,6 +238,20 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                         >
                           <X className="h-3.5 w-3.5" />
                         </Button>
+                      </div>
+                    ) : usingAutoRevenue ? (
+                      <div>
+                        <p className="text-foreground">{formatCurrency(autoRevenue)}</p>
+                        <button
+                          type="button"
+                          className="text-[11px] text-muted-foreground underline hover:text-purple-400"
+                          onClick={() => {
+                            setRevenueDraft(autoRevenue != null ? String(autoRevenue) : '')
+                            setEditingRevenue(true)
+                          }}
+                        >
+                          calculado automaticamente ({conversionTypeLabels[conversionType].toLowerCase()}) — editar manualmente
+                        </button>
                       </div>
                     ) : (
                       <button
@@ -258,6 +310,19 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
               </TabsContent>
 
               <TabsContent value="campaign" className="space-y-4">
+                <div>
+                  <label className="text-sm text-foreground">Tipo de conversão</label>
+                  <Select value={form.watch('conversion_type')} onValueChange={(v) => form.setValue('conversion_type', v as 'vendas' | 'leads', { shouldDirty: true })}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="vendas">Vendas (e-commerce, produto direto)</SelectItem>
+                      <SelectItem value="leads">Leads (com processo de fechamento)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div>
                   <p className="mb-2 text-sm text-foreground">Campanha vinculada (opcional)</p>
                   <CampaignLinkField
