@@ -67,7 +67,24 @@
 - Rodar sincronização manual numa conexão nova (vinculada à conta da agência) **e** numa conexão antiga/legada (OAuth próprio por cliente) — os dois caminhos de token precisam continuar funcionando.
 - Desconectar a conta administradora em Configurações → Agência.
 
-## 11. Aprovações externas do Google/Meta — bloqueiam validação com dados reais de terceiros
+## 11. Apagar projeto e mudar status direto na lista de Projetos
+- Central de Informações do Cliente → card "Projetos": clicar no badge de status de um projeto (ex: "Planejamento") abre um menu com as 5 opções (Planejamento/Ativo/Pausado/Concluído/Cancelado) — confirma que muda na hora, sem precisar abrir o projeto.
+- Clicar no ícone de lixeira ao lado do badge → confirma o diálogo de confirmação com o nome do projeto; "Apagar" remove o projeto da lista de vez. Se o projeto apagado tinha uma integração vinculada (Google Ads/Meta Ads), confirma que a conexão em si não some (só desvincula) — testar em cima de um projeto de teste sem dado importante.
+- Cancelar no diálogo → projeto continua normalmente.
+
+## 12. Tipo de conversão por projeto (Vendas/Leads) + Receita automática
+- Criar um projeto novo → confirma que o campo "Tipo de conversão" aparece com Vendas/Leads, padrão "Leads".
+- Projeto tipo "Vendas" vinculado a uma campanha real com o cliente tendo Ticket Médio configurado (Central de Informações) → aba Visão Geral mostra a Receita calculada automaticamente (Conversões × Ticket Médio), com o link "editar manualmente" pra sobrescrever se precisar.
+- Projeto tipo "Leads" segue mostrando o campo de Receita manual como sempre (sem cálculo automático).
+
+## 13. Aba "Grupos de Anúncios" + Parcela de impressão perdida + Índice de Qualidade — PRECISA DE DEPLOY MANUAL DA EDGE FUNCTION
+- **Atenção**: a Edge Function `integrations` só atualiza depois de rodar `supabase functions deploy integrations` (CLI ou painel) — não sobe sozinha com o `git push`. Sem o deploy, a aba nova só vai dar erro/lista vazia.
+- Rodar as migrations `migration-062-tipo-campanha-projeto.sql` e `migration-063-impression-share-orcamento.sql` antes de testar (adicionam as colunas novas).
+- Abrir um projeto vinculado a uma campanha real do Google Ads → aba nova "Grupos de Anúncios" mostra, no topo, Orçamento + as 2 métricas de parcela de impressão perdida (classificação/orçamento) da campanha; embaixo, um cartão por grupo de anúncios com Custo/Cliques/CTR/CPC méd./Taxa de Conversão/Índice de Qualidade.
+- Numa campanha que não seja de Pesquisa (Display/Vídeo/PMax) → confirma que impressão perdida e índice de qualidade aparecem como "—" em vez de erro ou zero enganoso.
+- Projeto sem campanha vinculada, ou vinculado a uma conexão que não seja Google Ads (Meta Ads) → aba mostra o aviso certo em vez de tentar buscar e quebrar.
+
+## 14. Aprovações externas do Google/Meta — bloqueiam validação com dados reais de terceiros
 - **Google Ads API "Basic Access" — CONFIRMADO (07/09), não é mais suspeita**: o diagnóstico novo (item 10) mostrou o erro real do Google nas 4 contas raiz que o MCC "Ametista Conversões" enxerga: `"The developer token is only approved for use with test accounts. To access non-test accounts, apply for Basic or Standard access."` — ou seja, o developer token do app só pode mexer em contas de teste (vazias) até essa aprovação sair; nenhuma conta de cliente de verdade funciona antes disso, não importa o quanto o vínculo no MCC esteja certo. **Não é bug de código, é aprovação que só o Google concede** — peça em Google Ads → Ferramentas e Configurações → Configuração → API Center, dentro da conta MCC. A Fase 28 (lado Google) e a sincronização de métricas reais (Fase 19.1) só validam de verdade depois disso.
 - Duas das 4 contas também deram um segundo erro, independente do developer token: `"The customer account can't be accessed because it is not yet enabled or has been..."` — sugere que essas 2 contas específicas têm o próprio setup incompleto do lado do Google (ex: sem faturamento configurado) — vale conferir direto no Google Ads, mas só faz sentido investigar isso depois que o Basic Access sair, já que sem ele nada funciona de qualquer forma.
 - **Verificação de escopo sensível do Google (Forms)** + vídeo de demonstração enviado: pendente de review do Google.
