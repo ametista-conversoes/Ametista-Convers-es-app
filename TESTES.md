@@ -18,12 +18,6 @@
 
 ## 2. Correção do card fantasma "0 de 0" em Atividades
 - Veio de um bug real: um cliente Validação com todos os itens ocultos pelo filtro de plataforma (Fase 31b) ficava com um card vazio "0 de 0 itens concluídos", sem nenhum item pra selecionar/apagar — os itens existiam no banco mas nunca renderizavam. Corrigido: fora do modo de seleção o card só aparece se tiver algo realmente visível; no modo de seleção, todos os itens aparecem (mesmo os ocultos), com um aviso, pra dar pra apagar.
-
-## 2.5. Diagnóstico de MCC do Google Ads (nenhuma conta encontrada) — PRECISA DE DEPLOY MANUAL DA EDGE FUNCTION
-- **Atenção**: diferente do resto do app (que sobe sozinho no `git push` via Vercel), a Edge Function `integrations` só atualiza depois que você rodar o deploy dela pelo Supabase (CLI `supabase functions deploy integrations` ou pelo próprio painel do Supabase). Sem isso, essa correção não entra no ar.
-- Depois do deploy: em Configurações → Agência, com o Google Ads (MCC) conectado, confirma que aparece uma seção nova "MCC(s) identificado(s)" com nome + id de cada conta raiz que esse login enxerga — usa isso pra confirmar se é mesmo a "Ametista Conversões" (ou se logou com a conta errada).
-- No diálogo "Conectar integração" de um Ativo Digital (Google Ads), se continuar sem achar as 2 contas que você vinculou no MCC, confirma se agora aparece um aviso amarelo explicando o erro real do Google (não mais só "nenhuma conta encontrada") — me manda o texto desse aviso se aparecer, ele deve dizer o motivo de verdade (token/permissão/nível de acesso).
-- Se mesmo assim a lista de contas continuar vazia sem nenhum aviso (nem erro, nem "nenhuma conta encontrada" objetivamente errado), pode ser que as 2 contas nem apareçam na consulta `customer_client` do Google por status/vínculo pendente — vale conferir dentro do próprio Google Ads se o convite de vínculo ao MCC já foi **aceito** (não só enviado) nas 2 contas.
 - Testar: com um cliente Validação que tenha só itens de uma plataforma diferente da escolhida (ou nenhuma escolhida), confirma que o card não aparece mais fora do modo de seleção; ativar "Selecionar" → confirma que os itens ocultos aparecem com o aviso roxo e dá pra apagar; depois de apagar tudo, o card some de vez (mesmo no modo de seleção).
 
 ## 4. Link de convite/recuperação de senha expirado
@@ -58,7 +52,7 @@
 - **Pendente de dado real**: os itens dos Workflows de Atividades já existentes ficaram todos com as 2 plataformas marcadas (universal, nenhum perde visibilidade) — o `checklist-meta-google-validacao.md` revelou que várias fases precisam de itens novos com texto diferente por plataforma (não só uma marcação), então a tagueação real precisa ser feita à mão pelo usuário, item por item, usando os checkboxes novos como referência o arquivo.
 
 ## 10. Fase 28 — Integrações via MCC (Google Ads) / Business Manager (Meta)
-- **Bloqueado agora por config externa**: conectar o Google Ads (MCC) deu `Error 400: redirect_uri_mismatch` no Google mesmo com o Client ID e o redirect_uri conferidos e batendo — causa ainda não fechada; próximo passo é capturar a URL completa que o navegador manda pra `accounts.google.com/o/oauth2/v2/auth` (via barra de endereço ou aba Network) pra comparar o valor exato de `redirect_uri=` enviado.
+- O `redirect_uri_mismatch` de antes já foi resolvido (Client ID do Google Cloud Console estava desatualizado) — MCC conectando normalmente agora, com a seção nova de identificação do MCC (nome + id) em Configurações → Agência funcionando e mostrando o diagnóstico real quando alguma conta falha (ver item 11 — bloqueio confirmado do lado do Google, não do app).
 - Configurações → Agência: conectar a conta administradora do Google Ads (MCC) e o Business Manager do Meta — cada um pelo próprio OAuth, uma única vez.
 - Status muda pra "Conectado" nos dois; pro Meta, se a conta enxergar mais de 1 Business Manager, confirma que aparece o seletor manual.
 - Ativos Digitais → "Conectar integração" num ativo de cliente (Google Ads ou Meta Ads) → precisa aparecer a lista de contas do cliente (via MCC/BM), **sem pedir login de novo**.
@@ -67,6 +61,7 @@
 - Desconectar a conta administradora em Configurações → Agência.
 
 ## 11. Aprovações externas do Google/Meta — bloqueiam validação com dados reais de terceiros
-- **Google Ads API "Basic Access"**: enquanto não aprovado, só dá pra testar com MCC de teste (contas vazias) — a Fase 28 (lado Google) e a sincronização de métricas reais (Fase 19.1) só validam de verdade depois disso.
+- **Google Ads API "Basic Access" — CONFIRMADO (07/09), não é mais suspeita**: o diagnóstico novo (item 10) mostrou o erro real do Google nas 4 contas raiz que o MCC "Ametista Conversões" enxerga: `"The developer token is only approved for use with test accounts. To access non-test accounts, apply for Basic or Standard access."` — ou seja, o developer token do app só pode mexer em contas de teste (vazias) até essa aprovação sair; nenhuma conta de cliente de verdade funciona antes disso, não importa o quanto o vínculo no MCC esteja certo. **Não é bug de código, é aprovação que só o Google concede** — peça em Google Ads → Ferramentas e Configurações → Configuração → API Center, dentro da conta MCC. A Fase 28 (lado Google) e a sincronização de métricas reais (Fase 19.1) só validam de verdade depois disso.
+- Duas das 4 contas também deram um segundo erro, independente do developer token: `"The customer account can't be accessed because it is not yet enabled or has been..."` — sugere que essas 2 contas específicas têm o próprio setup incompleto do lado do Google (ex: sem faturamento configurado) — vale conferir direto no Google Ads, mas só faz sentido investigar isso depois que o Basic Access sair, já que sem ele nada funciona de qualquer forma.
 - **Verificação de escopo sensível do Google (Forms)** + vídeo de demonstração enviado: pendente de review do Google.
 - **Meta Business Verification**: sem ela, contas de anúncio de clientes de terceiros não funcionam de verdade no Meta Ads — só testável com a própria conta da agência até a aprovação sair.
