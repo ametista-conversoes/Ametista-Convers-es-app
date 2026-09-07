@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Progress } from '@/components/ui/progress'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import type { ActivityChecklistItemRecord } from '@/hooks/useManagerPortalData'
+import type { ActivityChecklistItemRecord, ManagerClientRecord } from '@/hooks/useManagerPortalData'
 import {
   useAllClients,
   useActivityChecklistItems,
@@ -19,6 +19,15 @@ import { cn } from '@/lib/utils'
 
 const ALL_CLIENTS = 'all'
 const AVULSAS_LABEL = 'Avulsas'
+
+// Fase 31/31b — Validação escolhe 1 plataforma (Meta ou Google); item com
+// as 2 marcadas (ou sem chosen_platform ainda) aparece sempre, item
+// exclusivo de uma plataforma só aparece pra quem escolheu ela — nem
+// chega a renderizar fora do modo de seleção (ver `visibleItemsFor`).
+function platformVisible(item: ActivityChecklistItemRecord, client: ManagerClientRecord): boolean {
+  if (client.plan !== 'validacao') return true
+  return item.platform_scope.length !== 1 || (client.chosen_platform != null && item.platform_scope.includes(client.chosen_platform))
+}
 
 export default function Activities() {
   useMarkNavSeen('/activities')
@@ -62,7 +71,16 @@ export default function Activities() {
     list.push(item)
     itemsByClient.set(item.client_id, list)
   }
-  const clientsWithItems = visibleClients.filter((client) => (itemsByClient.get(client.id)?.length ?? 0) > 0)
+  // No modo de seleção mostra todo mundo com item no banco (mesmo os
+  // ocultos pelo filtro de plataforma), senão eles ficam presos — sem
+  // aparecer pra selecionar e apagar. Fora do modo de seleção, só mostra
+  // quem tem pelo menos 1 item realmente visível (evita o card fantasma
+  // "0 de 0" de um cliente cujos itens são todos de outra plataforma).
+  const clientsWithItems = visibleClients.filter((client) => {
+    const allItems = itemsByClient.get(client.id) ?? []
+    if (allItems.length === 0) return false
+    return selectMode || allItems.some((item) => platformVisible(item, client))
+  })
 
   return (
     <div className="space-y-6">
@@ -110,18 +128,11 @@ export default function Activities() {
         <div className="content-grid gap-4">
           {clientsWithItems.map((client) => {
             const allClientItems = itemsByClient.get(client.id) ?? []
-            // Fase 31/31b — Validação escolhe 1 plataforma (Meta ou
-            // Google); item com as 2 marcadas (ou sem chosen_platform
-            // ainda) aparece sempre, item exclusivo de uma plataforma
-            // só aparece pra quem escolheu ela — nem chega a renderizar.
             const isValidacao = client.plan === 'validacao'
-            const clientItems = isValidacao
-              ? allClientItems.filter(
-                  (item) =>
-                    item.platform_scope.length !== 1 ||
-                    (client.chosen_platform != null && item.platform_scope.includes(client.chosen_platform)),
-                )
-              : allClientItems
+            // No modo de seleção, ignora o filtro de plataforma — senão
+            // um item oculto nunca aparece pra ser selecionado e apagado.
+            const clientItems = selectMode ? allClientItems : allClientItems.filter((item) => platformVisible(item, client))
+            const hiddenCount = allClientItems.length - allClientItems.filter((item) => platformVisible(item, client)).length
             const total = clientItems.length
             const done = clientItems.filter((item) => item.completed).length
             const percent = total > 0 ? Math.round((done / total) * 100) : 0
@@ -156,6 +167,12 @@ export default function Activities() {
                     <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
                       Plataforma (Meta ou Google) ainda não definida na Central de Informações — só as tarefas comuns
                       aparecem até lá.
+                    </p>
+                  )}
+                  {selectMode && hiddenCount > 0 && (
+                    <p className="rounded-lg border border-purple-500/20 bg-purple-500/10 px-3 py-2 text-xs text-purple-300">
+                      Mostrando {hiddenCount} item{hiddenCount > 1 ? 'ns' : ''} da outra plataforma, normalmente
+                      ocultos, pra você poder apagar se precisar.
                     </p>
                   )}
                   {Array.from(itemsByGroup.entries()).map(([groupName, groupItems]) => (
