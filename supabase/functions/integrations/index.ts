@@ -816,13 +816,13 @@ async function discoverGoogleAdsClientAccounts(accessToken: string): Promise<Goo
   for (const rootId of rootIds) {
     // Conta de teste (criada só pra testar a integração, sem gasto real)
     // sempre vem com status = CLOSED do lado do Google, por design —
-    // nunca ENABLED, mesmo estando 100% acessível pela API. Por isso o
-    // filtro inclui `test_account = true` também, senão nenhuma conta de
-    // teste jamais apareceria na lista.
+    // nunca ENABLED, mesmo estando 100% acessível pela API. GAQL não
+    // aceita "OR" no WHERE (só combina condições com AND), então o
+    // filtro "ENABLED ou de teste" é feito abaixo, em JS, depois de
+    // buscar sem nenhum filtro de status.
     const gaqlQuery = `
       SELECT customer_client.id, customer_client.descriptive_name, customer_client.manager, customer_client.status, customer_client.test_account
       FROM customer_client
-      WHERE customer_client.status = 'ENABLED' OR customer_client.test_account = true
     `
     const clientsRes = await fetch(
       `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${rootId}/googleAds:search`,
@@ -838,16 +838,18 @@ async function discoverGoogleAdsClientAccounts(accessToken: string): Promise<Goo
     let rootIsManager = false
     let rootIsTest = false
     for (const row of (clientsBody.results ?? []) as Array<{
-      customerClient?: { id?: string; descriptiveName?: string; manager?: boolean; testAccount?: boolean }
+      customerClient?: { id?: string; descriptiveName?: string; manager?: boolean; testAccount?: boolean; status?: string }
     }>) {
       const client = row.customerClient
       if (!client?.id) continue
+      const isUsable = client.status === 'ENABLED' || !!client.testAccount
       if (client.id === rootId) {
         rootName = client.descriptiveName ?? null
         rootIsManager = !!client.manager
         rootIsTest = !!client.testAccount
       }
       if (client.manager) continue // nunca inclui conta gerenciadora/MCC na lista de contas escolhíveis
+      if (!isUsable) continue // conta fechada/suspensa de verdade — só deixa passar ENABLED ou de teste
       if (!found.has(client.id)) {
         found.set(client.id, {
           customerId: client.id,
