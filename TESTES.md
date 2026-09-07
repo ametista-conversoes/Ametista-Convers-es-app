@@ -18,6 +18,12 @@
 
 ## 2. Correção do card fantasma "0 de 0" em Atividades
 - Veio de um bug real: um cliente Validação com todos os itens ocultos pelo filtro de plataforma (Fase 31b) ficava com um card vazio "0 de 0 itens concluídos", sem nenhum item pra selecionar/apagar — os itens existiam no banco mas nunca renderizavam. Corrigido: fora do modo de seleção o card só aparece se tiver algo realmente visível; no modo de seleção, todos os itens aparecem (mesmo os ocultos), com um aviso, pra dar pra apagar.
+
+## 2.5. Diagnóstico de MCC do Google Ads (nenhuma conta encontrada) — PRECISA DE DEPLOY MANUAL DA EDGE FUNCTION
+- **Atenção**: diferente do resto do app (que sobe sozinho no `git push` via Vercel), a Edge Function `integrations` só atualiza depois que você rodar o deploy dela pelo Supabase (CLI `supabase functions deploy integrations` ou pelo próprio painel do Supabase). Sem isso, essa correção não entra no ar.
+- Depois do deploy: em Configurações → Agência, com o Google Ads (MCC) conectado, confirma que aparece uma seção nova "MCC(s) identificado(s)" com nome + id de cada conta raiz que esse login enxerga — usa isso pra confirmar se é mesmo a "Ametista Conversões" (ou se logou com a conta errada).
+- No diálogo "Conectar integração" de um Ativo Digital (Google Ads), se continuar sem achar as 2 contas que você vinculou no MCC, confirma se agora aparece um aviso amarelo explicando o erro real do Google (não mais só "nenhuma conta encontrada") — me manda o texto desse aviso se aparecer, ele deve dizer o motivo de verdade (token/permissão/nível de acesso).
+- Se mesmo assim a lista de contas continuar vazia sem nenhum aviso (nem erro, nem "nenhuma conta encontrada" objetivamente errado), pode ser que as 2 contas nem apareçam na consulta `customer_client` do Google por status/vínculo pendente — vale conferir dentro do próprio Google Ads se o convite de vínculo ao MCC já foi **aceito** (não só enviado) nas 2 contas.
 - Testar: com um cliente Validação que tenha só itens de uma plataforma diferente da escolhida (ou nenhuma escolhida), confirma que o card não aparece mais fora do modo de seleção; ativar "Selecionar" → confirma que os itens ocultos aparecem com o aviso roxo e dá pra apagar; depois de apagar tudo, o card some de vez (mesmo no modo de seleção).
 
 ## 4. Link de convite/recuperação de senha expirado
