@@ -1,32 +1,56 @@
-# React + TypeScript + Vite
+# Ametista Conversões
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Plataforma de gestão para agências de marketing de performance, usada pela **Ametista Conversões** para centralizar a operação com seus clientes — não é um CRM, não é uma plataforma de automação de marketing, e não substitui o Google Ads/Meta Ads: ela organiza o trabalho da agência em torno das contas que já existem nessas plataformas.
 
-Currently, two official plugins are available:
+> **Summary in English**: Ametista Conversões is a SaaS operations platform used internally by a Brazilian digital-marketing agency (Ametista Conversões) to manage client projects, tasks, approvals, meetings and ad-campaign reporting in one place. It integrates with the Google Ads and Meta Ads APIs, connected once through the agency's own manager account (MCC / Business Manager), to display each client's own aggregate campaign metrics (spend, clicks, impressions, conversions) inside the agency's dashboard — see [Integração com Google Ads e Meta Ads](#integração-com-google-ads-e-meta-ads) below for scope and data-use details.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **App**: https://ametistaconversoes.app
+- **Política de Privacidade**: https://ametistaconversoes.app/privacy
+- **Termos de Uso**: https://ametistaconversoes.app/terms
+- **Contato**: ametistaconversoes@gmail.com
 
-## React Compiler
+## O que é
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Dois portais, um app só:
 
-## Expanding the Oxlint configuration
+- **Portal do Cliente**: dashboard de desempenho, projeto, tarefas, arquivos e aprovações, reuniões, relatórios e um assistente de IA (Cassie) pra tirar dúvidas sobre a própria campanha.
+- **Portal do Gestor**: visão executiva de todos os clientes, kanban interno, workflows reutilizáveis, incidentes, ativos digitais, alertas automáticos de métrica, metas SMART e onboarding — tudo isolado por cliente.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## Integração com Google Ads e Meta Ads
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+A agência conecta sua própria conta administradora (**MCC** no Google Ads, **Business Manager** no Meta) uma única vez, via OAuth. A partir daí:
+
+1. O vínculo entre a conta de anúncios de cada cliente e o MCC/Business Manager da agência é feito **manualmente, antes, dentro do próprio Google Ads/Meta** — o app nunca solicita acesso a uma conta que a agência não administra.
+2. Dentro do app, o gestor escolhe numa lista qual conta (já vinculada) pertence a qual cliente — sem precisar de um novo login.
+3. O app lê métricas agregadas de campanha (investimento, cliques, impressões, conversões) pra exibir num dashboard de desempenho, tanto pro gestor quanto pro próprio cliente daquela conta.
+
+O app **nunca** lê dado pessoal de quem viu ou clicou num anúncio — só o agregado da campanha. Mais detalhes de uso de dado em [`/privacy`](https://ametistaconversoes.app/privacy).
+
+## Stack
+
+| Camada | Tecnologia |
+|---|---|
+| Frontend | React 18 + TypeScript + Vite |
+| Estilo | Tailwind CSS + shadcn/ui (Radix UI) |
+| Dados/cache | TanStack Query |
+| Formulários | react-hook-form + zod |
+| Backend | Supabase (Postgres + Auth + Storage + Edge Functions) |
+| Deploy | Vercel (frontend) + Supabase (Edge Functions) |
+| Testes | Vitest (unitário) + Playwright (end-to-end) |
+
+Todas as tabelas com dado de cliente têm Row Level Security habilitado no Postgres — um cliente só enxerga o que é dele, gestores e admins têm acesso operacional, e chaves de API/tokens de OAuth ficam em Edge Functions com service role, nunca expostas no frontend.
+
+## Rodando localmente
+
+```bash
+npm install
+cp .env.example .env.local   # preencher com as próprias credenciais do Supabase
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+```bash
+npm run test    # testes unitários (Vitest)
+npm run build   # type-check + build de produção
+```
+
+Esse repositório é do código-fonte do produto da Ametista Conversões — não aceita contribuição externa, mas é público pra fins de transparência e verificação (ex: revisão de acesso a API do Google Ads).

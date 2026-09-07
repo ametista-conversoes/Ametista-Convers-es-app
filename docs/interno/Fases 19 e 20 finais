@@ -1,0 +1,94 @@
+# Investigação pré-lançamento — Ametista Conversões
+
+Este documento cruza o "Documento do Projeto" (auditoria 🔴🟡🟢 já feita) com o `TASKS.md` completo (18 fases). A seção 1 traz achados que só aparecem comparando menções distantes entre si no `TASKS.md` — coisas que a auditoria original não pegou porque exigem ler o histórico inteiro procurando confirmações que nunca vieram. As seções seguintes organizam tudo (o que você já tinha + o que eu achei) num plano por prioridade, para você seguir ou colar no Claude Code.
+
+## 1. Achados novos (não estavam na auditoria original)
+
+### 1.1 — Migrations que podem nunca ter sido rodadas de verdade
+
+Conferi, migration por migration, se cada "Pendente: rodar migration-XXX" tinha uma confirmação posterior tipo "rodada e confirmada ao vivo". Quatro não têm nenhuma confirmação em lugar nenhum do documento:
+
+| Migration | Fase | O que quebra se não foi rodada |
+|---|---|---|
+| `migration-020-fase65-disponibilidade-reuniao-emergencia.sql` | 6.5.1 | Aba "Disponibilidade" não carrega de verdade; pedido de reunião de emergência (plano Dominação) não funciona |
+| `migration-022-fase654-agencia-admin.sql` | 6.5.4 | RLS de `organizations` não reforçada — a tela já bloqueia o gestor de editar, mas o banco aceitaria uma edição feita por fora da tela |
+| `migration-023-fase656-mesclar-incidentes-alertas.sql` | 6.5.6 | **Criar um incidente/alerta novo dá erro** (falta a coluna `incidents.description`) |
+| `migration-024-fase66-integracoes-por-cliente.sql` | 6.6 | **Sincronizar qualquer conexão de integração falha** (banco ainda exige `project_id`) |
+
+`migration-035-fase-timeline-atividades.sql` (Fase 9) também não tem a frase exata de confirmação, mas o teste ao vivo da 9b ("atividade avulsa criada/concluída" gerando Timeline) só é possível se ela tiver sido aplicada — trate como provavelmente ok, mas vale conferir.
+
+**Como investigar:** no SQL Editor do Supabase, rode `\d incidents` (ou a query equivalente no Table Editor) e confira se a coluna `description` existe; tente criar um incidente de teste pela tela. Peça ao Claude Code para listar todos os arquivos `migration-*.sql` do repositório e comparar cada um contra o schema atual do banco (colunas/tabelas que ele cria), apontando quais parecem não aplicadas.
+
+### 1.2 — A checagem de tipos pode ter sido um no-op durante boa parte do projeto
+
+A Fase 7.3 descobriu que `npx tsc --noEmit` (sem o `-b`) não checa nada nesse projeto (`tsconfig.json` da raiz só tem `references`) — o comando certo é `npx tsc -b --noEmit`. Isso foi usado como conferência rápida a sessão inteira antes dessa descoberta. Qualquer "tsc limpo" relatado nas Fases 1 a 7.2 pode não ter sido real.
+
+**Como investigar:** rode `npx tsc -b --noEmit` do zero agora e leia cada erro que aparecer, mesmo que pareça de uma fase antiga já "aprovada".
+
+### 1.3 — O pipeline de integrações nunca foi validado com credencial real
+
+Google Ads, Meta Ads e o cron de sincronização a cada 6h estão testados só até o ponto onde falta a credencial de verdade (`GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_ADS_DEVELOPER_TOKEN`, `META_APP_ID`/`META_APP_SECRET`). A própria 11c.3 registra que não havia nenhuma conta conectada de verdade para confirmar dado sincronizado. Isso é a peça mais nova e mais arriscada do app (OAuth, tokens, cron) e ainda não tem nenhuma confirmação de ponta a ponta com dado real.
+
+**Como investigar:** assim que tiver as credenciais, conecte uma conta real (mesmo que de teste) do Google Ads e do Meta Ads, force uma sincronização manual, e confirme que os números aparecem certos em Performance/Relatórios do cliente vinculado — não só que a chamada retornou `200`.
+
+### 1.4 — Teste E2E instável nunca teve a causa raiz investigada
+
+`approval-revision-task.spec.ts` falhou na Fase 8.4, foi confirmado como "já falhava antes dessa fase" e arquivado como instabilidade pré-existente, sem investigar por quê. Testes de ponta a ponta que falham de forma intermitente costumam apontar para uma condição de corrida real (ex: o teste checa um resultado antes de um trigger/webhook terminar de processar).
+
+**Como investigar:** rode esse teste sozinho várias vezes seguidas (`npx playwright test approval-revision-task --repeat-each=10`, ou o equivalente) e veja a taxa de falha; se falhar de novo, investigue o timing entre a ação e a checagem.
+
+### 1.5 — Bug de fuso horário já aconteceu uma vez — vale auditar todo o resto
+
+Já foi encontrado e corrigido um bug real de fuso horário (`src/lib/format.ts`, datas interpretadas como meia-noite UTC voltando um dia no Brasil). Isso é um sinal de que outros lugares que fazem conta com data podem ter o mesmo problema, sem terem sido testados perto da mesma borda:
+- Lembretes de reunião (1h e 15min antes) — checagem por tempo real, não por data
+- `due_days` do Workflow ("hoje + dias, no fuso da agência")
+- Tendência de ROAS do Health Score (compara os últimos 15 dias com os 15 anteriores)
+
+**Como investigar:** teste cada um desses três perto da virada do dia (23h-1h, horário de Brasília) e confirme que o resultado não pula um dia a mais ou a menos.
+
+## 2. Plano por prioridade
+
+### 🔴 Crítico — antes de qualquer uso real
+- [ ] Confirmar quais das 4 migrations da seção 1.1 foram realmente aplicadas; rodar as que faltarem
+- [ ] Rodar `npx tsc -b --noEmit` do zero e revisar qualquer erro, mesmo de fases antigas
+- [ ] Resolver o achado 🔴 do seu documento: ligar Investimento/Receita/ROAS/CPA/CTR médio à sincronização real (`performance_snapshots`/`campaign_performance_snapshots`) em vez das colunas estáticas de `projects`
+- [ ] Testar o pipeline de integrações de ponta a ponta com credencial real (seção 1.3)
+- [ ] Implementar uma forma de registrar Receita manualmente (nenhuma plataforma de anúncio reporta faturamento — sem isso, ROAS/Lucro reais nunca vão bater, integração ou não)
+
+### 🟡 Alto — logo em seguida
+- [ ] Investigar a causa raiz do teste E2E instável (seção 1.4)
+- [ ] Auditar os 3 pontos de cálculo de data da seção 1.5
+- [ ] Parar de devolver `error.message` bruto do Postgres/OpenAI/Google/Meta pro navegador em `cassie/index.ts` e `integrations/index.ts` — logar detalhado no servidor, devolver mensagem genérica
+- [ ] Adicionar `RoleRoute` explícito nas rotas do Portal Cliente em `src/App.tsx` (hoje só `ProtectedRoute`) — defesa em profundidade, mesmo não vazando dado hoje
+- [ ] Adicionar `onError` + toast nas ~10 mutations que não têm (`useClearCassieHistory`, `useUpdateClientStatus`, `useUpdateTaskStatus`, `useToggleActivityChecklistItem`, `useSetDefaultActivityTemplate`/`useUnsetDefaultActivityTemplate`, `useUpdateDigitalAssetStatus`)
+- [ ] Checar `isError` (não só `isLoading`) em `Dashboard.tsx`, `Reports.tsx`, `Project.tsx`, `ClientDetail.tsx` — hoje um erro de busca parece igual a "sem dado ainda"
+
+### 🟠 Médio
+- [ ] Re-auditar RLS especificamente nas tabelas mais novas: `form_questions`, `form_responses`, `form_answers`, `campaign_performance_snapshots`, `persuasive_copy_messages`, `push_subscriptions`, `manager_availability_blocks`
+- [ ] Testar edge cases do sistema de notificações: reagendar uma reunião várias vezes seguidas rápido; um cliente entrando e saindo de "em risco" repetidas vezes (confirmar que não gera spam de notificação nem trava sem notificar de novo quando deveria)
+- [ ] Confirmar que o Service Worker atualiza sozinho em cada novo deploy (não trava usuário numa versão antiga em cache) — dado que já houve um bug real de cache/rewrite na Fase 10b
+- [ ] Confirmar que a conta do Git configurada para deploy automático continua sendo a certa (já houve um caso de deploy automático quebrado por semanas sem ninguém notar, por causa de uma conta errada)
+- [ ] Acompanhar a aprovação de Business Verification do Meta (bloqueia conectar conta de anúncio de cliente de terceiros até aprovar)
+- [ ] Confirmar backup automático do banco (Supabase Pro inclui; Free não tem backup diário confiável)
+
+### 🟢 Baixo / limpeza
+- [ ] Trocar comparação de segredo (`!==`) por comparação em tempo constante em `integrations/index.ts` e `notifications/index.ts`
+- [ ] `handlePersuasiveCopy` (`cassie/index.ts`) validar se o `client_id` existe antes de consultar
+- [ ] Remover código morto: `useCreateMeeting`/`NewMeetingInput` (`useClientPortalData.ts:355-374`), componente `IncidentList.tsx`
+- [ ] Unificar `fetchLatestUpdatedAt`/`latestOf`, hoje duplicados entre `useClientPortalData.ts` e `useManagerPortalData.ts`
+- [ ] Resolver a verificação de marca do Google (tela de OAuth mostrando domínio técnico) — importa quando escalar pra clientes reais, não bloqueia hoje
+- [ ] Escrever política de privacidade/termos de uso (LGPD) — considerando inclusive que dado real de cliente (nome, e-mail, financeiro, respostas de formulário) é mandado pra API da OpenAI via Cassie/Comunicação Persuasiva
+- [ ] Considerar monitoramento de erro em produção (ex: Sentry) — hoje, se algo quebrar pra um cliente real, só descobre se ele reportar
+
+## 3. Ideias de funcionalidades a considerar
+
+Mantendo a mesma filosofia de sempre: nada que reinvente uma ferramenta que já existe pronta (CRM, automação de marketing).
+
+- **Alertas automáticos por limiar de métrica** (ex: "CPA subiu 30%", "ROAS abaixo de 2") — a infraestrutura já existe pronta (entidade `Alert` + push notification), só falta a regra de comparação rodando junto do `/sync-all`. Fica mais valioso agora que a sincronização real está prestes a entrar no ar.
+- **Exportar relatório em PDF de marca própria** para reunião com cliente — não encontrei isso implementado em nenhuma fase; ainda vale a pena.
+- **Lembrete automático de renovação de contrato** — a Central de Informações já guarda a data de renovação; é a mesma infraestrutura de notificação (cron + push) já usada para reuniões, só um gatilho a mais.
+- **Resumo semanal automático** (ex: toda segunda de manhã) para admin/gestor com visão geral de todos os clientes — reaproveita os mesmos dados do Dashboard Executivo, só muda o formato de entrega (notificação/e-mail em vez de precisar abrir o app).
+
+## Como usar este documento
+
+Cole no Claude Code uma seção de cada vez, começando pelo 🔴 Crítico. Peça para investigar e reportar antes de corrigir qualquer coisa — muitos desses itens (principalmente a seção 1.1) são só verificação, podem não precisar de nenhuma mudança de código.

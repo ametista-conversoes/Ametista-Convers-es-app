@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js'
 import type { Page } from '@playwright/test'
 
 // Mesmas contas fixas de teste usadas manualmente ao longo do projeto
-// (ver TASKS.md) — criadas direto no Supabase Auth, não em nenhuma
-// migração.
+// (ver docs/interno/TASKS.md) — criadas direto no Supabase Auth, não em
+// nenhuma migração.
 export const TEST_PASSWORD = 'TesteAmetista123!'
 export const TEST_ACCOUNTS = {
   admin: 'ametista-test-admin-1786114897252@mailinator.com',
