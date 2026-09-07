@@ -11,6 +11,7 @@ import { useAgencyProviderConnections } from '@/hooks/useManagerPortalData'
 import {
   connectAgencyProvider,
   disconnectAgencyProvider,
+  listAgencyAccounts,
   listAgencyBusinesses,
   selectAgencyBusiness,
   type AgencyProvider,
@@ -101,6 +102,52 @@ function SelectAgencyBusinessDialog() {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** Mostra qual(is) conta(s) raiz (MCC) o login OAuth do Google Ads
+ * enxerga agora — pra confirmar visualmente se é a "Ametista Conversões"
+ * certa (por id) ou se logou com a conta errada por engano. Também
+ * explica, com o erro real do Google, quando uma raiz existe mas não dá
+ * pra ler as contas por baixo dela (em vez do "nenhuma conta encontrada"
+ * genérico no diálogo de vincular). */
+function GoogleAdsMccIdentification() {
+  const rootsQuery = useQuery({
+    queryKey: ['agency-accounts', 'google_ads'],
+    queryFn: () => listAgencyAccounts('google_ads'),
+  })
+
+  if (rootsQuery.isLoading) {
+    return <p className="text-xs text-muted-foreground">Identificando o MCC conectado...</p>
+  }
+  if (rootsQuery.isError) {
+    return (
+      <p className="text-xs text-destructive">
+        {rootsQuery.error instanceof Error ? rootsQuery.error.message : 'Não foi possível identificar o MCC.'}
+      </p>
+    )
+  }
+
+  const roots = rootsQuery.data?.roots ?? []
+  if (roots.length === 0) {
+    return <p className="text-xs text-muted-foreground">Esse login não enxerga nenhuma conta administradora (MCC) no Google Ads.</p>
+  }
+
+  return (
+    <div className="space-y-1.5 border-t border-[#1A2540] pt-2">
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">
+        MCC{roots.length > 1 ? 's' : ''} identificado{roots.length > 1 ? 's' : ''} — confira se é o certo pelo id
+      </p>
+      {roots.map((root) => (
+        <div key={root.id} className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-foreground">{root.name ?? '(sem nome)'}</span>
+          <span className="font-mono text-muted-foreground">{root.id}</span>
+          {root.error && (
+            <span className="text-destructive">— não deu pra ler as contas: {root.error}</span>
+          )}
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -201,6 +248,13 @@ export function AgencyProviderConnectionsCard({ canEdit }: AgencyProviderConnect
                     {disconnectingProvider === provider ? 'Desconectando...' : 'Desconectar'}
                   </Button>
                 </div>
+              )}
+
+              {status === 'connected' && provider === 'google_ads' && <GoogleAdsMccIdentification />}
+              {status === 'connected' && provider === 'meta_ads' && connection?.external_account_id && (
+                <p className="border-t border-[#1A2540] pt-2 text-xs text-muted-foreground">
+                  Business Manager conectado — id <span className="font-mono text-foreground">{connection.external_account_id}</span>
+                </p>
               )}
             </div>
           )

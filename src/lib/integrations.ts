@@ -113,15 +113,34 @@ export interface AgencyAdAccount {
   loginCustomerId?: string
 }
 
+/** Conta raiz (normalmente um MCC) que o login OAuth da agência enxerga
+ * no Google Ads — só existe na resposta pra `provider: 'google_ads'`.
+ * `error` vem preenchido quando a consulta daquela raiz falhou (ex:
+ * developer token sem acesso), em vez de simplesmente sumir da lista. */
+export interface AgencyGoogleAdsRoot {
+  id: string
+  name: string | null
+  manager: boolean
+  error?: string
+}
+
+export interface AgencyAccountsResult {
+  accounts: AgencyAdAccount[]
+  roots?: AgencyGoogleAdsRoot[]
+  warning?: string
+}
+
 /** Lista as contas de cliente visíveis pela conta administradora já
  * conectada (MCC/Business Manager) — popula o seletor no diálogo
- * "Conectar integração" de um Ativo Digital. */
-export async function listAgencyAccounts(provider: AgencyProvider): Promise<AgencyAdAccount[]> {
+ * "Conectar integração" de um Ativo Digital. Pra Google Ads também traz
+ * `roots` (as contas MCC que o login enxerga) e `warning` (motivo real
+ * de uma lista vazia, quando não é só "ninguém vinculou nada ainda"). */
+export async function listAgencyAccounts(provider: AgencyProvider): Promise<AgencyAccountsResult> {
   const search = new URLSearchParams({ provider })
   const res = await fetchFriendly(`${FUNCTIONS_BASE}/agency-accounts?${search.toString()}`, { headers: await authHeaders() })
   const body = await res.json()
   if (!res.ok) throw new Error(body.error ?? 'Não foi possível buscar as contas.')
-  return body.accounts as AgencyAdAccount[]
+  return body as AgencyAccountsResult
 }
 
 /** Vincula uma conta escolhida da lista de listAgencyAccounts a um

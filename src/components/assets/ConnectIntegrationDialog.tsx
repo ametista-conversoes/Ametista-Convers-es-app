@@ -162,16 +162,21 @@ export function ConnectIntegrationDialog({ trigger, asset }: ConnectIntegrationD
                     <SelectValue placeholder="Escolha a conta" />
                   </SelectTrigger>
                   <SelectContent>
-                    {accountsQuery.data.length === 0 && (
+                    {accountsQuery.data.accounts.length === 0 && !accountsQuery.data.warning && (
                       <p className="px-2 py-1.5 text-xs text-muted-foreground">Nenhuma conta encontrada — confirme que o cliente já foi vinculado ao MCC/Business Manager dentro do próprio Google Ads/Meta.</p>
                     )}
-                    {accountsQuery.data.map((account) => (
+                    {accountsQuery.data.accounts.map((account) => (
                       <SelectItem key={account.id} value={account.id}>
                         {account.name ?? account.id} ({account.id})
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+              )}
+              {accountsQuery.data?.warning && (
+                <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
+                  {accountsQuery.data.warning}
+                </p>
               )}
             </div>
           )}
@@ -185,7 +190,7 @@ export function ConnectIntegrationDialog({ trigger, asset }: ConnectIntegrationD
             <Button
               disabled={!agencyConnected || !selectedAccountId || connecting}
               onClick={() => {
-                const account = accountsQuery.data?.find((a) => a.id === selectedAccountId)
+                const account = accountsQuery.data?.accounts.find((a) => a.id === selectedAccountId)
                 if (account) handleConnectAgencyAccount(account)
               }}
             >

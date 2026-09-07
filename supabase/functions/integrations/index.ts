@@ -622,7 +622,7 @@ async function handleCallback(url: URL) {
       // inequívoco (a conta mais comum: sem MCC nenhuma, só 1 opção). Com
       // 0 ou 2+ contas, fica "conectado" mas sem `external_account_id" —
       // o gestor escolhe manualmente depois (rota /accounts).
-      const accounts = await discoverGoogleAdsClientAccounts(accessToken)
+      const { accounts } = await discoverGoogleAdsClientAccounts(accessToken)
       if (accounts.length === 1) {
         await supabase
           .from('digital_asset_connections')
@@ -772,6 +772,20 @@ function googleAdsHeaders(accessToken: string, loginCustomerId?: string | null):
 
 type GoogleAdsClientAccount = { customerId: string; loginCustomerId: string; name: string | null }
 
+/** Info de diagnóstico de cada conta raiz (normalmente um MCC) que
+ * `listAccessibleCustomers` devolveu pro login OAuth atual — usada tanto
+ * pra mostrar "qual MCC está conectado" (Configurações > Agência) quanto
+ * pra explicar um "nenhuma conta encontrada" real (`error` preenchido
+ * quando a consulta daquela raiz falhou, em vez de engolir em silêncio). */
+type GoogleAdsRootInfo = { id: string; name: string | null; manager: boolean; error?: string }
+type GoogleAdsDiscoveryResult = { accounts: GoogleAdsClientAccount[]; roots: GoogleAdsRootInfo[] }
+
+function extractGoogleAdsErrorMessage(body: unknown): string {
+  const b = body as { error?: { message?: string; details?: Array<{ errors?: Array<{ message?: string }> }> } }
+  const fromDetails = b?.error?.details?.flatMap((d) => d.errors?.map((e) => e.message).filter(Boolean) ?? []).join('; ')
+  return fromDetails || b?.error?.message || 'Erro desconhecido do Google Ads'
+}
+
 /** Descobre as contas de anúncio REAIS que a conta do Google logada
  * enxerga — nunca inclui uma conta gerenciadora (MCC), essas só servem
  * de ponte (`login-customer-id`), não têm campanha nem métrica
@@ -780,9 +794,10 @@ type GoogleAdsClientAccount = { customerId: string; loginCustomerId: string; nam
  * essa raiz como `login-customer-id` — isso devolve tanto a própria
  * conta (se não for gerenciadora — caso mais comum, conta avulsa sem
  * MCC nenhuma) quanto todas as contas-cliente reais por baixo dela (se
- * for uma gerenciadora). Usada tanto na descoberta automática
- * (`handleCallback`) quanto na escolha manual (`/accounts`). */
-async function discoverGoogleAdsClientAccounts(accessToken: string): Promise<GoogleAdsClientAccount[]> {
+ * for uma gerenciadora), incluindo o nome da própria raiz (útil pra
+ * identificação em `roots`). Usada tanto na descoberta automática
+ * (`handleCallback`) quanto na escolha manual (`/accounts`, `/agency-accounts`). */
+async function discoverGoogleAdsClientAccounts(accessToken: string): Promise<GoogleAdsDiscoveryResult> {
   const rootsRes = await fetch(`https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers:listAccessibleCustomers`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -792,11 +807,12 @@ async function discoverGoogleAdsClientAccounts(accessToken: string): Promise<Goo
   const rootsBody = await rootsRes.json()
   if (!rootsRes.ok) {
     console.error('[integrations] discoverGoogleAdsClientAccounts: listAccessibleCustomers falhou:', rootsBody)
-    return []
+    throw new Error(extractGoogleAdsErrorMessage(rootsBody))
   }
   const rootIds = ((rootsBody.resourceNames ?? []) as string[]).map((name) => name.split('/')[1]).filter(Boolean)
 
   const found = new Map<string, GoogleAdsClientAccount>()
+  const roots: GoogleAdsRootInfo[] = []
   for (const rootId of rootIds) {
     const gaqlQuery = `
       SELECT customer_client.id, customer_client.descriptive_name, customer_client.manager, customer_client.status
@@ -810,19 +826,28 @@ async function discoverGoogleAdsClientAccounts(accessToken: string): Promise<Goo
     const clientsBody = await clientsRes.json()
     if (!clientsRes.ok) {
       console.error(`[integrations] discoverGoogleAdsClientAccounts: customer_client falhou pra raiz ${rootId}:`, clientsBody)
+      roots.push({ id: rootId, name: null, manager: true, error: extractGoogleAdsErrorMessage(clientsBody) })
       continue
     }
+    let rootName: string | null = null
+    let rootIsManager = false
     for (const row of (clientsBody.results ?? []) as Array<{
       customerClient?: { id?: string; descriptiveName?: string; manager?: boolean }
     }>) {
       const client = row.customerClient
-      if (!client?.id || client.manager) continue // nunca inclui conta gerenciadora/MCC
+      if (!client?.id) continue
+      if (client.id === rootId) {
+        rootName = client.descriptiveName ?? null
+        rootIsManager = !!client.manager
+      }
+      if (client.manager) continue // nunca inclui conta gerenciadora/MCC na lista de contas escolhíveis
       if (!found.has(client.id)) {
         found.set(client.id, { customerId: client.id, loginCustomerId: rootId, name: client.descriptiveName ?? null })
       }
     }
+    roots.push({ id: rootId, name: rootName, manager: rootIsManager })
   }
-  return Array.from(found.values())
+  return { accounts: Array.from(found.values()), roots }
 }
 
 type MetaBusiness = { id: string; name: string | null }
@@ -1700,9 +1725,14 @@ async function handleListGoogleAdsAccounts(req: Request, url: URL) {
   const accessToken = await getValidAccessToken(supabase, connection.id, 'google_ads')
   if (!accessToken) return jsonResponse({ error: 'Não foi possível obter um token de acesso válido' }, 502)
 
-  const accounts = await discoverGoogleAdsClientAccounts(accessToken)
+  let discovery: GoogleAdsDiscoveryResult
+  try {
+    discovery = await discoverGoogleAdsClientAccounts(accessToken)
+  } catch (err) {
+    return jsonResponse({ error: err instanceof Error ? err.message : 'Não foi possível listar as contas do Google.' }, 502)
+  }
   return jsonResponse({
-    accounts: accounts.map((a) => ({ id: a.customerId, name: a.name, loginCustomerId: a.loginCustomerId })),
+    accounts: discovery.accounts.map((a) => ({ id: a.customerId, name: a.name, loginCustomerId: a.loginCustomerId })),
   })
 }
 
@@ -1773,9 +1803,28 @@ async function handleListAgencyAccounts(req: Request, url: URL) {
   if (!accessToken) return jsonResponse({ error: 'Não foi possível obter um token de acesso válido' }, 502)
 
   if (provider === 'google_ads') {
-    const accounts = await discoverGoogleAdsClientAccounts(accessToken)
+    let discovery: GoogleAdsDiscoveryResult
+    try {
+      discovery = await discoverGoogleAdsClientAccounts(accessToken)
+    } catch (err) {
+      return jsonResponse({ error: err instanceof Error ? err.message : 'Não foi possível listar as contas do Google.' }, 502)
+    }
+    const rootErrors = discovery.roots.filter((r) => r.error)
+    // Se não achou nenhuma conta escolhível E teve erro numa raiz, o
+    // motivo real não é "ninguém vinculou nada ainda" — é uma falha de
+    // verdade na consulta (token/permissão/nível de acesso do developer
+    // token) que antes ficava só no log do servidor, sem chegar pro
+    // admin. Mostra ela em vez do aviso genérico.
+    const warning =
+      discovery.accounts.length === 0 && rootErrors.length > 0
+        ? `Encontrei ${discovery.roots.length} conta(s) raiz no Google, mas não consegui ler os clientes: ${rootErrors
+            .map((r) => `${r.id} — ${r.error}`)
+            .join('; ')}`
+        : undefined
     return jsonResponse({
-      accounts: accounts.map((a) => ({ id: a.customerId, name: a.name, loginCustomerId: a.loginCustomerId })),
+      accounts: discovery.accounts.map((a) => ({ id: a.customerId, name: a.name, loginCustomerId: a.loginCustomerId })),
+      roots: discovery.roots,
+      warning,
     })
   }
 
