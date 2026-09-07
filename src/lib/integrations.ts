@@ -111,6 +111,10 @@ export interface AgencyAdAccount {
   id: string
   name: string | null
   loginCustomerId?: string
+  /** Só existe pra Google Ads — conta de teste (criada pra testar a
+   * integração, sem gasto real) sempre aparece com status "cancelada"
+   * do lado do Google, mas continua utilizável pela API normalmente. */
+  testAccount?: boolean
 }
 
 /** Conta raiz (normalmente um MCC) que o login OAuth da agência enxerga
@@ -121,6 +125,7 @@ export interface AgencyGoogleAdsRoot {
   id: string
   name: string | null
   manager: boolean
+  testAccount: boolean
   error?: string
 }
 

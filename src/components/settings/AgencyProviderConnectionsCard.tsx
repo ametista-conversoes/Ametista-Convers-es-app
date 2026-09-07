@@ -142,6 +142,9 @@ function GoogleAdsMccIdentification() {
         <div key={root.id} className="flex flex-wrap items-center gap-2 text-xs">
           <span className="text-foreground">{root.name ?? '(sem nome)'}</span>
           <span className="font-mono text-muted-foreground">{root.id}</span>
+          {root.testAccount && (
+            <Badge className="border-amber-500/20 bg-amber-500/10 text-amber-400">Conta de teste</Badge>
+          )}
           {root.error && (
             <span className="text-destructive">— não deu pra ler as contas: {root.error}</span>
           )}

@@ -167,7 +167,7 @@ export function ConnectIntegrationDialog({ trigger, asset }: ConnectIntegrationD
                     )}
                     {accountsQuery.data.accounts.map((account) => (
                       <SelectItem key={account.id} value={account.id}>
-                        {account.name ?? account.id} ({account.id})
+                        {account.name ?? account.id} ({account.id}){account.testAccount ? ' — conta de teste' : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>

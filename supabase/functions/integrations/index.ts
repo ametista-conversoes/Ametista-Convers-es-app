@@ -770,14 +770,14 @@ function googleAdsHeaders(accessToken: string, loginCustomerId?: string | null):
   return headers
 }
 
-type GoogleAdsClientAccount = { customerId: string; loginCustomerId: string; name: string | null }
+type GoogleAdsClientAccount = { customerId: string; loginCustomerId: string; name: string | null; testAccount: boolean }
 
 /** Info de diagnóstico de cada conta raiz (normalmente um MCC) que
  * `listAccessibleCustomers` devolveu pro login OAuth atual — usada tanto
  * pra mostrar "qual MCC está conectado" (Configurações > Agência) quanto
  * pra explicar um "nenhuma conta encontrada" real (`error` preenchido
  * quando a consulta daquela raiz falhou, em vez de engolir em silêncio). */
-type GoogleAdsRootInfo = { id: string; name: string | null; manager: boolean; error?: string }
+type GoogleAdsRootInfo = { id: string; name: string | null; manager: boolean; testAccount: boolean; error?: string }
 type GoogleAdsDiscoveryResult = { accounts: GoogleAdsClientAccount[]; roots: GoogleAdsRootInfo[] }
 
 function extractGoogleAdsErrorMessage(body: unknown): string {
@@ -814,10 +814,15 @@ async function discoverGoogleAdsClientAccounts(accessToken: string): Promise<Goo
   const found = new Map<string, GoogleAdsClientAccount>()
   const roots: GoogleAdsRootInfo[] = []
   for (const rootId of rootIds) {
+    // Conta de teste (criada só pra testar a integração, sem gasto real)
+    // sempre vem com status = CLOSED do lado do Google, por design —
+    // nunca ENABLED, mesmo estando 100% acessível pela API. Por isso o
+    // filtro inclui `test_account = true` também, senão nenhuma conta de
+    // teste jamais apareceria na lista.
     const gaqlQuery = `
-      SELECT customer_client.id, customer_client.descriptive_name, customer_client.manager, customer_client.status
+      SELECT customer_client.id, customer_client.descriptive_name, customer_client.manager, customer_client.status, customer_client.test_account
       FROM customer_client
-      WHERE customer_client.status = 'ENABLED'
+      WHERE customer_client.status = 'ENABLED' OR customer_client.test_account = true
     `
     const clientsRes = await fetch(
       `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${rootId}/googleAds:search`,
@@ -826,26 +831,33 @@ async function discoverGoogleAdsClientAccounts(accessToken: string): Promise<Goo
     const clientsBody = await clientsRes.json()
     if (!clientsRes.ok) {
       console.error(`[integrations] discoverGoogleAdsClientAccounts: customer_client falhou pra raiz ${rootId}:`, clientsBody)
-      roots.push({ id: rootId, name: null, manager: true, error: extractGoogleAdsErrorMessage(clientsBody) })
+      roots.push({ id: rootId, name: null, manager: true, testAccount: false, error: extractGoogleAdsErrorMessage(clientsBody) })
       continue
     }
     let rootName: string | null = null
     let rootIsManager = false
+    let rootIsTest = false
     for (const row of (clientsBody.results ?? []) as Array<{
-      customerClient?: { id?: string; descriptiveName?: string; manager?: boolean }
+      customerClient?: { id?: string; descriptiveName?: string; manager?: boolean; testAccount?: boolean }
     }>) {
       const client = row.customerClient
       if (!client?.id) continue
       if (client.id === rootId) {
         rootName = client.descriptiveName ?? null
         rootIsManager = !!client.manager
+        rootIsTest = !!client.testAccount
       }
       if (client.manager) continue // nunca inclui conta gerenciadora/MCC na lista de contas escolhíveis
       if (!found.has(client.id)) {
-        found.set(client.id, { customerId: client.id, loginCustomerId: rootId, name: client.descriptiveName ?? null })
+        found.set(client.id, {
+          customerId: client.id,
+          loginCustomerId: rootId,
+          name: client.descriptiveName ?? null,
+          testAccount: !!client.testAccount,
+        })
       }
     }
-    roots.push({ id: rootId, name: rootName, manager: rootIsManager })
+    roots.push({ id: rootId, name: rootName, manager: rootIsManager, testAccount: rootIsTest })
   }
   return { accounts: Array.from(found.values()), roots }
 }
@@ -1822,7 +1834,12 @@ async function handleListAgencyAccounts(req: Request, url: URL) {
             .join('; ')}`
         : undefined
     return jsonResponse({
-      accounts: discovery.accounts.map((a) => ({ id: a.customerId, name: a.name, loginCustomerId: a.loginCustomerId })),
+      accounts: discovery.accounts.map((a) => ({
+        id: a.customerId,
+        name: a.name,
+        loginCustomerId: a.loginCustomerId,
+        testAccount: a.testAccount,
+      })),
       roots: discovery.roots,
       warning,
     })
