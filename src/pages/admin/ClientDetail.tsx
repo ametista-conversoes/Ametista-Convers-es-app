@@ -11,6 +11,7 @@ import {
   Phone,
   RefreshCw,
   Target,
+  Trash2,
   Upload,
   UsersRound,
 } from 'lucide-react'
@@ -33,6 +34,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DatePicker } from '@/components/ui/date-picker'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -54,11 +63,13 @@ import {
   useAllSmartGoals,
   useAllTasks,
   useAudienceInsights,
+  useDeleteProject,
   useManagerClient,
   useRecomputeClientHealthScore,
   useToggleActivityChecklistItem,
   useUpdateClientDetails,
   useUpdateClientStatus,
+  useUpdateProject,
 } from '@/hooks/useManagerPortalData'
 import { CASSIE_MODES, type CassieMode } from '@/lib/cassie-modes'
 import { formatDate, formatDateTime } from '@/lib/format'
@@ -82,6 +93,7 @@ import {
 import { cn } from '@/lib/utils'
 
 const CHANGEABLE_STATUSES = ['active', 'onboarding', 'paused', 'at_risk', 'churned']
+const PROJECT_CHANGEABLE_STATUSES = ['planning', 'active', 'paused', 'completed', 'cancelled']
 
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>()
@@ -106,6 +118,9 @@ export default function ClientDetail() {
 
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [selectedProject, setSelectedProject] = useState<ManagerProjectRecord | null>(null)
+  const [projectToDelete, setProjectToDelete] = useState<ManagerProjectRecord | null>(null)
+  const updateProject = useUpdateProject()
+  const deleteProject = useDeleteProject()
   const [cassieMode, setCassieMode] = useState<CassieMode>(CASSIE_MODES[0])
   const [name, setName] = useState<string | null>(null)
   const [company, setCompany] = useState<string | null>(null)
@@ -457,21 +472,48 @@ export default function ClientDetail() {
         <CardContent className="space-y-2 p-0 pt-4">
           {clientProjects.length === 0 && <p className="text-sm text-muted-foreground">Nenhum projeto ainda.</p>}
           {clientProjects.map((project) => (
-            <div
-              key={project.id}
-              className="cursor-pointer rounded-lg bg-secondary/50 px-3 py-2 hover:bg-secondary"
-              onClick={() => setSelectedProject(project)}
-            >
+            <div key={project.id} className="rounded-lg bg-secondary/50 px-3 py-2 hover:bg-secondary">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-medium text-foreground">{project.title}</p>
-                <Badge className={projectStatusStyles[project.status]}>
-                  {projectStatusLabels[project.status] ?? project.status}
-                </Badge>
+                <p
+                  className="cursor-pointer text-sm font-medium text-foreground"
+                  onClick={() => setSelectedProject(project)}
+                >
+                  {project.title}
+                </p>
+                <div className="flex items-center gap-1">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild disabled={updateProject.isPending}>
+                      <Badge className={cn('cursor-pointer', projectStatusStyles[project.status])}>
+                        {projectStatusLabels[project.status] ?? project.status}
+                      </Badge>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {PROJECT_CHANGEABLE_STATUSES.map((status) => (
+                        <DropdownMenuItem
+                          key={status}
+                          onSelect={() => updateProject.mutate({ id: project.id, status })}
+                        >
+                          {projectStatusLabels[status]}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => setProjectToDelete(project)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
-              {project.objective && <p className="mt-1 text-xs text-muted-foreground">Objetivo: {project.objective}</p>}
-              {project.description && (
-                <p className="mt-1 text-xs text-muted-foreground/70">{project.description}</p>
-              )}
+              <div className="cursor-pointer" onClick={() => setSelectedProject(project)}>
+                {project.objective && <p className="mt-1 text-xs text-muted-foreground">Objetivo: {project.objective}</p>}
+                {project.description && (
+                  <p className="mt-1 text-xs text-muted-foreground/70">{project.description}</p>
+                )}
+              </div>
             </div>
           ))}
         </CardContent>
@@ -661,6 +703,38 @@ export default function ClientDetail() {
         tasks={clientTasks.filter((task) => task.project_id === selectedProject?.id)}
         onOpenChange={(open) => !open && setSelectedProject(null)}
       />
+
+      <Dialog open={!!projectToDelete} onOpenChange={(open) => !open && setProjectToDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Apagar projeto</DialogTitle>
+            <DialogDescription>
+              Tem certeza que quer apagar "{projectToDelete?.title}"? As tarefas ligadas a ele deixam de ter
+              projeto, mas não são apagadas. Essa ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProjectToDelete(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteProject.isPending}
+              onClick={() => {
+                if (!projectToDelete) return
+                deleteProject.mutate(projectToDelete.id, {
+                  onSuccess: () => {
+                    setProjectToDelete(null)
+                    if (selectedProject?.id === projectToDelete.id) setSelectedProject(null)
+                  },
+                })
+              }}
+            >
+              Apagar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

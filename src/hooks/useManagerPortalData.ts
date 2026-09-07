@@ -556,6 +556,7 @@ export interface UpdateProjectCampaignInput {
   external_campaign_name?: string | null
   revenue?: number | null
   conversion_type?: 'vendas' | 'leads'
+  status?: string
 }
 
 export function useUpdateProject() {
@@ -570,6 +571,23 @@ export function useUpdateProject() {
     },
     onError: () => {
       toast.error('Não foi possível atualizar o projeto.')
+    },
+  })
+}
+
+export function useDeleteProject() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('projects').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-projects'] })
+      toast.success('Projeto apagado.')
+    },
+    onError: () => {
+      toast.error('Não foi possível apagar o projeto.')
     },
   })
 }
