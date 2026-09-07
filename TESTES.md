@@ -12,20 +12,12 @@
 
 ---
 
-## 1. Responsividade no celular — Reuniões, Projetos, alerta de limiar
-- Reuniões (Portal Cliente e Portal Gestor): status "Agendada" não deve mais cortar/sumir ao lado do botão de cancelar/concluir numa tela estreita — a linha quebra pra próxima quando não cabe.
-- Central de Informações do Cliente → card "Projetos": o cabeçalho (título + botões "Aplicar Workflow"/"Novo Projeto") não deve mais vazar pra fora da tela no celular.
-- Card "Alertas por Limiar de Métrica": o Select "Acima de/Abaixo de" tinha largura fixa insuficiente e o texto cortava dentro da caixa — aumentei a largura e travei o texto numa linha só; confirma que sumiu o corte.
-- **Sem confirmação visual minha** (não tenho como abrir o app num celular) — preciso que você confirme se sumiu o corte/vazamento nos 3 pontos.
 
-## 2. Aviso de retenção do histórico da Cassie
-- Abrir a Cassie (Portal Cliente, Portal Gestor, ou dentro da Central de Informações do Cliente) → confirma que aparece o aviso "O histórico fica salvo enquanto sua conta existir — use 'Limpar Histórico' pra apagar" abaixo do modo selecionado.
-- Nota: o texto é assim (sem prazo fixo) porque não existe nenhuma limpeza automática por tempo no banco — o histórico é isolado por conta de login (`conversation_owner_id`), não por cliente, e some se a conta for apagada.
-
-## 3. Mensagem de erro melhor no "Failed to fetch" (Cassie, Comunicação Persuasiva, MCC, Forms)
-- Não é uma correção de causa raiz — investigado e não achei bug de código; a suspeita é o celular cancelando a conexão sozinho quando a tela bloqueia/troca de app no meio de uma requisição demorada (chat com IA, ou o vai-e-volta do OAuth). Só troquei a mensagem crua "Failed to fetch" por um aviso mais claro nesses 4 fluxos.
-- Testar de propósito: iniciar uma dessas ações no celular e bloquear a tela/trocar de app no meio → confirma que a mensagem agora é legível, e não o erro técnico cru.
-- Se isso continuar acontecendo sem bloquear a tela (ex: no Wi-Fi normal, sem trocar de app), me avisa — nesse caso não seria só um problema de bloqueio de tela e precisaria investigar mais fundo.
+## 3. "Failed to fetch" / "Falha de conexão" no celular — CONFIRMADO que não é só tela bloqueando
+- **Atualização (07/09)**: você confirmou que o erro continua acontecendo no celular com internet normal (wifi/dados funcionando, sem trocar de app nem bloquear tela) — em Cassie, conectar/desconectar MCC e Meta, sugestões de headline (Comunicação Persuasiva) **e** no card "Acesso ao Portal" (esse último ainda mostrava o "Failed to fetch" cru, sem a mensagem amigável).
+- **Corrigido agora**: `client-access.ts` (o card "Acesso ao Portal") tinha 3 chamadas de fetch que ficaram de fora quando eu apliquei o `fetchFriendly` da primeira vez — agora as 4 telas mostram a mesma mensagem amigável.
+- **Pista importante pra investigar a causa raiz**: todos os fluxos que falham chamam Edge Functions do Supabase (`/functions/v1/...` — cassie, integrations, client-access); os dados que carregam normalmente na mesma tela (nome do cliente, lista de contas já vinculadas, etc.) vêm de chamadas normais ao Postgrest (`/rest/v1/...`) via supabase-js, e essas continuam funcionando. Isso sugere que o problema é específico de chamadas às Edge Functions (que demoram mais, porque chamam APIs externas como OpenAI/Google/Meta por trás) — não da conexão em geral.
+- **Preciso de mais dado seu pra fechar a causa** (não dá pra reproduzir isso sem um celular): próxima vez que acontecer, me diga (1) era wifi ou dados móveis, (2) foi assim que abriu a tela ou só depois de esperar/mexer um pouco, (3) tentar de novo na hora resolve ou continua falhando, (4) o celular tem algum DNS privado/VPN/bloqueador de anúncio ativo (ex: NextDNS, AdGuard, "DNS privado" nas configurações de rede do Android).
 
 ## 4. Link de convite/recuperação de senha expirado
 - Clicar num link de convite ou de "esqueci a senha" já expirado/já usado → antes disso podia deixar entrar no app mesmo assim (sessão antiga guardada no navegador); agora o app detecta o erro que o Supabase manda no fragmento da URL (`#error=access_denied&error_code=otp_expired...`), desloga de propósito e mostra um aviso pra pedir um novo link.

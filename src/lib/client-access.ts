@@ -1,3 +1,4 @@
+import { fetchFriendly } from '@/lib/fetch-friendly'
 import { supabase } from '@/lib/supabase'
 
 // Cliente da Edge Function "client-access" (Fase 26) — mesmo padrão de
@@ -20,7 +21,7 @@ export interface LinkedClientAccount {
 
 export async function fetchLinkedClientAccounts(clientId: string): Promise<LinkedClientAccount[]> {
   const search = new URLSearchParams({ client_id: clientId })
-  const res = await fetch(`${FUNCTIONS_BASE}/linked?${search.toString()}`, { headers: await authHeaders() })
+  const res = await fetchFriendly(`${FUNCTIONS_BASE}/linked?${search.toString()}`, { headers: await authHeaders() })
   const body = await res.json()
   if (!res.ok) throw new Error(body.error ?? 'Não foi possível buscar as contas vinculadas.')
   return body.accounts as LinkedClientAccount[]
@@ -29,7 +30,7 @@ export async function fetchLinkedClientAccounts(clientId: string): Promise<Linke
 /** Vincula uma conta já existente com esse e-mail, ou convida uma nova
  * (Supabase manda o e-mail de convite sozinho) e já vincula em seguida. */
 export async function linkClientAccount(clientId: string, email: string): Promise<{ created: boolean }> {
-  const res = await fetch(`${FUNCTIONS_BASE}/link`, {
+  const res = await fetchFriendly(`${FUNCTIONS_BASE}/link`, {
     method: 'POST',
     headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify({ client_id: clientId, email }),
@@ -40,7 +41,7 @@ export async function linkClientAccount(clientId: string, email: string): Promis
 }
 
 export async function unlinkClientAccount(profileId: string): Promise<void> {
-  const res = await fetch(`${FUNCTIONS_BASE}/unlink`, {
+  const res = await fetchFriendly(`${FUNCTIONS_BASE}/unlink`, {
     method: 'POST',
     headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify({ profile_id: profileId }),
