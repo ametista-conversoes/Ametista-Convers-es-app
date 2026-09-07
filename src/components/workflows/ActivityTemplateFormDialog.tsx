@@ -1,7 +1,10 @@
 import { useState, type ReactNode } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { closestCenter, DndContext, type DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { GripVertical, Plus, Trash2 } from 'lucide-react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useFieldArray, useForm } from 'react-hook-form'
+import { type Control, useFieldArray, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
@@ -56,6 +59,120 @@ const EMPTY_VALUES: TemplateFormValues = {
   items: [{ title: '', category: '', planScope: ALL_PLANS, platformScope: ALL_PLATFORMS }],
 }
 
+interface SortableActivityItemRowProps {
+  id: string
+  index: number
+  control: Control<TemplateFormValues>
+  onRemove: () => void
+  disableRemove: boolean
+}
+
+function SortableActivityItemRow({ id, index, control, onRemove, disableRemove }: SortableActivityItemRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 }
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-start gap-2 rounded-lg bg-secondary/50 p-3">
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className="mt-2 shrink-0 cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+        aria-label="Arrastar para reordenar"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <div className="flex-1 space-y-2">
+        <FormField
+          control={control}
+          name={`items.${index}.title`}
+          render={({ field }) => (
+            <FormItem>
+              <FormControl>
+                <Input placeholder="Título do item" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={control}
+          name={`items.${index}.category`}
+          render={({ field }) => (
+            <FormItem>
+              <FormControl>
+                <Input placeholder="Categoria (opcional)" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={control}
+          name={`items.${index}.planScope`}
+          render={({ field }) => (
+            <FormItem>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Plano</p>
+              <div className="flex flex-wrap gap-3">
+                {PLAN_SCOPE_OPTIONS.map((plan) => (
+                  <label key={plan} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Checkbox
+                      checked={field.value?.includes(plan)}
+                      onCheckedChange={(checked) => {
+                        const current = field.value ?? []
+                        field.onChange(checked === true ? [...current, plan] : current.filter((p) => p !== plan))
+                      }}
+                    />
+                    {planLabels[plan]}
+                  </label>
+                ))}
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={control}
+          name={`items.${index}.platformScope`}
+          render={({ field }) => (
+            <FormItem className="border-t border-[#1A2540] pt-2">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Plataforma</p>
+              <div className="flex flex-wrap gap-3">
+                {PLATFORM_SCOPE_OPTIONS.map((platform) => (
+                  <label key={platform} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Checkbox
+                      checked={field.value?.includes(platform)}
+                      onCheckedChange={(checked) => {
+                        const current = field.value ?? []
+                        field.onChange(
+                          checked === true ? [...current, platform] : current.filter((p) => p !== platform),
+                        )
+                      }}
+                    />
+                    {PLATFORM_SCOPE_LABELS[platform]}
+                  </label>
+                ))}
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="shrink-0 text-muted-foreground hover:text-destructive"
+        disabled={disableRemove}
+        onClick={onRemove}
+        aria-label={`Remover item ${index + 1}`}
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
+  )
+}
+
 interface ActivityTemplateFormDialogProps {
   trigger: ReactNode
   template?: ActivityTemplateRecord
@@ -75,7 +192,17 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
     defaultValues: EMPTY_VALUES,
   })
 
-  const { fields, append, remove } = useFieldArray({ control: form.control, name: 'items' })
+  const { fields, append, remove, move } = useFieldArray({ control: form.control, name: 'items' })
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = fields.findIndex((f) => f.id === active.id)
+    const newIndex = fields.findIndex((f) => f.id === over.id)
+    if (oldIndex !== -1 && newIndex !== -1) move(oldIndex, newIndex)
+  }
 
   function handleOpenChange(next: boolean) {
     setOpen(next)
@@ -162,103 +289,22 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
 
             <div className="space-y-3">
               <Label>Itens do checklist</Label>
-              <div className="space-y-3">
-                {fields.map((fieldItem, index) => (
-                  <div key={fieldItem.id} className="flex items-start gap-2 rounded-lg bg-secondary/50 p-3">
-                    <div className="flex-1 space-y-2">
-                      <FormField
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-3">
+                    {fields.map((fieldItem, index) => (
+                      <SortableActivityItemRow
+                        key={fieldItem.id}
+                        id={fieldItem.id}
+                        index={index}
                         control={form.control}
-                        name={`items.${index}.title`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Input placeholder="Título do item" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                        onRemove={() => remove(index)}
+                        disableRemove={fields.length === 1}
                       />
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.category`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Input placeholder="Categoria (opcional)" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.planScope`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Plano</p>
-                            <div className="flex flex-wrap gap-3">
-                              {PLAN_SCOPE_OPTIONS.map((plan) => (
-                                <label key={plan} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                  <Checkbox
-                                    checked={field.value?.includes(plan)}
-                                    onCheckedChange={(checked) => {
-                                      const current = field.value ?? []
-                                      field.onChange(
-                                        checked === true ? [...current, plan] : current.filter((p) => p !== plan),
-                                      )
-                                    }}
-                                  />
-                                  {planLabels[plan]}
-                                </label>
-                              ))}
-                            </div>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.platformScope`}
-                        render={({ field }) => (
-                          <FormItem className="border-t border-[#1A2540] pt-2">
-                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Plataforma</p>
-                            <div className="flex flex-wrap gap-3">
-                              {PLATFORM_SCOPE_OPTIONS.map((platform) => (
-                                <label key={platform} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                  <Checkbox
-                                    checked={field.value?.includes(platform)}
-                                    onCheckedChange={(checked) => {
-                                      const current = field.value ?? []
-                                      field.onChange(
-                                        checked === true
-                                          ? [...current, platform]
-                                          : current.filter((p) => p !== platform),
-                                      )
-                                    }}
-                                  />
-                                  {PLATFORM_SCOPE_LABELS[platform]}
-                                </label>
-                              ))}
-                            </div>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0 text-muted-foreground hover:text-destructive"
-                      disabled={fields.length === 1}
-                      onClick={() => remove(index)}
-                      aria-label={`Remover item ${index + 1}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+              </DndContext>
               <Button
                 type="button"
                 variant="secondary"
