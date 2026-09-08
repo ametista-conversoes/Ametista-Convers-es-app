@@ -101,7 +101,15 @@
 - Criar um projeto novo já escolhendo uma campanha na hora da criação → confirma que ela aparece certinho na lista de "Campanhas vinculadas" depois (não só nas 3 colunas antigas, que não são mais lidas em lugar nenhum).
 - Remover a única campanha vinculada de um projeto → volta a mostrar "Nenhuma campanha vinculada" e os campos da Visão Geral voltam a usar os valores manuais do projeto (spend/cpa/ctr/revenue).
 
-## 16. Aprovações externas do Google/Meta — bloqueiam validação com dados reais de terceiros
+## 16. Alerta automático de mudança de estado da campanha — PRECISA DE DEPLOY MANUAL DA EDGE FUNCTION
+- **Atenção**: `supabase functions deploy integrations` de novo — sem o deploy, o status/orçamento novo não é sincronizado e o alerta nunca dispara.
+- Rodar `migration-067-alerta-mudanca-estado-campanha.sql` antes de testar.
+- Com uma campanha de teste vinculada a um projeto: rodar uma sincronização (pra gravar o 1º status conhecido), depois pausar essa campanha direto no Google Ads/Meta Ads, rodar a sincronização de novo → confirma que aparece um Alerta novo em `/alerts` do tipo "Campanha "X" mudou de estado" (severidade alta se removida, média se pausada).
+- Rodar a sincronização uma 3ª vez sem mudar nada → confirma que **não** cria um alerta duplicado pra mesma transição (o último status conhecido já foi atualizado).
+- Mudar o orçamento diário da campanha de teste em mais de 20% (pra cima ou pra baixo) e sincronizar → confirma o alerta "Orçamento da campanha mudou bruscamente".
+- Reverter a campanha pra ENABLED e sincronizar → não deve criar alerta nenhum (só PAUSED/REMOVED disparam, não o retorno ao normal).
+
+## 17. Aprovações externas do Google/Meta — bloqueiam validação com dados reais de terceiros
 - **Google Ads API "Basic Access" — CONFIRMADO (07/09), não é mais suspeita**: o diagnóstico novo (item 10) mostrou o erro real do Google nas 4 contas raiz que o MCC "Ametista Conversões" enxerga: `"The developer token is only approved for use with test accounts. To access non-test accounts, apply for Basic or Standard access."` — ou seja, o developer token do app só pode mexer em contas de teste (vazias) até essa aprovação sair; nenhuma conta de cliente de verdade funciona antes disso, não importa o quanto o vínculo no MCC esteja certo. **Não é bug de código, é aprovação que só o Google concede** — peça em Google Ads → Ferramentas e Configurações → Configuração → API Center, dentro da conta MCC. A Fase 28 (lado Google) e a sincronização de métricas reais (Fase 19.1) só validam de verdade depois disso.
 - Duas das 4 contas também deram um segundo erro, independente do developer token: `"The customer account can't be accessed because it is not yet enabled or has been..."` — sugere que essas 2 contas específicas têm o próprio setup incompleto do lado do Google (ex: sem faturamento configurado) — vale conferir direto no Google Ads, mas só faz sentido investigar isso depois que o Basic Access sair, já que sem ele nada funciona de qualquer forma.
 - **Verificação de escopo sensível do Google (Forms)** + vídeo de demonstração enviado: pendente de review do Google.
