@@ -258,11 +258,18 @@ export interface GeoInsight extends CampaignInsightBreakdown {
   name: string
 }
 
+export interface ConversionActionInsight {
+  actionName: string
+  conversions: number
+  conversionValue: number
+}
+
 export interface CampaignInsights {
   devices: DeviceInsight[]
   topSearchTerms: SearchTermInsight[]
   topKeywords: KeywordInsight[]
   geoBreakdown: GeoInsight[]
+  conversionBreakdown: ConversionActionInsight[]
 }
 
 /** Resumos curados (dispositivo, top termos de pesquisa, top

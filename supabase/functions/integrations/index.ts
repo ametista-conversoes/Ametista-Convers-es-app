@@ -42,8 +42,9 @@
 //                                          projeto — busca ao vivo, só Google Ads, com Índice de
 //                                          Qualidade médio por ad group vindo de keyword_view)
 //   GET  .../integrations/campaign-insights?connection_id=...&campaign_id=...  (dispositivo, top termos
-//                                          de pesquisa, top palavras-chave, geográfico por cidade/região —
-//                                          busca ao vivo, só Google Ads, 4 consultas independentes)
+//                                          de pesquisa, top palavras-chave, geográfico por cidade/região,
+//                                          breakdown por ação de conversão — busca ao vivo, só Google Ads,
+//                                          5 consultas independentes)
 //   GET  .../integrations/accounts?connection_id=...             (Fase 20: lista as contas de anúncio
 //                                          reais do Google Ads acessíveis por uma conexão — nunca
 //                                          inclui conta gerenciadora/MCC, só contas-cliente de verdade)
@@ -1841,12 +1842,12 @@ async function runGaqlQuery(
 }
 
 /** Resumos curados de UMA campanha do Google Ads — dispositivo, top
- * termos de pesquisa, top palavras-chave e desempenho geográfico
- * (cidade/região). Busca ao vivo (últimos 30 dias, mesmo padrão de
- * `handleListAdGroups`), 4 consultas GAQL independentes: só a de
- * dispositivo é obrigatória, as outras 3 falham em silêncio (viram
- * lista vazia) se o Google recusar — não bloqueiam as demais. Só
- * Google Ads (Meta Ads fica pra depois). */
+ * termos de pesquisa, top palavras-chave, desempenho geográfico
+ * (cidade/região) e breakdown por ação de conversão. Busca ao vivo
+ * (últimos 30 dias, mesmo padrão de `handleListAdGroups`), 5 consultas
+ * GAQL independentes: só a de dispositivo é obrigatória, as outras 4
+ * falham em silêncio (viram lista vazia) se o Google recusar — não
+ * bloqueiam as demais. Só Google Ads (Meta Ads fica pra depois). */
 async function handleListCampaignInsights(req: Request, url: URL) {
   const auth = await requireAdminOrGestor(req)
   if (auth instanceof Response) return auth
@@ -2004,7 +2005,34 @@ async function handleListCampaignInsights(req: Request, url: URL) {
     console.error('[integrations] handleListCampaignInsights: geographic_view falhou:', geoResult.error)
   }
 
-  return jsonResponse({ devices, topSearchTerms, topKeywords, geoBreakdown })
+  // Breakdown por ação de conversão (ex: "Compra" vs "Lead" vs
+  // "Adicionar ao carrinho") — sem isso, conversões de peso muito
+  // diferente somam como se fossem iguais.
+  let conversionBreakdown: Array<{ actionName: string; conversions: number; conversionValue: number }> = []
+  const conversionActionResult = await runQuery(`
+    SELECT segments.conversion_action_name, metrics.conversions, metrics.conversions_value
+    FROM campaign
+    WHERE campaign.id = ${campaignId} AND segments.date DURING LAST_30_DAYS
+  `)
+  if (conversionActionResult.ok) {
+    type ConvAcc = { actionName: string; conversions: number; conversionValue: number }
+    const byAction = new Map<string, ConvAcc>()
+    for (const row of conversionActionResult.results) {
+      const actionName = (row.segments?.conversionActionName as string | undefined) || ''
+      if (!actionName) continue
+      const acc = byAction.get(actionName) ?? { actionName, conversions: 0, conversionValue: 0 }
+      acc.conversions += Number(row.metrics?.conversions ?? 0)
+      acc.conversionValue += Number(row.metrics?.conversionsValue ?? 0)
+      byAction.set(actionName, acc)
+    }
+    conversionBreakdown = Array.from(byAction.values())
+      .filter((a) => a.conversions > 0)
+      .sort((a, b) => b.conversions - a.conversions)
+  } else {
+    console.error('[integrations] handleListCampaignInsights: conversion action breakdown falhou:', conversionActionResult.error)
+  }
+
+  return jsonResponse({ devices, topSearchTerms, topKeywords, geoBreakdown, conversionBreakdown })
 }
 
 /** Chamada pelo job agendado (pg_cron + pg_net, ver

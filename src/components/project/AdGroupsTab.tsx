@@ -215,6 +215,29 @@ export function AdGroupsTab({ connectionId, campaignId, campaignName, provider }
             getLabel={(row) => row.keyword}
             emptyMessage="Nenhuma palavra-chave com dado no período (comum fora de campanhas de Pesquisa)."
           />
+
+          <div className="rounded-lg bg-secondary/50 p-3">
+            <p className="mb-2 text-sm font-medium text-foreground">Breakdown por ação de conversão</p>
+            {insightsQuery.data.conversionBreakdown.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Sem conversão registrada no período, ou a campanha não tem ação de conversão configurada.
+              </p>
+            )}
+            {insightsQuery.data.conversionBreakdown.length > 0 && (
+              <div className="space-y-1.5">
+                {insightsQuery.data.conversionBreakdown.map((c) => (
+                  <div key={c.actionName} className="flex items-center justify-between gap-3 text-sm">
+                    <p className="truncate text-foreground" title={c.actionName}>
+                      {c.actionName}
+                    </p>
+                    <p className="shrink-0 text-xs text-muted-foreground">
+                      {c.conversions} conv.{c.conversionValue > 0 ? ` · ${formatCurrency(c.conversionValue)}` : ''}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>
