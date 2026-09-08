@@ -12,13 +12,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { KanbanTaskFormDialog } from '@/components/kanban/KanbanTaskFormDialog'
 import { AdGroupsTab } from '@/components/project/AdGroupsTab'
-import { CampaignLinkField } from '@/components/project/CampaignLinkField'
+import { ProjectCampaignLinksField } from '@/components/project/ProjectCampaignLinksField'
 import { ManagerTaskRow } from '@/components/tasks/ManagerTaskRow'
 import type { ManagerProjectRecord, ManagerTaskRecord } from '@/hooks/useManagerPortalData'
 import {
   useCampaignPerformance,
   useDigitalAssetConnections,
   useManagerClient,
+  useProjectCampaignLinks,
   useUpdateProject,
 } from '@/hooks/useManagerPortalData'
 import { formatCurrency, formatDate, formatMultiplier, formatPercent } from '@/lib/format'
@@ -39,9 +40,6 @@ interface CampaignFormValues {
   objective: string
   systems: string
   description: string
-  external_connection_id: string | null
-  external_campaign_id: string | null
-  external_campaign_name: string | null
   conversion_type: 'vendas' | 'leads'
 }
 
@@ -63,9 +61,6 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
       objective: '',
       systems: '',
       description: '',
-      external_connection_id: null,
-      external_campaign_id: null,
-      external_campaign_name: null,
       conversion_type: 'leads',
     },
   })
@@ -78,9 +73,6 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
       objective: project.objective ?? '',
       systems: project.systems ?? '',
       description: project.description ?? '',
-      external_connection_id: project.external_connection_id,
-      external_campaign_id: project.external_campaign_id,
-      external_campaign_name: project.external_campaign_name,
       conversion_type: project.conversion_type,
     })
     setEditingRevenue(false)
@@ -112,9 +104,6 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
         objective: values.objective.trim() ? values.objective.trim() : null,
         systems: values.systems.trim() ? values.systems.trim() : null,
         description: values.description.trim() ? values.description.trim() : null,
-        external_connection_id: values.external_connection_id,
-        external_campaign_id: values.external_campaign_id,
-        external_campaign_name: values.external_campaign_name,
         conversion_type: values.conversion_type,
       })
       toast.success('Campanha atualizada.')
@@ -124,23 +113,27 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
   }
 
   const segmentations = form.watch('segmentations')
-  const linkedCampaignId = project?.external_campaign_id ?? null
-  const linkedConnectionId = project?.external_connection_id ?? null
-  const campaignPerformance = useCampaignPerformance(linkedConnectionId, linkedCampaignId)
-  const effectiveSpend = linkedCampaignId ? (campaignPerformance.data?.spend ?? null) : (project?.spend ?? null)
+  const campaignLinksQuery = useProjectCampaignLinks(project?.id ?? null)
+  const campaignLinks = campaignLinksQuery.data ?? []
+  const hasLinkedCampaigns = campaignLinks.length > 0
+  const campaignPerformance = useCampaignPerformance(
+    campaignLinks.map((l) => ({ connectionId: l.connection_id, campaignId: l.external_campaign_id })),
+  )
+  const effectiveSpend = hasLinkedCampaigns ? (campaignPerformance.data?.spend ?? null) : (project?.spend ?? null)
 
-  // Receita automática (só quando vinculado a uma campanha real e o
-  // cliente tem Ticket Médio configurado): "Vendas" pula a divisão por
-  // leads_to_close porque cada conversão já é uma venda; "Leads" segue
-  // a mesma fórmula de computeRevenueFromLeads (src/lib/metrics.ts),
-  // só que aplicada aqui por projeto em vez de conta inteira. Só entra
-  // em ação enquanto `project.revenue` nunca foi digitado manualmente
-  // (fica null até o gestor editar pela primeira vez) — depois disso o
-  // valor manual sempre vence, mesmo que volte a ficar igual ao
-  // automático por coincidência.
+  // Receita automática (só quando vinculado a pelo menos 1 campanha
+  // real e o cliente tem Ticket Médio configurado): "Vendas" pula a
+  // divisão por leads_to_close porque cada conversão já é uma venda;
+  // "Leads" segue a mesma fórmula de computeRevenueFromLeads
+  // (src/lib/metrics.ts), só que aplicada aqui por projeto em vez de
+  // conta inteira, somando as conversões de TODAS as campanhas
+  // vinculadas. Só entra em ação enquanto `project.revenue` nunca foi
+  // digitado manualmente (fica null até o gestor editar pela primeira
+  // vez) — depois disso o valor manual sempre vence, mesmo que volte a
+  // ficar igual ao automático por coincidência.
   const client = useManagerClient(project?.client_id ?? null)
   const conversionType = project?.conversion_type ?? 'leads'
-  const linkedConversions = linkedCampaignId ? (campaignPerformance.data?.conversions ?? null) : null
+  const linkedConversions = hasLinkedCampaigns ? (campaignPerformance.data?.conversions ?? null) : null
   const averageTicket = client.data?.average_ticket ?? null
   const leadsToClose = client.data?.leads_to_close ?? null
   const autoRevenue = (() => {
@@ -153,7 +146,6 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
   const effectiveRevenue = usingAutoRevenue ? autoRevenue : (project?.revenue ?? null)
 
   const digitalAssetConnections = useDigitalAssetConnections()
-  const linkedProvider = digitalAssetConnections.data?.find((c) => c.id === linkedConnectionId)?.provider ?? null
 
   return (
     <Dialog open={!!project} onOpenChange={onOpenChange}>
@@ -183,16 +175,17 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                   <Badge className="border-[#1A2540] bg-secondary/50 text-muted-foreground">
                     {conversionTypeLabels[conversionType]}
                   </Badge>
-                  {linkedCampaignId && campaignPerformance.data?.campaignType && (
-                    <Badge className="border-[#1A2540] bg-secondary/50 text-muted-foreground">
-                      {campaignTypeLabels[campaignPerformance.data.campaignType] ?? campaignPerformance.data.campaignType}
+                  {(campaignPerformance.data?.campaignTypes ?? []).map((type) => (
+                    <Badge key={type} className="border-[#1A2540] bg-secondary/50 text-muted-foreground">
+                      {campaignTypeLabels[type] ?? type}
                     </Badge>
-                  )}
+                  ))}
                 </div>
 
-                {linkedCampaignId && (
+                {hasLinkedCampaigns && (
                   <p className="text-xs text-muted-foreground">
-                    CPA, CTR e gasto abaixo vêm da campanha vinculada ({project.external_campaign_name}), últimos 30 dias.{' '}
+                    CPA, CTR e gasto abaixo vêm d{campaignLinks.length > 1 ? 'as campanhas vinculadas' : 'a campanha vinculada'} (
+                    {campaignLinks.map((l) => l.external_campaign_name ?? l.external_campaign_id).join(', ')}), últimos 30 dias.{' '}
                     {usingAutoRevenue
                       ? 'Receita calculada automaticamente a partir das conversões e do Ticket Médio do cliente.'
                       : 'Os provedores de anúncio não reportam faturamento — configure o Ticket Médio do cliente pra calcular a Receita automaticamente, ou digite manualmente.'}
@@ -203,7 +196,7 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                   <div>
                     <p className="text-xs text-muted-foreground">CPA</p>
                     <p className="text-foreground">
-                      {formatCurrency(linkedCampaignId ? (campaignPerformance.data?.cpa ?? null) : project.cpa)}
+                      {formatCurrency(hasLinkedCampaigns ? (campaignPerformance.data?.cpa ?? null) : project.cpa)}
                     </p>
                   </div>
                   <div>
@@ -213,20 +206,20 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                   <div>
                     <p className="text-xs text-muted-foreground">CTR</p>
                     <p className="text-foreground">
-                      {formatPercent(linkedCampaignId ? (campaignPerformance.data?.ctr ?? null) : project.ctr)}
+                      {formatPercent(hasLinkedCampaigns ? (campaignPerformance.data?.ctr ?? null) : project.ctr)}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Gasto</p>
                     <p className="text-foreground">{formatCurrency(effectiveSpend)}</p>
                   </div>
-                  {linkedCampaignId && (
+                  {hasLinkedCampaigns && (
                     <div>
                       <p className="text-xs text-muted-foreground">CPC médio</p>
                       <p className="text-foreground">{formatCurrency(campaignPerformance.data?.cpc ?? null)}</p>
                     </div>
                   )}
-                  {linkedCampaignId && !!campaignPerformance.data?.conversionValue && (
+                  {hasLinkedCampaigns && !!campaignPerformance.data?.conversionValue && (
                     <div>
                       <p className="text-xs text-muted-foreground">Valor de conversão (plataforma)</p>
                       <p className="text-foreground">{formatCurrency(campaignPerformance.data.conversionValue)}</p>
@@ -351,20 +344,8 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                 </div>
 
                 <div>
-                  <p className="mb-2 text-sm text-foreground">Campanha vinculada (opcional)</p>
-                  <CampaignLinkField
-                    clientId={project.client_id}
-                    value={{
-                      externalConnectionId: form.watch('external_connection_id'),
-                      externalCampaignId: form.watch('external_campaign_id'),
-                      externalCampaignName: form.watch('external_campaign_name'),
-                    }}
-                    onChange={(next) => {
-                      form.setValue('external_connection_id', next.externalConnectionId, { shouldDirty: true })
-                      form.setValue('external_campaign_id', next.externalCampaignId, { shouldDirty: true })
-                      form.setValue('external_campaign_name', next.externalCampaignName, { shouldDirty: true })
-                    }}
-                  />
+                  <p className="mb-2 text-sm text-foreground">Campanhas vinculadas (opcional)</p>
+                  <ProjectCampaignLinksField projectId={project.id} clientId={project.client_id} links={campaignLinks} />
                 </div>
 
                 <div>
@@ -440,12 +421,7 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
               </TabsContent>
 
               <TabsContent value="ad-groups">
-                <AdGroupsTab
-                  connectionId={linkedConnectionId}
-                  campaignId={linkedCampaignId}
-                  campaignName={project.external_campaign_name}
-                  provider={linkedProvider}
-                />
+                <AdGroupsTab links={campaignLinks} connections={digitalAssetConnections.data ?? []} />
               </TabsContent>
             </Tabs>
           </>

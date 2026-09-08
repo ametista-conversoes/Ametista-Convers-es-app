@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { CampaignLinkField } from '@/components/project/CampaignLinkField'
-import { useCreateProject } from '@/hooks/useManagerPortalData'
+import { useAddProjectCampaignLink, useCreateProject } from '@/hooks/useManagerPortalData'
 
 const newProjectSchema = z.object({
   title: z.string().min(2, 'Digite o nome do projeto'),
@@ -43,6 +43,7 @@ interface NewProjectDialogProps {
 export function NewProjectDialog({ clientId }: NewProjectDialogProps) {
   const [open, setOpen] = useState(false)
   const createProject = useCreateProject()
+  const addCampaignLink = useAddProjectCampaignLink()
 
   const form = useForm<NewProjectValues>({
     resolver: zodResolver(newProjectSchema),
@@ -64,16 +65,21 @@ export function NewProjectDialog({ clientId }: NewProjectDialogProps) {
 
   async function onSubmit(values: NewProjectValues) {
     try {
-      await createProject.mutateAsync({
+      const project = await createProject.mutateAsync({
         title: values.title,
         client_id: clientId,
         objective: values.objective?.trim() ? values.objective.trim() : null,
         description: values.description?.trim() ? values.description.trim() : null,
-        external_connection_id: values.external_connection_id,
-        external_campaign_id: values.external_campaign_id,
-        external_campaign_name: values.external_campaign_name,
         conversion_type: values.conversion_type,
       })
+      if (values.external_connection_id && values.external_campaign_id) {
+        await addCampaignLink.mutateAsync({
+          project_id: project.id,
+          connection_id: values.external_connection_id,
+          external_campaign_id: values.external_campaign_id,
+          external_campaign_name: values.external_campaign_name,
+        })
+      }
       toast.success('Projeto criado.')
       form.reset()
       setOpen(false)

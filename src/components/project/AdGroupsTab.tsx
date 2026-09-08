@@ -1,7 +1,20 @@
 import { Badge } from '@/components/ui/badge'
-import { useAdGroups, useCampaignInsights, useCampaignPerformance } from '@/hooks/useManagerPortalData'
+import {
+  useAdGroups,
+  useCampaignInsights,
+  useCampaignPerformance,
+  type DigitalAssetConnectionRecord,
+  type ProjectCampaignLink,
+} from '@/hooks/useManagerPortalData'
 import { formatCurrency, formatPercent } from '@/lib/format'
-import { ageRangeLabels, dayOfWeekLabels, deviceLabels, genderLabels, hourBucketLabels } from '@/lib/status-styles'
+import {
+  ageRangeLabels,
+  connectionProviderLabels,
+  dayOfWeekLabels,
+  deviceLabels,
+  genderLabels,
+  hourBucketLabels,
+} from '@/lib/status-styles'
 import { cn } from '@/lib/utils'
 
 const AD_GROUP_STATUS_LABELS: Record<string, string> = {
@@ -17,10 +30,8 @@ const AD_GROUP_STATUS_STYLES: Record<string, string> = {
 }
 
 interface AdGroupsTabProps {
-  connectionId: string | null
-  campaignId: string | null
-  campaignName: string | null
-  provider: string | null
+  links: ProjectCampaignLink[]
+  connections: DigitalAssetConnectionRecord[]
 }
 
 interface InsightRow {
@@ -65,15 +76,16 @@ function InsightRowList<T extends InsightRow>({
   )
 }
 
-/** Aba "Grupos de Anúncios" do projeto — busca ao vivo os ad groups da
- * campanha vinculada (Google Ads só, por enquanto). Orçamento e as 2
- * métricas de parcela de impressões perdida ficam no topo, uma vez só,
- * porque são do nível da campanha inteira — o Google Ads não expõe
- * essas 2 no nível de ad group. */
-export function AdGroupsTab({ connectionId, campaignId, campaignName, provider }: AdGroupsTabProps) {
-  const campaignPerformance = useCampaignPerformance(connectionId, campaignId)
-  const adGroupsQuery = useAdGroups(connectionId, campaignId)
-  const insightsQuery = useCampaignInsights(connectionId, campaignId)
+/** Bloco completo de UMA campanha vinculada — orçamento/impressão
+ * perdida/pacing, ad groups e os resumos curados (dispositivo,
+ * geográfico, top termos, top keywords, breakdown de conversão,
+ * melhor horário, demográfico). Só Google Ads por enquanto; campanhas
+ * do Meta Ads mostram um aviso em vez de tentar buscar. */
+function SingleCampaignInsights({ link, provider }: { link: ProjectCampaignLink; provider: string | null }) {
+  const singleLink = [{ connectionId: link.connection_id, campaignId: link.external_campaign_id }]
+  const campaignPerformance = useCampaignPerformance(singleLink)
+  const adGroupsQuery = useAdGroups(link.connection_id, link.external_campaign_id)
+  const insightsQuery = useCampaignInsights(link.connection_id, link.external_campaign_id)
 
   // Utilização de orçamento (Nível 2 do documento de dados do Google
   // Ads: "pacing", uso interno da agência) — o orçamento sincronizado é
@@ -86,32 +98,27 @@ export function AdGroupsTab({ connectionId, campaignId, campaignName, provider }
   const spend30d = campaignPerformance.data?.spend ?? null
   const budgetPacing = budgetAmount && budgetAmount > 0 && spend30d != null ? (spend30d / (budgetAmount * 30)) * 100 : null
 
-  if (!connectionId || !campaignId) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Vincule uma campanha do Google Ads na aba Campanha pra ver os grupos de anúncios.
-      </p>
-    )
-  }
-
   if (provider !== 'google_ads') {
     return (
-      <p className="text-sm text-muted-foreground">
-        Grupos de anúncio só disponíveis pra campanhas do Google Ads por enquanto.
-      </p>
+      <div className="rounded-lg bg-secondary/50 p-3">
+        <p className="text-sm font-medium text-foreground">{link.external_campaign_name ?? link.external_campaign_id}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Grupos de anúncio e resumos curados só disponíveis pra campanhas do Google Ads por enquanto
+          {provider ? ` (essa é ${connectionProviderLabels[provider] ?? provider})` : ''}.
+        </p>
+      </div>
     )
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 rounded-lg border border-[#1A2540] p-3">
+      <p className="text-sm font-semibold text-foreground">{link.external_campaign_name ?? link.external_campaign_id}</p>
+
       <div className="rounded-lg bg-secondary/50 p-3">
-        <p className="mb-2 text-xs font-medium text-muted-foreground">
-          Campanha vinculada: {campaignName ?? campaignId}
-        </p>
-        <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
           <div>
             <p className="text-xs text-muted-foreground">Orçamento</p>
-            <p className="text-foreground">{formatCurrency(campaignPerformance.data?.budgetAmount ?? null)}</p>
+            <p className="text-foreground">{formatCurrency(budgetAmount)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Parcela de impressão perdida (classificação)</p>
@@ -259,8 +266,11 @@ export function AdGroupsTab({ connectionId, campaignId, campaignName, provider }
           {insightsQuery.data.bestTiming && (
             <div className="rounded-lg bg-secondary/50 p-3">
               <p className="text-sm text-foreground">
-                Melhor desempenho: <span className="font-medium">{dayOfWeekLabels[insightsQuery.data.bestTiming.dayOfWeek] ?? insightsQuery.data.bestTiming.dayOfWeek}</span>,
-                período da{' '}
+                Melhor desempenho:{' '}
+                <span className="font-medium">
+                  {dayOfWeekLabels[insightsQuery.data.bestTiming.dayOfWeek] ?? insightsQuery.data.bestTiming.dayOfWeek}
+                </span>
+                , período da{' '}
                 <span className="font-medium">
                   {hourBucketLabels[insightsQuery.data.bestTiming.hourBucket] ?? insightsQuery.data.bestTiming.hourBucket}
                 </span>
@@ -307,6 +317,29 @@ export function AdGroupsTab({ connectionId, campaignId, campaignName, provider }
           )}
         </>
       )}
+    </div>
+  )
+}
+
+/** Aba "Grupos de Anúncios" do projeto — uma seção por campanha
+ * vinculada (Fase 32: um projeto pode ter mais de uma campanha, ex:
+ * Search + Performance Max juntas), cada uma buscando ao vivo seus
+ * próprios ad groups e resumos curados. */
+export function AdGroupsTab({ links, connections }: AdGroupsTabProps) {
+  if (links.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Vincule uma campanha na aba Campanha pra ver os grupos de anúncios.
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {links.map((link) => {
+        const provider = connections.find((c) => c.id === link.connection_id)?.provider ?? null
+        return <SingleCampaignInsights key={link.id} link={link} provider={provider} />
+      })}
     </div>
   )
 }

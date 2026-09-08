@@ -522,18 +522,19 @@ export interface NewProjectInput {
   client_id: string
   objective: string | null
   description: string | null
-  external_connection_id?: string | null
-  external_campaign_id?: string | null
-  external_campaign_name?: string | null
   conversion_type: 'vendas' | 'leads'
 }
 
+/** Devolve o projeto criado (id) porque `NewProjectDialog` precisa dele
+ * pra, opcionalmente, vincular a 1ª campanha logo em seguida (Fase 32 —
+ * `project_campaign_links`, ver `useAddProjectCampaignLink`). */
 export function useCreateProject() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (input: NewProjectInput) => {
-      const { error } = await supabase.from('projects').insert(input)
+      const { data, error } = await supabase.from('projects').insert(input).select('id').single()
       if (error) throw error
+      return data as { id: string }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager-projects'] })
@@ -551,9 +552,6 @@ export interface UpdateProjectCampaignInput {
   objective?: string | null
   systems?: string | null
   description?: string | null
-  external_connection_id?: string | null
-  external_campaign_id?: string | null
-  external_campaign_name?: string | null
   revenue?: number | null
   conversion_type?: 'vendas' | 'leads'
   status?: string
@@ -592,6 +590,74 @@ export function useDeleteProject() {
   })
 }
 
+export interface ProjectCampaignLink {
+  id: string
+  project_id: string
+  connection_id: string
+  external_campaign_id: string
+  external_campaign_name: string | null
+}
+
+/** Campanhas vinculadas a UM projeto (Fase 32 — um projeto pode ter
+ * mais de uma campanha, ex: Search + Performance Max juntas). Substitui
+ * o link único antigo (projects.external_connection_id/campaign_id) —
+ * essas 3 colunas continuam existindo na tabela por compatibilidade,
+ * mas não são mais lidas em lugar nenhum do app. */
+export function useProjectCampaignLinks(projectId: string | null) {
+  return useQuery({
+    queryKey: ['project-campaign-links', projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('project_campaign_links')
+        .select('id, project_id, connection_id, external_campaign_id, external_campaign_name')
+        .eq('project_id', projectId as string)
+        .order('created_at', { ascending: true })
+      if (error) throw error
+      return data as ProjectCampaignLink[]
+    },
+    enabled: !!projectId,
+  })
+}
+
+export interface AddProjectCampaignLinkInput {
+  project_id: string
+  connection_id: string
+  external_campaign_id: string
+  external_campaign_name: string | null
+}
+
+export function useAddProjectCampaignLink() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: AddProjectCampaignLinkInput) => {
+      const { error } = await supabase.from('project_campaign_links').insert(input)
+      if (error) throw error
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['project-campaign-links', variables.project_id] })
+    },
+    onError: () => {
+      toast.error('Não foi possível vincular a campanha.')
+    },
+  })
+}
+
+export function useRemoveProjectCampaignLink() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; project_id: string }) => {
+      const { error } = await supabase.from('project_campaign_links').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['project-campaign-links', variables.project_id] })
+    },
+    onError: () => {
+      toast.error('Não foi possível remover o vínculo.')
+    },
+  })
+}
+
 export interface CampaignPerformance {
   spend: number
   clicks: number
@@ -601,57 +667,72 @@ export interface CampaignPerformance {
   ctr: number | null
   cpc: number | null
   conversionRate: number | null
-  /** Média dos últimos 30 dias com dado (ignora dias null) — só existe
-   * de verdade em campanhas de Pesquisa do Google Ads. */
+  /** Média dos últimos 30 dias com dado, de todas as campanhas
+   * vinculadas juntas (ignora dias/campanhas sem dado) — só existe de
+   * verdade em campanhas de Pesquisa do Google Ads. */
   searchRankLostImpressionShare: number | null
   searchBudgetLostImpressionShare: number | null
-  /** Valor mais recente do período, não uma média — orçamento é um
-   * valor configurado, não algo que faça sentido somar/mediar. */
+  /** Soma do orçamento mais recente de CADA campanha vinculada — null
+   * só se nenhuma tiver orçamento conhecido. */
   budgetAmount: number | null
-  /** Search/Display/Vídeo/Performance Max/... (Google) ou objetivo da
-   * campanha (Meta) — última leitura conhecida, mesmo padrão de
-   * `budgetAmount` (não muda dia a dia, não faz sentido somar/mediar). */
-  campaignType: string | null
-  /** Valor de conversão que a própria plataforma reporta (Google/Meta) —
-   * NÃO é a Receita do app (calculada a partir de Leads), é a
-   * aproximação de ROAS que o provedor já calcula sozinho. Soma como
-   * spend/conversions. */
+  /** Tipos distintos entre as campanhas vinculadas (Search/Display/
+   * Vídeo/Performance Max/... no Google, objetivo no Meta) — um projeto
+   * pode ter mais de uma campanha de tipos diferentes (Fase 32). */
+  campaignTypes: string[]
+  /** Valor de conversão que a própria plataforma reporta (Google/Meta),
+   * somado de todas as campanhas vinculadas — NÃO é a Receita do app
+   * (calculada a partir de Leads), é a aproximação de ROAS que o
+   * provedor já calcula sozinho. */
   conversionValue: number
 }
 
-/** Últimos 30 dias de `campaign_performance_snapshots` pra uma campanha
- * vinculada (Fase 8.1b). Sem ROAS/receita — os provedores de anúncio
- * não reportam isso nessa sincronização (mesma limitação que já existe
- * hoje pro agregado por conta em `performance_snapshots`). */
-export function useCampaignPerformance(connectionId: string | null, campaignId: string | null) {
+export interface CampaignLinkRef {
+  connectionId: string
+  campaignId: string
+}
+
+type CampaignSnapshotRow = {
+  spend: number | null
+  clicks: number | null
+  impressions: number | null
+  conversions: number | null
+  snapshot_date: string
+  search_rank_lost_impression_share: number | null
+  search_budget_lost_impression_share: number | null
+  budget_amount: number | null
+  campaign_type: string | null
+  conversion_value: number | null
+}
+
+/** Últimos 30 dias de `campaign_performance_snapshots` somados de TODAS
+ * as campanhas vinculadas ao projeto (Fase 32 — um projeto pode ter
+ * mais de uma campanha, ex: Search + Performance Max juntas; antes era
+ * só 1 par connectionId/campaignId). Sem ROAS/receita — os provedores
+ * de anúncio não reportam isso nessa sincronização (mesma limitação
+ * que já existe hoje pro agregado por conta em `performance_snapshots`). */
+export function useCampaignPerformance(links: CampaignLinkRef[]) {
+  const sortedKey = [...links].map((l) => `${l.connectionId}:${l.campaignId}`).sort()
   return useQuery({
-    queryKey: ['campaign-performance', connectionId, campaignId],
+    queryKey: ['campaign-performance', sortedKey],
     queryFn: async () => {
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-      const { data, error } = await supabase
-        .from('campaign_performance_snapshots')
-        .select(
-          'spend, clicks, impressions, conversions, snapshot_date, search_rank_lost_impression_share, search_budget_lost_impression_share, budget_amount, campaign_type, conversion_value',
-        )
-        .eq('connection_id', connectionId as string)
-        .eq('external_campaign_id', campaignId as string)
-        .gte('snapshot_date', since)
-        .order('snapshot_date', { ascending: true })
-      if (error) throw error
+      const perCampaignRows = await Promise.all(
+        links.map(async (link) => {
+          const { data, error } = await supabase
+            .from('campaign_performance_snapshots')
+            .select(
+              'spend, clicks, impressions, conversions, snapshot_date, search_rank_lost_impression_share, search_budget_lost_impression_share, budget_amount, campaign_type, conversion_value',
+            )
+            .eq('connection_id', link.connectionId)
+            .eq('external_campaign_id', link.campaignId)
+            .gte('snapshot_date', since)
+            .order('snapshot_date', { ascending: true })
+          if (error) throw error
+          return data as CampaignSnapshotRow[]
+        }),
+      )
 
-      type Row = {
-        spend: number | null
-        clicks: number | null
-        impressions: number | null
-        conversions: number | null
-        snapshot_date: string
-        search_rank_lost_impression_share: number | null
-        search_budget_lost_impression_share: number | null
-        budget_amount: number | null
-        campaign_type: string | null
-        conversion_value: number | null
-      }
-      const rows = data as Row[]
+      const rows = perCampaignRows.flat()
       const totals = rows.reduce(
         (acc, row) => ({
           spend: acc.spend + (row.spend ?? 0),
@@ -667,19 +748,24 @@ export function useCampaignPerformance(connectionId: string | null, campaignId: 
         const known = values.filter((v): v is number => v != null)
         return known.length > 0 ? known.reduce((sum, v) => sum + v, 0) / known.length : null
       }
-      const latestBudget = [...rows].reverse().find((r) => r.budget_amount != null)?.budget_amount ?? null
-      const latestCampaignType = [...rows].reverse().find((r) => r.campaign_type != null)?.campaign_type ?? null
+
+      const latestPerCampaign = perCampaignRows.map((campaignRows) => ({
+        budget: [...campaignRows].reverse().find((r) => r.budget_amount != null)?.budget_amount ?? null,
+        type: [...campaignRows].reverse().find((r) => r.campaign_type != null)?.campaign_type ?? null,
+      }))
+      const knownBudgets = latestPerCampaign.map((c) => c.budget).filter((b): b is number => b != null)
+      const campaignTypes = Array.from(new Set(latestPerCampaign.map((c) => c.type).filter((t): t is string => t != null)))
 
       return {
         ...totals,
         ...computeRateMetrics(totals.spend, totals.clicks, totals.impressions, totals.conversions),
         searchRankLostImpressionShare: average(rows.map((r) => r.search_rank_lost_impression_share)),
         searchBudgetLostImpressionShare: average(rows.map((r) => r.search_budget_lost_impression_share)),
-        budgetAmount: latestBudget,
-        campaignType: latestCampaignType,
+        budgetAmount: knownBudgets.length > 0 ? knownBudgets.reduce((sum, b) => sum + b, 0) : null,
+        campaignTypes,
       } as CampaignPerformance
     },
-    enabled: !!connectionId && !!campaignId,
+    enabled: links.length > 0,
   })
 }
 
