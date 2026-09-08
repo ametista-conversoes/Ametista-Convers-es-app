@@ -264,12 +264,28 @@ export interface ConversionActionInsight {
   conversionValue: number
 }
 
+export interface AgeRangeInsight extends CampaignInsightBreakdown {
+  range: string
+}
+
+export interface GenderInsight extends CampaignInsightBreakdown {
+  gender: string
+}
+
+export interface BestTiming {
+  dayOfWeek: string
+  hourBucket: string
+}
+
 export interface CampaignInsights {
   devices: DeviceInsight[]
   topSearchTerms: SearchTermInsight[]
   topKeywords: KeywordInsight[]
   geoBreakdown: GeoInsight[]
   conversionBreakdown: ConversionActionInsight[]
+  ageRanges: AgeRangeInsight[]
+  genders: GenderInsight[]
+  bestTiming: BestTiming | null
 }
 
 /** Resumos curados (dispositivo, top termos de pesquisa, top

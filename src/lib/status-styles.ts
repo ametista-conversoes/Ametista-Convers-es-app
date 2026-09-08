@@ -277,6 +277,43 @@ export const deviceLabels: Record<string, string> = {
   UNKNOWN: 'Desconhecido',
 }
 
+// Demográfico + melhor dia/horário (Nível 2 do documento de dados do
+// Google Ads) — ad_group_criterion.age_range.type / .gender.type
+// (age_range_view/gender_view), segments.day_of_week e o "hourBucket"
+// que o Edge Function já resume (ver handleListCampaignInsights).
+export const ageRangeLabels: Record<string, string> = {
+  AGE_RANGE_18_24: '18–24 anos',
+  AGE_RANGE_25_34: '25–34 anos',
+  AGE_RANGE_35_44: '35–44 anos',
+  AGE_RANGE_45_54: '45–54 anos',
+  AGE_RANGE_55_64: '55–64 anos',
+  AGE_RANGE_65_UP: '65+ anos',
+  AGE_RANGE_UNDETERMINED: 'Não determinado',
+}
+
+export const genderLabels: Record<string, string> = {
+  MALE: 'Masculino',
+  FEMALE: 'Feminino',
+  UNDETERMINED: 'Não determinado',
+}
+
+export const dayOfWeekLabels: Record<string, string> = {
+  MONDAY: 'segundas-feiras',
+  TUESDAY: 'terças-feiras',
+  WEDNESDAY: 'quartas-feiras',
+  THURSDAY: 'quintas-feiras',
+  FRIDAY: 'sextas-feiras',
+  SATURDAY: 'sábados',
+  SUNDAY: 'domingos',
+}
+
+export const hourBucketLabels: Record<string, string> = {
+  MADRUGADA: 'madrugada (0h–6h)',
+  MANHA: 'manhã (6h–12h)',
+  TARDE: 'tarde (12h–18h)',
+  NOITE: 'noite (18h–24h)',
+}
+
 // Tipo de campanha (Fase 32) — vem cru da API do provedor, sincronizado
 // junto com o resto (campaign.advertising_channel_type no Google Ads,
 // objective no Meta Ads). Sem entrada = mostra o valor cru mesmo (mesmo

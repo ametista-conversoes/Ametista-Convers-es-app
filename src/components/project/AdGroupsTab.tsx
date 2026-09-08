@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import { useAdGroups, useCampaignInsights, useCampaignPerformance } from '@/hooks/useManagerPortalData'
 import { formatCurrency, formatPercent } from '@/lib/format'
-import { deviceLabels } from '@/lib/status-styles'
+import { ageRangeLabels, dayOfWeekLabels, deviceLabels, genderLabels, hourBucketLabels } from '@/lib/status-styles'
 import { cn } from '@/lib/utils'
 
 const AD_GROUP_STATUS_LABELS: Record<string, string> = {
@@ -75,6 +75,17 @@ export function AdGroupsTab({ connectionId, campaignId, campaignName, provider }
   const adGroupsQuery = useAdGroups(connectionId, campaignId)
   const insightsQuery = useCampaignInsights(connectionId, campaignId)
 
+  // Utilização de orçamento (Nível 2 do documento de dados do Google
+  // Ads: "pacing", uso interno da agência) — o orçamento sincronizado é
+  // diário, então o teto esperado em 30 dias é orçamento × 30; comparar
+  // com o gasto real do período mostra se a campanha está deixando
+  // orçamento "na mesa" por falta de demanda/lance, sem precisar abrir
+  // o Gerenciador de Anúncios. Não aparece pro cliente (esta tela é só
+  // Portal Gestor).
+  const budgetAmount = campaignPerformance.data?.budgetAmount ?? null
+  const spend30d = campaignPerformance.data?.spend ?? null
+  const budgetPacing = budgetAmount && budgetAmount > 0 && spend30d != null ? (spend30d / (budgetAmount * 30)) * 100 : null
+
   if (!connectionId || !campaignId) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -110,9 +121,15 @@ export function AdGroupsTab({ connectionId, campaignId, campaignName, provider }
             <p className="text-xs text-muted-foreground">Parcela de impressão perdida (orçamento)</p>
             <p className="text-foreground">{formatPercent(campaignPerformance.data?.searchBudgetLostImpressionShare ?? null)}</p>
           </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Utilização de orçamento (30 dias)</p>
+            <p className="text-foreground">{formatPercent(budgetPacing)}</p>
+          </div>
         </div>
         <p className="mt-2 text-[11px] text-muted-foreground/70">
-          Só têm valor real em campanhas de Pesquisa — em Display/Vídeo/Performance Max aparece "—".
+          Impressão perdida só tem valor real em campanhas de Pesquisa — em Display/Vídeo/Performance Max aparece
+          "—". Utilização de orçamento é uso interno (o cliente não vê essa aba) — bem abaixo de 100% pode indicar
+          orçamento sobrando por falta de lance/demanda, não necessariamente algo bom.
         </p>
       </div>
 
@@ -238,6 +255,56 @@ export function AdGroupsTab({ connectionId, campaignId, campaignName, provider }
               </div>
             )}
           </div>
+
+          {insightsQuery.data.bestTiming && (
+            <div className="rounded-lg bg-secondary/50 p-3">
+              <p className="text-sm text-foreground">
+                Melhor desempenho: <span className="font-medium">{dayOfWeekLabels[insightsQuery.data.bestTiming.dayOfWeek] ?? insightsQuery.data.bestTiming.dayOfWeek}</span>,
+                período da{' '}
+                <span className="font-medium">
+                  {hourBucketLabels[insightsQuery.data.bestTiming.hourBucket] ?? insightsQuery.data.bestTiming.hourBucket}
+                </span>
+                .
+              </p>
+            </div>
+          )}
+
+          {(insightsQuery.data.ageRanges.length > 0 || insightsQuery.data.genders.length > 0) && (
+            <div className="rounded-lg bg-secondary/50 p-3">
+              <p className="mb-2 text-sm font-medium text-foreground">Demográfico</p>
+              <p className="mb-2 text-[11px] text-muted-foreground/70">
+                Só existe em campanhas com segmentação de público (Display/Vídeo/Demand Gen/Performance Max).
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {insightsQuery.data.ageRanges.length > 0 && (
+                  <div>
+                    <p className="mb-1 text-xs text-muted-foreground">Faixa etária</p>
+                    <div className="space-y-1">
+                      {insightsQuery.data.ageRanges.map((a) => (
+                        <div key={a.range} className="flex items-center justify-between gap-2 text-sm">
+                          <p className="text-foreground">{ageRangeLabels[a.range] ?? a.range}</p>
+                          <p className="text-xs text-muted-foreground">{a.clicks} cliques</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {insightsQuery.data.genders.length > 0 && (
+                  <div>
+                    <p className="mb-1 text-xs text-muted-foreground">Gênero</p>
+                    <div className="space-y-1">
+                      {insightsQuery.data.genders.map((g) => (
+                        <div key={g.gender} className="flex items-center justify-between gap-2 text-sm">
+                          <p className="text-foreground">{genderLabels[g.gender] ?? g.gender}</p>
+                          <p className="text-xs text-muted-foreground">{g.clicks} cliques</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

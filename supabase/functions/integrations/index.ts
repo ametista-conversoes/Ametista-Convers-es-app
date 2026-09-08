@@ -1843,11 +1843,16 @@ async function runGaqlQuery(
 
 /** Resumos curados de UMA campanha do Google Ads — dispositivo, top
  * termos de pesquisa, top palavras-chave, desempenho geográfico
- * (cidade/região) e breakdown por ação de conversão. Busca ao vivo
- * (últimos 30 dias, mesmo padrão de `handleListAdGroups`), 5 consultas
- * GAQL independentes: só a de dispositivo é obrigatória, as outras 4
- * falham em silêncio (viram lista vazia) se o Google recusar — não
- * bloqueiam as demais. Só Google Ads (Meta Ads fica pra depois). */
+ * (cidade/região), breakdown por ação de conversão, demográfico
+ * (idade/gênero) e melhor dia/horário. Busca ao vivo (últimos 30 dias,
+ * mesmo padrão de `handleListAdGroups`), 8 consultas GAQL
+ * independentes: só a de dispositivo é obrigatória, as outras 7 falham
+ * em silêncio (viram lista vazia/null) se o Google recusar — não
+ * bloqueiam as demais. Idade/gênero só fazem sentido de verdade em
+ * campanhas de Display/Vídeo/Demand Gen/PMax — o front decide se
+ * mostra a seção, com base no tipo de campanha que já sincroniza (não
+ * vale a pena não pedir aqui: a consulta simplesmente volta vazia numa
+ * campanha de Pesquisa). Só Google Ads (Meta Ads fica pra depois). */
 async function handleListCampaignInsights(req: Request, url: URL) {
   const auth = await requireAdminOrGestor(req)
   if (auth instanceof Response) return auth
@@ -2032,7 +2037,107 @@ async function handleListCampaignInsights(req: Request, url: URL) {
     console.error('[integrations] handleListCampaignInsights: conversion action breakdown falhou:', conversionActionResult.error)
   }
 
-  return jsonResponse({ devices, topSearchTerms, topKeywords, geoBreakdown, conversionBreakdown })
+  // Demográfico (Nível 2 do documento — só faz sentido de verdade em
+  // Display/Vídeo/Demand Gen/PMax; o front decide se mostra a seção,
+  // com base no tipo de campanha que já sincroniza. age_range_view e
+  // gender_view são recursos SEPARADOS (o Google não deixa combinar
+  // idade+gênero numa consulta só), por isso são 2 chamadas.
+  let ageRanges: Array<{ range: string; clicks: number; impressions: number; conversions: number }> = []
+  const ageResult = await runQuery(`
+    SELECT ad_group_criterion.age_range.type, metrics.clicks, metrics.impressions, metrics.conversions
+    FROM age_range_view
+    WHERE campaign.id = ${campaignId} AND segments.date DURING LAST_30_DAYS
+  `)
+  if (ageResult.ok) {
+    ageRanges = ageResult.results
+      .map((row) => {
+        const criterion = row.adGroupCriterion as Record<string, unknown> | undefined
+        const ageRange = criterion?.ageRange as Record<string, unknown> | undefined
+        return {
+          range: (ageRange?.type as string | undefined) ?? 'UNDETERMINED',
+          clicks: Number(row.metrics?.clicks ?? 0),
+          impressions: Number(row.metrics?.impressions ?? 0),
+          conversions: Number(row.metrics?.conversions ?? 0),
+        }
+      })
+      .filter((a) => a.clicks > 0 || a.impressions > 0)
+      .sort((a, b) => b.clicks - a.clicks)
+  } else {
+    console.error('[integrations] handleListCampaignInsights: age_range_view falhou:', ageResult.error)
+  }
+
+  let genders: Array<{ gender: string; clicks: number; impressions: number; conversions: number }> = []
+  const genderResult = await runQuery(`
+    SELECT ad_group_criterion.gender.type, metrics.clicks, metrics.impressions, metrics.conversions
+    FROM gender_view
+    WHERE campaign.id = ${campaignId} AND segments.date DURING LAST_30_DAYS
+  `)
+  if (genderResult.ok) {
+    genders = genderResult.results
+      .map((row) => {
+        const criterion = row.adGroupCriterion as Record<string, unknown> | undefined
+        const gender = criterion?.gender as Record<string, unknown> | undefined
+        return {
+          gender: (gender?.type as string | undefined) ?? 'UNDETERMINED',
+          clicks: Number(row.metrics?.clicks ?? 0),
+          impressions: Number(row.metrics?.impressions ?? 0),
+          conversions: Number(row.metrics?.conversions ?? 0),
+        }
+      })
+      .filter((g) => g.clicks > 0 || g.impressions > 0)
+      .sort((a, b) => b.clicks - a.clicks)
+  } else {
+    console.error('[integrations] handleListCampaignInsights: gender_view falhou:', genderResult.error)
+  }
+
+  // Melhor dia/horário — devolvido como UM insight resumido (dia +
+  // faixa de horário com melhor desempenho), não a tabela crua de
+  // 7×24 combinações (o documento pede especificamente isso: tabela
+  // crua "vira ruído, ninguém lê isso num relatório").
+  let bestTiming: { dayOfWeek: string; hourBucket: string } | null = null
+  const timingResult = await runQuery(`
+    SELECT segments.day_of_week, segments.hour, metrics.clicks, metrics.conversions
+    FROM campaign
+    WHERE campaign.id = ${campaignId} AND segments.date DURING LAST_30_DAYS
+  `)
+  if (timingResult.ok) {
+    const byDay = new Map<string, { clicks: number; conversions: number }>()
+    const HOUR_BUCKETS = [
+      { key: 'MADRUGADA', from: 0, to: 6 },
+      { key: 'MANHA', from: 6, to: 12 },
+      { key: 'TARDE', from: 12, to: 18 },
+      { key: 'NOITE', from: 18, to: 24 },
+    ]
+    const byBucket = new Map<string, { clicks: number; conversions: number }>()
+    for (const row of timingResult.results) {
+      const day = row.segments?.dayOfWeek as string | undefined
+      const hour = row.segments?.hour != null ? Number(row.segments.hour) : null
+      const clicks = Number(row.metrics?.clicks ?? 0)
+      const conversions = Number(row.metrics?.conversions ?? 0)
+      if (day) {
+        const acc = byDay.get(day) ?? { clicks: 0, conversions: 0 }
+        acc.clicks += clicks
+        acc.conversions += conversions
+        byDay.set(day, acc)
+      }
+      if (hour != null) {
+        const bucket = HOUR_BUCKETS.find((b) => hour >= b.from && hour < b.to)?.key ?? 'MADRUGADA'
+        const acc = byBucket.get(bucket) ?? { clicks: 0, conversions: 0 }
+        acc.clicks += clicks
+        acc.conversions += conversions
+        byBucket.set(bucket, acc)
+      }
+    }
+    const pickBest = (m: Map<string, { clicks: number; conversions: number }>) =>
+      Array.from(m.entries()).sort((a, b) => b[1].conversions - a[1].conversions || b[1].clicks - a[1].clicks)[0]?.[0] ?? null
+    const bestDay = pickBest(byDay)
+    const bestBucket = pickBest(byBucket)
+    if (bestDay && bestBucket) bestTiming = { dayOfWeek: bestDay, hourBucket: bestBucket }
+  } else {
+    console.error('[integrations] handleListCampaignInsights: melhor dia/horário falhou:', timingResult.error)
+  }
+
+  return jsonResponse({ devices, topSearchTerms, topKeywords, geoBreakdown, conversionBreakdown, ageRanges, genders, bestTiming })
 }
 
 /** Chamada pelo job agendado (pg_cron + pg_net, ver
