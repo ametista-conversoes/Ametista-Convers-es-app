@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge'
-import { useAdGroups, useCampaignPerformance } from '@/hooks/useManagerPortalData'
+import { useAdGroups, useCampaignInsights, useCampaignPerformance } from '@/hooks/useManagerPortalData'
 import { formatCurrency, formatPercent } from '@/lib/format'
+import { deviceLabels } from '@/lib/status-styles'
 import { cn } from '@/lib/utils'
 
 const AD_GROUP_STATUS_LABELS: Record<string, string> = {
@@ -22,6 +23,48 @@ interface AdGroupsTabProps {
   provider: string | null
 }
 
+interface InsightRow {
+  clicks: number
+  impressions: number
+  conversions: number
+}
+
+/** Lista compacta "nome — cliques/conversões", reaproveitada pelos 3
+ * resumos curados (top termos de pesquisa, top palavras-chave,
+ * geográfico) — todos têm o mesmo formato de linha, só muda o rótulo. */
+function InsightRowList<T extends InsightRow>({
+  title,
+  rows,
+  getLabel,
+  emptyMessage,
+}: {
+  title: string
+  rows: T[]
+  getLabel: (row: T) => string
+  emptyMessage: string
+}) {
+  return (
+    <div className="rounded-lg bg-secondary/50 p-3">
+      <p className="mb-2 text-sm font-medium text-foreground">{title}</p>
+      {rows.length === 0 && <p className="text-xs text-muted-foreground">{emptyMessage}</p>}
+      {rows.length > 0 && (
+        <div className="space-y-1.5">
+          {rows.map((row, i) => (
+            <div key={i} className="flex items-center justify-between gap-3 text-sm">
+              <p className="truncate text-foreground" title={getLabel(row)}>
+                {getLabel(row) || '(não identificado)'}
+              </p>
+              <p className="shrink-0 text-xs text-muted-foreground">
+                {row.clicks} cliques · {row.conversions} conv.
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** Aba "Grupos de Anúncios" do projeto — busca ao vivo os ad groups da
  * campanha vinculada (Google Ads só, por enquanto). Orçamento e as 2
  * métricas de parcela de impressões perdida ficam no topo, uma vez só,
@@ -30,6 +73,7 @@ interface AdGroupsTabProps {
 export function AdGroupsTab({ connectionId, campaignId, campaignName, provider }: AdGroupsTabProps) {
   const campaignPerformance = useCampaignPerformance(connectionId, campaignId)
   const adGroupsQuery = useAdGroups(connectionId, campaignId)
+  const insightsQuery = useCampaignInsights(connectionId, campaignId)
 
   if (!connectionId || !campaignId) {
     return (
@@ -121,6 +165,57 @@ export function AdGroupsTab({ connectionId, campaignId, campaignName, provider }
             </div>
           ))}
         </div>
+      )}
+
+      {insightsQuery.isLoading && <p className="text-sm text-muted-foreground">Buscando resumos da campanha...</p>}
+      {insightsQuery.isError && (
+        <p className="text-sm text-destructive">
+          {insightsQuery.error instanceof Error ? insightsQuery.error.message : 'Não foi possível buscar os resumos da campanha.'}
+        </p>
+      )}
+
+      {insightsQuery.data && (
+        <>
+          <div className="rounded-lg bg-secondary/50 p-3">
+            <p className="mb-2 text-sm font-medium text-foreground">Dispositivo</p>
+            {insightsQuery.data.devices.length === 0 && (
+              <p className="text-xs text-muted-foreground">Sem dado de dispositivo no período.</p>
+            )}
+            {insightsQuery.data.devices.length > 0 && (
+              <div className="space-y-1.5">
+                {insightsQuery.data.devices.map((d) => (
+                  <div key={d.device} className="flex items-center justify-between gap-3 text-sm">
+                    <p className="text-foreground">{deviceLabels[d.device] ?? d.device}</p>
+                    <p className="shrink-0 text-xs text-muted-foreground">
+                      {formatCurrency(d.spend)} · {d.clicks} cliques · {d.conversions} conv.
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <InsightRowList
+            title="Desempenho geográfico (cidade/região)"
+            rows={insightsQuery.data.geoBreakdown}
+            getLabel={(row) => row.name}
+            emptyMessage="Sem dado geográfico no período."
+          />
+
+          <InsightRowList
+            title="Top termos de pesquisa"
+            rows={insightsQuery.data.topSearchTerms}
+            getLabel={(row) => row.term}
+            emptyMessage="Só existe pra campanhas de Pesquisa, ou o Google não revelou os termos deste período."
+          />
+
+          <InsightRowList
+            title="Top palavras-chave"
+            rows={insightsQuery.data.topKeywords}
+            getLabel={(row) => row.keyword}
+            emptyMessage="Nenhuma palavra-chave com dado no período (comum fora de campanhas de Pesquisa)."
+          />
+        </>
       )}
     </div>
   )

@@ -41,6 +41,9 @@
 //   GET  .../integrations/ad-groups?connection_id=...&campaign_id=...  (aba "Grupos de Anúncios" do
 //                                          projeto — busca ao vivo, só Google Ads, com Índice de
 //                                          Qualidade médio por ad group vindo de keyword_view)
+//   GET  .../integrations/campaign-insights?connection_id=...&campaign_id=...  (dispositivo, top termos
+//                                          de pesquisa, top palavras-chave, geográfico por cidade/região —
+//                                          busca ao vivo, só Google Ads, 4 consultas independentes)
 //   GET  .../integrations/accounts?connection_id=...             (Fase 20: lista as contas de anúncio
 //                                          reais do Google Ads acessíveis por uma conexão — nunca
 //                                          inclui conta gerenciadora/MCC, só contas-cliente de verdade)
@@ -1822,6 +1825,188 @@ async function handleListAdGroups(req: Request, url: URL) {
   return jsonResponse({ adGroups })
 }
 
+async function runGaqlQuery(
+  externalAccountId: string,
+  loginCustomerId: string | null,
+  accessToken: string,
+  query: string,
+): Promise<{ ok: true; results: Array<Record<string, Record<string, unknown>>> } | { ok: false; error: unknown }> {
+  const res = await fetch(
+    `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${externalAccountId}/googleAds:search`,
+    { method: 'POST', headers: googleAdsHeaders(accessToken, loginCustomerId), body: JSON.stringify({ query }) },
+  )
+  const body = await res.json()
+  if (!res.ok) return { ok: false, error: body }
+  return { ok: true, results: (body.results ?? []) as Array<Record<string, Record<string, unknown>>> }
+}
+
+/** Resumos curados de UMA campanha do Google Ads — dispositivo, top
+ * termos de pesquisa, top palavras-chave e desempenho geográfico
+ * (cidade/região). Busca ao vivo (últimos 30 dias, mesmo padrão de
+ * `handleListAdGroups`), 4 consultas GAQL independentes: só a de
+ * dispositivo é obrigatória, as outras 3 falham em silêncio (viram
+ * lista vazia) se o Google recusar — não bloqueiam as demais. Só
+ * Google Ads (Meta Ads fica pra depois). */
+async function handleListCampaignInsights(req: Request, url: URL) {
+  const auth = await requireAdminOrGestor(req)
+  if (auth instanceof Response) return auth
+
+  const connectionId = url.searchParams.get('connection_id')
+  const campaignId = url.searchParams.get('campaign_id')
+  if (!connectionId || !campaignId) return jsonResponse({ error: 'connection_id e campaign_id são obrigatórios' }, 400)
+
+  const supabase = getServiceClient()
+
+  const { data: connection, error: connectionError } = await supabase
+    .from('digital_asset_connections')
+    .select('id, provider, external_account_id, login_customer_id, agency_provider_connection_id')
+    .eq('id', connectionId)
+    .maybeSingle()
+  if (connectionError) return dbErrorResponse('handleListCampaignInsights: buscar conexão', connectionError)
+  if (!connection) return jsonResponse({ error: 'Conexão não encontrada' }, 404)
+  if (connection.provider !== 'google_ads') {
+    return jsonResponse({ error: 'Resumos de campanha só disponíveis pra Google Ads por enquanto' }, 400)
+  }
+  if (!connection.external_account_id) {
+    return jsonResponse({ error: 'Conexão incompleta (falta conta de anúncios)' }, 400)
+  }
+
+  const accessToken = await resolveAccessToken(supabase, connection)
+  if (!accessToken) return jsonResponse({ error: 'Não foi possível obter um token de acesso válido' }, 502)
+
+  const runQuery = (query: string) =>
+    runGaqlQuery(connection.external_account_id as string, connection.login_customer_id, accessToken, query)
+
+  // Dispositivo — segmento padrão, disponível direto no recurso da
+  // campanha, sem consulta extra de resolução de nome.
+  const deviceResult = await runQuery(`
+    SELECT segments.device, metrics.clicks, metrics.impressions, metrics.conversions, metrics.cost_micros
+    FROM campaign
+    WHERE campaign.id = ${campaignId} AND segments.date DURING LAST_30_DAYS
+  `)
+  if (!deviceResult.ok) return platformErrorResponse('handleListCampaignInsights: device', 'Google Ads', deviceResult.error)
+
+  type DeviceAcc = { device: string; spend: number; clicks: number; impressions: number; conversions: number }
+  const byDevice = new Map<string, DeviceAcc>()
+  for (const row of deviceResult.results) {
+    const device = (row.segments?.device as string | undefined) ?? 'UNKNOWN'
+    const acc = byDevice.get(device) ?? { device, spend: 0, clicks: 0, impressions: 0, conversions: 0 }
+    acc.spend += Number(row.metrics?.costMicros ?? 0) / 1_000_000
+    acc.clicks += Number(row.metrics?.clicks ?? 0)
+    acc.impressions += Number(row.metrics?.impressions ?? 0)
+    acc.conversions += Number(row.metrics?.conversions ?? 0)
+    byDevice.set(device, acc)
+  }
+  const devices = Array.from(byDevice.values()).sort((a, b) => b.spend - a.spend)
+
+  // Top termos de pesquisa (só existe pra campanhas de Pesquisa) — o
+  // próprio Google não revela o termo exato de boa parte do tráfego
+  // (privacidade), então a lista nunca soma 100% do total da campanha.
+  let topSearchTerms: Array<{ term: string; clicks: number; impressions: number; conversions: number }> = []
+  const searchTermsResult = await runQuery(`
+    SELECT search_term_view.search_term, metrics.clicks, metrics.impressions, metrics.conversions
+    FROM search_term_view
+    WHERE campaign.id = ${campaignId} AND segments.date DURING LAST_30_DAYS
+    ORDER BY metrics.clicks DESC
+    LIMIT 10
+  `)
+  if (searchTermsResult.ok) {
+    topSearchTerms = searchTermsResult.results.map((row) => ({
+      term: (row.searchTermView?.searchTerm as string | undefined) ?? '',
+      clicks: Number(row.metrics?.clicks ?? 0),
+      impressions: Number(row.metrics?.impressions ?? 0),
+      conversions: Number(row.metrics?.conversions ?? 0),
+    }))
+  } else {
+    console.error('[integrations] handleListCampaignInsights: search_term_view falhou:', searchTermsResult.error)
+  }
+
+  // Top palavras-chave configuradas (diferente dos termos de pesquisa
+  // acima, que são o que o usuário digitou de fato).
+  let topKeywords: Array<{ keyword: string; clicks: number; impressions: number; conversions: number }> = []
+  const keywordsResult = await runQuery(`
+    SELECT ad_group_criterion.keyword.text, metrics.clicks, metrics.impressions, metrics.conversions
+    FROM keyword_view
+    WHERE campaign.id = ${campaignId} AND ad_group_criterion.type = 'KEYWORD' AND segments.date DURING LAST_30_DAYS
+    ORDER BY metrics.clicks DESC
+    LIMIT 10
+  `)
+  if (keywordsResult.ok) {
+    topKeywords = keywordsResult.results.map((row) => {
+      const criterion = row.adGroupCriterion as Record<string, unknown> | undefined
+      const keyword = criterion?.keyword as Record<string, unknown> | undefined
+      return {
+        keyword: (keyword?.text as string | undefined) ?? '',
+        clicks: Number(row.metrics?.clicks ?? 0),
+        impressions: Number(row.metrics?.impressions ?? 0),
+        conversions: Number(row.metrics?.conversions ?? 0),
+      }
+    })
+  } else {
+    console.error('[integrations] handleListCampaignInsights: keyword_view (top palavras-chave) falhou:', keywordsResult.error)
+  }
+
+  // Geográfico (cidade/região) — geographic_view só devolve o ID do
+  // alvo geográfico (ex: "geoTargetConstants/1023191"), não o nome; uma
+  // segunda consulta em geo_target_constant resolve os nomes dos IDs
+  // que realmente apareceram (só os top 10, não a lista inteira).
+  let geoBreakdown: Array<{ name: string; clicks: number; impressions: number; conversions: number }> = []
+  const geoResult = await runQuery(`
+    SELECT segments.geo_target_city, segments.geo_target_region,
+           metrics.clicks, metrics.impressions, metrics.conversions
+    FROM geographic_view
+    WHERE campaign.id = ${campaignId} AND segments.date DURING LAST_30_DAYS
+  `)
+  if (geoResult.ok) {
+    type GeoAcc = { resourceName: string; clicks: number; impressions: number; conversions: number }
+    const byGeo = new Map<string, GeoAcc>()
+    for (const row of geoResult.results) {
+      const segs = row.segments as Record<string, unknown> | undefined
+      const resourceName = (segs?.geoTargetCity as string | undefined) || (segs?.geoTargetRegion as string | undefined)
+      if (!resourceName) continue
+      const acc = byGeo.get(resourceName) ?? { resourceName, clicks: 0, impressions: 0, conversions: 0 }
+      acc.clicks += Number(row.metrics?.clicks ?? 0)
+      acc.impressions += Number(row.metrics?.impressions ?? 0)
+      acc.conversions += Number(row.metrics?.conversions ?? 0)
+      byGeo.set(resourceName, acc)
+    }
+    const topGeo = Array.from(byGeo.values())
+      .sort((a, b) => b.clicks - a.clicks)
+      .slice(0, 10)
+
+    const nameByResource = new Map<string, string>()
+    if (topGeo.length > 0) {
+      const resourceNames = topGeo.map((g) => `'${g.resourceName}'`).join(', ')
+      const namesResult = await runQuery(`
+        SELECT geo_target_constant.resource_name, geo_target_constant.canonical_name
+        FROM geo_target_constant
+        WHERE geo_target_constant.resource_name IN (${resourceNames})
+      `)
+      if (namesResult.ok) {
+        for (const row of namesResult.results) {
+          const constant = row.geoTargetConstant as Record<string, unknown> | undefined
+          const resourceName = constant?.resourceName as string | undefined
+          const canonicalName = constant?.canonicalName as string | undefined
+          if (resourceName && canonicalName) nameByResource.set(resourceName, canonicalName)
+        }
+      } else {
+        console.error('[integrations] handleListCampaignInsights: geo_target_constant falhou:', namesResult.error)
+      }
+    }
+
+    geoBreakdown = topGeo.map((g) => ({
+      name: nameByResource.get(g.resourceName) ?? g.resourceName,
+      clicks: g.clicks,
+      impressions: g.impressions,
+      conversions: g.conversions,
+    }))
+  } else {
+    console.error('[integrations] handleListCampaignInsights: geographic_view falhou:', geoResult.error)
+  }
+
+  return jsonResponse({ devices, topSearchTerms, topKeywords, geoBreakdown })
+}
+
 /** Chamada pelo job agendado (pg_cron + pg_net, ver
  * migration-019-fase64-cron.sql) a cada poucas horas — não tem login
  * de usuário por trás (roda sozinha, de dentro do Postgres), então se
@@ -2232,6 +2417,7 @@ Deno.serve(async (req) => {
     if (req.method === 'GET' && url.pathname.endsWith('/callback')) return await handleCallback(url)
     if (req.method === 'GET' && url.pathname.endsWith('/campaigns')) return await handleListCampaigns(req, url)
     if (req.method === 'GET' && url.pathname.endsWith('/ad-groups')) return await handleListAdGroups(req, url)
+    if (req.method === 'GET' && url.pathname.endsWith('/campaign-insights')) return await handleListCampaignInsights(req, url)
     if (req.method === 'GET' && url.pathname.endsWith('/accounts')) return await handleListGoogleAdsAccounts(req, url)
     if (req.method === 'POST' && url.pathname.endsWith('/select-account')) return await handleSelectAccount(req)
     if (req.method === 'POST' && url.pathname.endsWith('/sync-all')) return await handleSyncAll(req)
@@ -2240,7 +2426,7 @@ Deno.serve(async (req) => {
     return jsonResponse(
       {
         error:
-          'Rota não encontrada. Use /agency-connect, /agency-accounts, /agency-businesses, /select-agency-business, /link-agency-account, /agency-disconnect, /connect, /callback, /campaigns, /ad-groups, /accounts, /select-account, /sync, /sync-all ou /forms-webhook.',
+          'Rota não encontrada. Use /agency-connect, /agency-accounts, /agency-businesses, /select-agency-business, /link-agency-account, /agency-disconnect, /connect, /callback, /campaigns, /ad-groups, /campaign-insights, /accounts, /select-account, /sync, /sync-all ou /forms-webhook.',
       },
       404,
     )

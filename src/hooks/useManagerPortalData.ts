@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { aggregateAudienceInsights, type AudienceRawResponse } from '@/lib/audience-insights'
 import { fetchLinkedClientAccounts, linkClientAccount, unlinkClientAccount } from '@/lib/client-access'
 import type { PerformanceSnapshotRecord } from '@/hooks/useClientPortalData'
-import { listAdGroups, type ExternalAdGroup } from '@/lib/integrations'
+import { listAdGroups, listCampaignInsights, type ExternalAdGroup } from '@/lib/integrations'
 import type { ClientHealthScoreSnapshotRecord, ExecutiveKpiSnapshotRecord } from '@/lib/manager-metrics'
 import { computeRateMetrics } from '@/lib/metrics'
 import { fetchLatestUpdatedAt, latestOf } from '@/lib/nav-activity'
@@ -705,6 +705,20 @@ export function useAdGroups(connectionId: string | null, campaignId: string | nu
         ...computeRateMetrics(a.spend, a.clicks, a.impressions, a.conversions),
       })) as AdGroupPerformance[]
     },
+    enabled: !!connectionId && !!campaignId,
+  })
+}
+
+/** Resumos curados (dispositivo, top termos de pesquisa, top
+ * palavras-chave, geográfico) da campanha vinculada a um projeto —
+ * busca ao vivo (sem histórico salvo), últimos 30 dias, mesmo padrão de
+ * `useAdGroups`. CTR/CPC/Taxa de Conversão não fazem sentido aqui (os 3
+ * blocos já vêm com clicks/impressions/conversions brutos — quem
+ * renderiza decide se quer taxa ou número absoluto). */
+export function useCampaignInsights(connectionId: string | null, campaignId: string | null) {
+  return useQuery({
+    queryKey: ['campaign-insights', connectionId, campaignId],
+    queryFn: () => listCampaignInsights(connectionId as string, campaignId as string),
     enabled: !!connectionId && !!campaignId,
   })
 }

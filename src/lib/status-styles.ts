@@ -266,6 +266,17 @@ export const connectionStatusStyles: Record<string, string> = {
   error: 'border-destructive/20 bg-destructive/10 text-destructive',
 }
 
+// Dispositivo (Fase 32, aba "Grupos de Anúncios" > Dispositivo) —
+// segments.device do Google Ads.
+export const deviceLabels: Record<string, string> = {
+  MOBILE: 'Celular',
+  DESKTOP: 'Computador',
+  TABLET: 'Tablet',
+  CONNECTED_TV: 'TV conectada',
+  OTHER: 'Outro',
+  UNKNOWN: 'Desconhecido',
+}
+
 // Tipo de campanha (Fase 32) — vem cru da API do provedor, sincronizado
 // junto com o resto (campaign.advertising_channel_type no Google Ads,
 // objective no Meta Ads). Sem entrada = mostra o valor cru mesmo (mesmo

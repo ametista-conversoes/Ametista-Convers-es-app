@@ -234,3 +234,45 @@ export async function listAdGroups(connectionId: string, campaignId: string): Pr
   if (!res.ok) throw new Error(body.error ?? 'Não foi possível buscar os grupos de anúncio.')
   return body.adGroups as ExternalAdGroup[]
 }
+
+export interface CampaignInsightBreakdown {
+  clicks: number
+  impressions: number
+  conversions: number
+}
+
+export interface DeviceInsight extends CampaignInsightBreakdown {
+  device: string
+  spend: number
+}
+
+export interface SearchTermInsight extends CampaignInsightBreakdown {
+  term: string
+}
+
+export interface KeywordInsight extends CampaignInsightBreakdown {
+  keyword: string
+}
+
+export interface GeoInsight extends CampaignInsightBreakdown {
+  name: string
+}
+
+export interface CampaignInsights {
+  devices: DeviceInsight[]
+  topSearchTerms: SearchTermInsight[]
+  topKeywords: KeywordInsight[]
+  geoBreakdown: GeoInsight[]
+}
+
+/** Resumos curados (dispositivo, top termos de pesquisa, top
+ * palavras-chave, geográfico por cidade/região) de uma campanha do
+ * Google Ads já vinculada a um projeto — busca ao vivo, últimos 30
+ * dias, só Google Ads por enquanto. */
+export async function listCampaignInsights(connectionId: string, campaignId: string): Promise<CampaignInsights> {
+  const search = new URLSearchParams({ connection_id: connectionId, campaign_id: campaignId })
+  const res = await fetchFriendly(`${FUNCTIONS_BASE}/campaign-insights?${search.toString()}`, { headers: await authHeaders() })
+  const body = await res.json()
+  if (!res.ok) throw new Error(body.error ?? 'Não foi possível buscar os resumos da campanha.')
+  return body as CampaignInsights
+}
