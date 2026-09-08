@@ -608,6 +608,15 @@ export interface CampaignPerformance {
   /** Valor mais recente do período, não uma média — orçamento é um
    * valor configurado, não algo que faça sentido somar/mediar. */
   budgetAmount: number | null
+  /** Search/Display/Vídeo/Performance Max/... (Google) ou objetivo da
+   * campanha (Meta) — última leitura conhecida, mesmo padrão de
+   * `budgetAmount` (não muda dia a dia, não faz sentido somar/mediar). */
+  campaignType: string | null
+  /** Valor de conversão que a própria plataforma reporta (Google/Meta) —
+   * NÃO é a Receita do app (calculada a partir de Leads), é a
+   * aproximação de ROAS que o provedor já calcula sozinho. Soma como
+   * spend/conversions. */
+  conversionValue: number
 }
 
 /** Últimos 30 dias de `campaign_performance_snapshots` pra uma campanha
@@ -622,7 +631,7 @@ export function useCampaignPerformance(connectionId: string | null, campaignId: 
       const { data, error } = await supabase
         .from('campaign_performance_snapshots')
         .select(
-          'spend, clicks, impressions, conversions, snapshot_date, search_rank_lost_impression_share, search_budget_lost_impression_share, budget_amount',
+          'spend, clicks, impressions, conversions, snapshot_date, search_rank_lost_impression_share, search_budget_lost_impression_share, budget_amount, campaign_type, conversion_value',
         )
         .eq('connection_id', connectionId as string)
         .eq('external_campaign_id', campaignId as string)
@@ -639,6 +648,8 @@ export function useCampaignPerformance(connectionId: string | null, campaignId: 
         search_rank_lost_impression_share: number | null
         search_budget_lost_impression_share: number | null
         budget_amount: number | null
+        campaign_type: string | null
+        conversion_value: number | null
       }
       const rows = data as Row[]
       const totals = rows.reduce(
@@ -647,8 +658,9 @@ export function useCampaignPerformance(connectionId: string | null, campaignId: 
           clicks: acc.clicks + (row.clicks ?? 0),
           impressions: acc.impressions + (row.impressions ?? 0),
           conversions: acc.conversions + (row.conversions ?? 0),
+          conversionValue: acc.conversionValue + (row.conversion_value ?? 0),
         }),
-        { spend: 0, clicks: 0, impressions: 0, conversions: 0 },
+        { spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 },
       )
 
       const average = (values: Array<number | null>) => {
@@ -656,6 +668,7 @@ export function useCampaignPerformance(connectionId: string | null, campaignId: 
         return known.length > 0 ? known.reduce((sum, v) => sum + v, 0) / known.length : null
       }
       const latestBudget = [...rows].reverse().find((r) => r.budget_amount != null)?.budget_amount ?? null
+      const latestCampaignType = [...rows].reverse().find((r) => r.campaign_type != null)?.campaign_type ?? null
 
       return {
         ...totals,
@@ -663,6 +676,7 @@ export function useCampaignPerformance(connectionId: string | null, campaignId: 
         searchRankLostImpressionShare: average(rows.map((r) => r.search_rank_lost_impression_share)),
         searchBudgetLostImpressionShare: average(rows.map((r) => r.search_budget_lost_impression_share)),
         budgetAmount: latestBudget,
+        campaignType: latestCampaignType,
       } as CampaignPerformance
     },
     enabled: !!connectionId && !!campaignId,

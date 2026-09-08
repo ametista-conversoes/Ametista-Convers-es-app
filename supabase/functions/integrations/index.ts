@@ -1142,12 +1142,21 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
       searchRankLostIS: number | null
       searchBudgetLostIS: number | null
       budgetAmount: number | null
+      // Tipo de campanha (Search/Display/Vídeo/PMax/...) e valor de
+      // conversão informado pela própria plataforma — não é a Receita
+      // do app (calculada a partir de Leads), é o dado bruto que o
+      // Google/Meta já calculam sozinhos, útil como referência de ROAS
+      // aproximado. campaignType não soma entre dias (é estável, só a
+      // última leitura importa); conversionValue soma como spend.
+      campaignType: string | null
+      conversionValue: number
     }
   >()
 
   if (connection.provider === 'google_ads') {
     const gaqlQuery = `
-      SELECT segments.date, campaign.id, campaign.name, metrics.cost_micros, metrics.clicks, metrics.impressions, metrics.conversions,
+      SELECT segments.date, campaign.id, campaign.name, campaign.advertising_channel_type,
+             metrics.cost_micros, metrics.clicks, metrics.impressions, metrics.conversions, metrics.conversions_value,
              metrics.search_rank_lost_impression_share, metrics.search_budget_lost_impression_share, campaign_budget.amount_micros
       FROM campaign
       WHERE segments.date DURING LAST_30_DAYS
@@ -1194,17 +1203,21 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
           searchRankLostIS: null,
           searchBudgetLostIS: null,
           budgetAmount: null,
+          campaignType: null,
+          conversionValue: 0,
         }
         campAcc.spend += spend
         campAcc.clicks += clicks
         campAcc.impressions += impressions
         campAcc.conversions += conversions
+        campAcc.conversionValue += Number(row.metrics?.conversionsValue ?? 0)
         const rankLostIS = row.metrics?.searchRankLostImpressionShare
         const budgetLostIS = row.metrics?.searchBudgetLostImpressionShare
         const budgetMicros = row.campaignBudget?.amountMicros
         campAcc.searchRankLostIS = rankLostIS != null ? Number(rankLostIS) * 100 : null
         campAcc.searchBudgetLostIS = budgetLostIS != null ? Number(budgetLostIS) * 100 : null
         campAcc.budgetAmount = budgetMicros != null ? Number(budgetMicros) / 1_000_000 : null
+        campAcc.campaignType = (row.campaign?.advertisingChannelType as string | undefined) ?? campAcc.campaignType
         byCampaign.set(key, campAcc)
       }
     }
@@ -1220,7 +1233,7 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
     // dois níveis (byDate/byCampaign) a partir da mesma chamada.
     const insightsUrl = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/${connection.external_account_id}/insights`)
     insightsUrl.searchParams.set('level', 'campaign')
-    insightsUrl.searchParams.set('fields', 'campaign_id,campaign_name,spend,clicks,impressions,actions')
+    insightsUrl.searchParams.set('fields', 'campaign_id,campaign_name,spend,clicks,impressions,actions,action_values')
     insightsUrl.searchParams.set('date_preset', 'last_30d')
     insightsUrl.searchParams.set('time_increment', '1')
     insightsUrl.searchParams.set('access_token', accessToken)
@@ -1231,11 +1244,34 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
       return platformSyncError('syncConnection: Meta insights', 'Meta Ads', insightsBody)
     }
 
+    // Objetivo da campanha (OUTCOME_SALES/OUTCOME_LEADS/...) não vem no
+    // Insights — é um campo da campanha em si, então busca à parte (1
+    // chamada pra conta inteira, não por dia) e junta por campaign_id.
+    // Não fatal — se falhar, campaignType só fica null (mesmo padrão do
+    // Índice de Qualidade em handleListAdGroups).
+    const campaignObjectives = new Map<string, string>()
+    try {
+      const objectivesUrl = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/${connection.external_account_id}/campaigns`)
+      objectivesUrl.searchParams.set('fields', 'id,objective')
+      objectivesUrl.searchParams.set('access_token', accessToken)
+      const objectivesRes = await fetch(objectivesUrl.toString())
+      const objectivesBody = await objectivesRes.json()
+      if (objectivesRes.ok) {
+        for (const c of (objectivesBody.data ?? []) as Array<{ id: string; objective?: string }>) {
+          if (c.objective) campaignObjectives.set(c.id, c.objective)
+        }
+      }
+    } catch {
+      // segue sem tipo de campanha — não bloqueia a sincronização
+    }
+
     for (const row of (insightsBody.data ?? []) as Array<Record<string, unknown>>) {
       const date = row.date_start as string | undefined
       if (!date) continue
       const actions = (row.actions ?? []) as Array<{ value?: string }>
+      const actionValues = (row.action_values ?? []) as Array<{ value?: string }>
       const conversions = actions.reduce((sum, a) => sum + Number(a.value ?? 0), 0)
+      const conversionValue = actionValues.reduce((sum, a) => sum + Number(a.value ?? 0), 0)
       const spend = Number(row.spend ?? 0)
       const clicks = Number(row.clicks ?? 0)
       const impressions = Number(row.impressions ?? 0)
@@ -1260,11 +1296,14 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
           searchRankLostIS: null,
           searchBudgetLostIS: null,
           budgetAmount: null,
+          campaignType: campaignObjectives.get(campaignId) ?? null,
+          conversionValue: 0,
         }
         campAcc.spend += spend
         campAcc.clicks += clicks
         campAcc.impressions += impressions
         campAcc.conversions += conversions
+        campAcc.conversionValue += conversionValue
         byCampaign.set(key, campAcc)
       }
     }
@@ -1302,6 +1341,8 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
     search_rank_lost_impression_share: c.searchRankLostIS,
     search_budget_lost_impression_share: c.searchBudgetLostIS,
     budget_amount: c.budgetAmount,
+    campaign_type: c.campaignType,
+    conversion_value: c.conversionValue,
   }))
 
   if (campaignRows.length > 0) {

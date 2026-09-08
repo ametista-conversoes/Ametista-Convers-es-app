@@ -24,7 +24,7 @@ import {
 import { formatCurrency, formatDate, formatMultiplier, formatPercent } from '@/lib/format'
 import { computeRoas } from '@/lib/metrics'
 import { segmentationOptionGroups } from '@/lib/segmentation-options'
-import { projectStatusLabels, projectStatusStyles } from '@/lib/status-styles'
+import { campaignTypeLabels, projectStatusLabels, projectStatusStyles } from '@/lib/status-styles'
 import { useForm } from 'react-hook-form'
 
 interface ProjectDetailDialogProps {
@@ -183,6 +183,11 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                   <Badge className="border-[#1A2540] bg-secondary/50 text-muted-foreground">
                     {conversionTypeLabels[conversionType]}
                   </Badge>
+                  {linkedCampaignId && campaignPerformance.data?.campaignType && (
+                    <Badge className="border-[#1A2540] bg-secondary/50 text-muted-foreground">
+                      {campaignTypeLabels[campaignPerformance.data.campaignType] ?? campaignPerformance.data.campaignType}
+                    </Badge>
+                  )}
                 </div>
 
                 {linkedCampaignId && (
@@ -215,6 +220,18 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                     <p className="text-xs text-muted-foreground">Gasto</p>
                     <p className="text-foreground">{formatCurrency(effectiveSpend)}</p>
                   </div>
+                  {linkedCampaignId && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">CPC médio</p>
+                      <p className="text-foreground">{formatCurrency(campaignPerformance.data?.cpc ?? null)}</p>
+                    </div>
+                  )}
+                  {linkedCampaignId && !!campaignPerformance.data?.conversionValue && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Valor de conversão (plataforma)</p>
+                      <p className="text-foreground">{formatCurrency(campaignPerformance.data.conversionValue)}</p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-xs text-muted-foreground">Receita</p>
                     {editingRevenue ? (

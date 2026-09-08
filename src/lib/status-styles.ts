@@ -265,3 +265,41 @@ export const connectionStatusStyles: Record<string, string> = {
   connected: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
   error: 'border-destructive/20 bg-destructive/10 text-destructive',
 }
+
+// Tipo de campanha (Fase 32) — vem cru da API do provedor, sincronizado
+// junto com o resto (campaign.advertising_channel_type no Google Ads,
+// objective no Meta Ads). Sem entrada = mostra o valor cru mesmo (mesmo
+// padrão de projectStatusLabels), pra nunca esconder um valor novo que
+// a API passe a devolver antes de eu mapear aqui.
+export const campaignTypeLabels: Record<string, string> = {
+  // Google Ads — campaign.advertising_channel_type
+  SEARCH: 'Pesquisa',
+  DISPLAY: 'Display',
+  SHOPPING: 'Shopping',
+  VIDEO: 'Vídeo',
+  PERFORMANCE_MAX: 'Performance Max',
+  DEMAND_GEN: 'Demand Gen',
+  DISCOVERY: 'Demand Gen',
+  MULTI_CHANNEL: 'Multicanal',
+  LOCAL: 'Local',
+  LOCAL_SERVICES: 'Serviços Locais',
+  SMART: 'Smart',
+  APP: 'App',
+  HOTEL: 'Hotel',
+  TRAVEL: 'Viagem',
+  UNKNOWN: 'Desconhecido',
+  UNSPECIFIED: 'Não especificado',
+  // Meta Ads — objective da campanha
+  OUTCOME_SALES: 'Vendas',
+  OUTCOME_LEADS: 'Leads',
+  OUTCOME_ENGAGEMENT: 'Engajamento',
+  OUTCOME_AWARENESS: 'Reconhecimento',
+  OUTCOME_TRAFFIC: 'Tráfego',
+  OUTCOME_APP_PROMOTION: 'Promoção de App',
+  CONVERSIONS: 'Conversões',
+  LEAD_GENERATION: 'Geração de Leads',
+  LINK_CLICKS: 'Cliques no Link',
+  BRAND_AWARENESS: 'Reconhecimento de Marca',
+  REACH: 'Alcance',
+  APP_INSTALLS: 'Instalações de App',
+}
