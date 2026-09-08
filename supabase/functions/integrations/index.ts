@@ -1154,12 +1154,18 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
       // última leitura importa); conversionValue soma como spend.
       campaignType: string | null
       conversionValue: number
+      // Status atual da campanha (ENABLED/PAUSED/REMOVED no Google,
+      // idem no Meta) — não soma entre dias, mesma lógica de
+      // campaignType. Alimenta project_campaign_links.last_known_status
+      // via check_campaign_state_changes() (Fase 32, alerta de mudança
+      // de estado).
+      status: string | null
     }
   >()
 
   if (connection.provider === 'google_ads') {
     const gaqlQuery = `
-      SELECT segments.date, campaign.id, campaign.name, campaign.advertising_channel_type,
+      SELECT segments.date, campaign.id, campaign.name, campaign.advertising_channel_type, campaign.status,
              metrics.cost_micros, metrics.clicks, metrics.impressions, metrics.conversions, metrics.conversions_value,
              metrics.search_rank_lost_impression_share, metrics.search_budget_lost_impression_share, campaign_budget.amount_micros
       FROM campaign
@@ -1209,12 +1215,14 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
           budgetAmount: null,
           campaignType: null,
           conversionValue: 0,
+          status: null,
         }
         campAcc.spend += spend
         campAcc.clicks += clicks
         campAcc.impressions += impressions
         campAcc.conversions += conversions
         campAcc.conversionValue += Number(row.metrics?.conversionsValue ?? 0)
+        campAcc.status = (row.campaign?.status as string | undefined) ?? campAcc.status
         const rankLostIS = row.metrics?.searchRankLostImpressionShare
         const budgetLostIS = row.metrics?.searchBudgetLostImpressionShare
         const budgetMicros = row.campaignBudget?.amountMicros
@@ -1248,25 +1256,32 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
       return platformSyncError('syncConnection: Meta insights', 'Meta Ads', insightsBody)
     }
 
-    // Objetivo da campanha (OUTCOME_SALES/OUTCOME_LEADS/...) não vem no
-    // Insights — é um campo da campanha em si, então busca à parte (1
-    // chamada pra conta inteira, não por dia) e junta por campaign_id.
-    // Não fatal — se falhar, campaignType só fica null (mesmo padrão do
-    // Índice de Qualidade em handleListAdGroups).
+    // Objetivo da campanha (OUTCOME_SALES/OUTCOME_LEADS/...) e status
+    // não vêm no Insights — são campos da campanha em si, então busca à
+    // parte (1 chamada pra conta inteira, não por dia) e junta por
+    // campaign_id. Não fatal — se falhar, campaignType/status só ficam
+    // null (mesmo padrão do Índice de Qualidade em handleListAdGroups).
+    // Status normalizado pro mesmo vocabulário do Google Ads
+    // (PAUSED/REMOVED) pra check_campaign_state_changes() não precisar
+    // conhecer 2 vocabulários diferentes.
     const campaignObjectives = new Map<string, string>()
+    const campaignStatuses = new Map<string, string>()
     try {
       const objectivesUrl = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/${connection.external_account_id}/campaigns`)
-      objectivesUrl.searchParams.set('fields', 'id,objective')
+      objectivesUrl.searchParams.set('fields', 'id,objective,status')
       objectivesUrl.searchParams.set('access_token', accessToken)
       const objectivesRes = await fetch(objectivesUrl.toString())
       const objectivesBody = await objectivesRes.json()
       if (objectivesRes.ok) {
-        for (const c of (objectivesBody.data ?? []) as Array<{ id: string; objective?: string }>) {
+        for (const c of (objectivesBody.data ?? []) as Array<{ id: string; objective?: string; status?: string }>) {
           if (c.objective) campaignObjectives.set(c.id, c.objective)
+          if (c.status === 'PAUSED') campaignStatuses.set(c.id, 'PAUSED')
+          else if (c.status === 'DELETED' || c.status === 'ARCHIVED') campaignStatuses.set(c.id, 'REMOVED')
+          else if (c.status) campaignStatuses.set(c.id, 'ENABLED')
         }
       }
     } catch {
-      // segue sem tipo de campanha — não bloqueia a sincronização
+      // segue sem tipo de campanha/status — não bloqueia a sincronização
     }
 
     for (const row of (insightsBody.data ?? []) as Array<Record<string, unknown>>) {
@@ -1302,6 +1317,7 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
           budgetAmount: null,
           campaignType: campaignObjectives.get(campaignId) ?? null,
           conversionValue: 0,
+          status: campaignStatuses.get(campaignId) ?? null,
         }
         campAcc.spend += spend
         campAcc.clicks += clicks
@@ -1347,6 +1363,7 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
     budget_amount: c.budgetAmount,
     campaign_type: c.campaignType,
     conversion_value: c.conversionValue,
+    campaign_status: c.status,
   }))
 
   if (campaignRows.length > 0) {
@@ -1620,6 +1637,12 @@ async function handleSync(req: Request) {
   // limiares de métrica nunca eram checados num teste manual.
   const { error: thresholdError } = await supabase.rpc('check_metric_alert_thresholds')
   if (thresholdError) await logServerError('integrations', 'handleSync: checar limiares de métrica', thresholdError)
+
+  // Fase 32 — mesma lógica: checa se alguma campanha vinculada mudou
+  // de estado (pausada/removida) ou teve o orçamento alterado
+  // bruscamente, logo depois do sync.
+  const { error: stateChangeError } = await supabase.rpc('check_campaign_state_changes')
+  if (stateChangeError) await logServerError('integrations', 'handleSync: checar mudança de estado de campanha', stateChangeError)
 
   return jsonResponse({ ok: true, syncedDays: result.syncedDays })
 }
@@ -2179,6 +2202,11 @@ async function handleSyncAll(req: Request) {
   // derruba a resposta do sync se falhar, só loga.
   const { error: thresholdError } = await supabase.rpc('check_metric_alert_thresholds')
   if (thresholdError) await logServerError('integrations', 'handleSyncAll: checar limiares de métrica', thresholdError)
+
+  // Fase 32 — idem: checa mudança de estado de campanha vinculada
+  // (pausada/removida/orçamento) a cada rodada do cron também.
+  const { error: stateChangeError } = await supabase.rpc('check_campaign_state_changes')
+  if (stateChangeError) await logServerError('integrations', 'handleSyncAll: checar mudança de estado de campanha', stateChangeError)
 
   return jsonResponse({ ok: true, results })
 }
