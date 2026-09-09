@@ -110,7 +110,23 @@
 - Mudar o orçamento diário da campanha de teste em mais de 20% (pra cima ou pra baixo) e sincronizar → confirma o alerta "Orçamento da campanha mudou bruscamente".
 - Reverter a campanha pra ENABLED e sincronizar → não deve criar alerta nenhum (só PAUSED/REMOVED disparam, não o retorno ao normal).
 
-## 17. Aprovações externas do Google/Meta — bloqueiam validação com dados reais de terceiros
+## 17. Tipo de campanha/status/orçamento agora sincroniza mesmo sem gasto real — PRECISA DE DEPLOY MANUAL DA EDGE FUNCTION
+- **Atenção**: `supabase functions deploy integrations` de novo.
+- Veio de um bug real que você reportou: campanha de teste do Google Ads vinculada a um projeto não mostrava o badge de tipo (Search/PMax/etc.), mesmo já linkada corretamente — porque a consulta de métricas só grava linha pra campanha+dia com atividade real, e conta de teste normalmente tem zero atividade.
+- Testar: com aquela mesma campanha de teste (ex: "Sales-Search-2") vinculada a um projeto, rodar a sincronização → confirma que agora o badge de tipo aparece na Visão Geral mesmo com Gasto R$ 0,00.
+
+## 18. Teste A/B de Campanhas (aba "Testes")
+- Rodar `migration-068-teste-ab-campanhas.sql` antes de testar.
+- Criar (ou editar) um projeto com "Tipo de teste A/B" diferente de "Nenhum" → confirma que aparece a aba "Testes" e o badge roxo "Teste A/B — [tipo]" na Visão Geral.
+- Com pelo menos 2 campanhas vinculadas na aba Campanha: aba Testes mostra um cartão por campanha (variante) com nome/ID/tipo, "vinculada há X dias", Gasto/CPA/CTR/Taxa de Conversão.
+- Configurar um "Gasto mínimo" (ex: R$100) → variante com gasto abaixo disso fica marcada "Dados insuficientes" e some do cálculo da média do grupo (mas continua aparecendo na lista).
+- Com pelo menos 2 variantes elegíveis: confirma que a variante com CPA mais baixo (ou CTR/Taxa de Conversão mais alta) que a média do grupo fica destacada em verde com uma setinha — pode ter mais de uma destacada ao mesmo tempo, não é uma "vencedora" única.
+- Tipo de teste "Segmentação" → cada variante mostra um resumo extra (dispositivo/local/faixa etária/gênero top), reaproveitando o mesmo dado da aba Grupos de Anúncios.
+- Tipo de teste "Anúncio" → cada variante mostra um log manual; "Registrar" abre data + descrição livre, salva e aparece na lista; confirma que dá pra apagar um registro errado.
+- Tipo de teste "Campanha" → só mostra a comparação de métricas, sem seção extra nenhuma.
+- Projeto com só 1 campanha vinculada (ou nenhuma) e tipo de teste configurado → aba Testes mostra aviso pra vincular mais uma, em vez de comparar sozinho ou quebrar.
+
+## 19. Aprovações externas do Google/Meta — bloqueiam validação com dados reais de terceiros
 - **Google Ads API "Basic Access" — CONFIRMADO (07/09), não é mais suspeita**: o diagnóstico novo (item 10) mostrou o erro real do Google nas 4 contas raiz que o MCC "Ametista Conversões" enxerga: `"The developer token is only approved for use with test accounts. To access non-test accounts, apply for Basic or Standard access."` — ou seja, o developer token do app só pode mexer em contas de teste (vazias) até essa aprovação sair; nenhuma conta de cliente de verdade funciona antes disso, não importa o quanto o vínculo no MCC esteja certo. **Não é bug de código, é aprovação que só o Google concede** — peça em Google Ads → Ferramentas e Configurações → Configuração → API Center, dentro da conta MCC. A Fase 28 (lado Google) e a sincronização de métricas reais (Fase 19.1) só validam de verdade depois disso.
 - Duas das 4 contas também deram um segundo erro, independente do developer token: `"The customer account can't be accessed because it is not yet enabled or has been..."` — sugere que essas 2 contas específicas têm o próprio setup incompleto do lado do Google (ex: sem faturamento configurado) — vale conferir direto no Google Ads, mas só faz sentido investigar isso depois que o Basic Access sair, já que sem ele nada funciona de qualquer forma.
 - **Verificação de escopo sensível do Google (Forms)** + vídeo de demonstração enviado: pendente de review do Google.
