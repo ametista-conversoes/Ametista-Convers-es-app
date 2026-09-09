@@ -24,6 +24,10 @@ export default defineConfig({
         // do servidor), o app renderiza em branco. Sem fallback offline
         // pra essa rota é o esperado: ela só faz sentido com rede real.
         navigateFallbackDenylist: [/^\/oauth\//],
+        // O bundle principal passou dos 2 MiB padrão do Workbox (Fase
+        // 33) — sobe o teto pra caber no pré-cache offline em vez de
+        // silenciosamente parar de cachear o JS principal.
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
       manifest: {
         name: 'Ametista Conversões',

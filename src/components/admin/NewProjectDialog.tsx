@@ -28,6 +28,7 @@ const newProjectSchema = z.object({
   external_campaign_id: z.string().nullable(),
   external_campaign_name: z.string().nullable(),
   conversion_type: z.enum(['vendas', 'leads']),
+  test_type: z.enum(['nenhum', 'segmentacao', 'anuncio', 'campanha']),
 })
 
 type NewProjectValues = z.infer<typeof newProjectSchema>
@@ -55,6 +56,7 @@ export function NewProjectDialog({ clientId }: NewProjectDialogProps) {
       external_campaign_id: null,
       external_campaign_name: null,
       conversion_type: 'leads',
+      test_type: 'nenhum',
     },
   })
 
@@ -71,6 +73,7 @@ export function NewProjectDialog({ clientId }: NewProjectDialogProps) {
         objective: values.objective?.trim() ? values.objective.trim() : null,
         description: values.description?.trim() ? values.description.trim() : null,
         conversion_type: values.conversion_type,
+        test_type: values.test_type,
       })
       if (values.external_connection_id && values.external_campaign_id) {
         await addCampaignLink.mutateAsync({
@@ -165,6 +168,34 @@ export function NewProjectDialog({ clientId }: NewProjectDialogProps) {
                     {field.value === 'vendas'
                       ? 'Cada conversão já é uma venda — sem etapa de fechamento.'
                       : 'Cada conversão é um lead que ainda precisa fechar (ex: casas, carros, serviços).'}
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="test_type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipo de teste A/B (opcional)</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="nenhum">Nenhum</SelectItem>
+                      <SelectItem value="segmentacao">Segmentação</SelectItem>
+                      <SelectItem value="anuncio">Anúncio</SelectItem>
+                      <SelectItem value="campanha">Campanha</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Diferente de "Nenhum" ganha uma aba "Testes" comparando as campanhas vinculadas como variantes —
+                    dá pra vincular mais de uma depois, na aba Campanha do projeto.
                   </p>
                   <FormMessage />
                 </FormItem>

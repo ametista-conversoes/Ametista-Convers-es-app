@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { KanbanTaskFormDialog } from '@/components/kanban/KanbanTaskFormDialog'
 import { AdGroupsTab } from '@/components/project/AdGroupsTab'
+import { CampaignTestsTab } from '@/components/project/CampaignTestsTab'
 import { ProjectCampaignLinksField } from '@/components/project/ProjectCampaignLinksField'
 import { ManagerTaskRow } from '@/components/tasks/ManagerTaskRow'
 import type { ManagerProjectRecord, ManagerTaskRecord } from '@/hooks/useManagerPortalData'
@@ -41,11 +42,19 @@ interface CampaignFormValues {
   systems: string
   description: string
   conversion_type: 'vendas' | 'leads'
+  test_type: 'nenhum' | 'segmentacao' | 'anuncio' | 'campanha'
 }
 
 const conversionTypeLabels: Record<'vendas' | 'leads', string> = {
   vendas: 'Vendas',
   leads: 'Leads',
+}
+
+const testTypeLabels: Record<'nenhum' | 'segmentacao' | 'anuncio' | 'campanha', string> = {
+  nenhum: 'Nenhum',
+  segmentacao: 'Segmentação',
+  anuncio: 'Anúncio',
+  campanha: 'Campanha',
 }
 
 export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDetailDialogProps) {
@@ -62,6 +71,7 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
       systems: '',
       description: '',
       conversion_type: 'leads',
+      test_type: 'nenhum',
     },
   })
 
@@ -74,6 +84,7 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
       systems: project.systems ?? '',
       description: project.description ?? '',
       conversion_type: project.conversion_type,
+      test_type: project.test_type,
     })
     setEditingRevenue(false)
   }, [project, form])
@@ -105,6 +116,7 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
         systems: values.systems.trim() ? values.systems.trim() : null,
         description: values.description.trim() ? values.description.trim() : null,
         conversion_type: values.conversion_type,
+        test_type: values.test_type,
       })
       toast.success('Campanha atualizada.')
     } catch {
@@ -162,6 +174,7 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                 <TabsTrigger value="tasks">Tarefas</TabsTrigger>
                 <TabsTrigger value="campaign">Campanha</TabsTrigger>
                 <TabsTrigger value="ad-groups">Grupos de Anúncios</TabsTrigger>
+                {project.test_type !== 'nenhum' && <TabsTrigger value="tests">Testes</TabsTrigger>}
               </TabsList>
 
               <TabsContent value="overview" className="space-y-3">
@@ -180,6 +193,11 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                       {campaignTypeLabels[type] ?? type}
                     </Badge>
                   ))}
+                  {project.test_type !== 'nenhum' && (
+                    <Badge className="border-purple-600/20 bg-purple-600/15 text-purple-400">
+                      Teste A/B — {testTypeLabels[project.test_type]}
+                    </Badge>
+                  )}
                 </div>
 
                 {hasLinkedCampaigns && (
@@ -344,6 +362,28 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                 </div>
 
                 <div>
+                  <label className="text-sm text-foreground">Tipo de teste A/B</label>
+                  <Select
+                    value={form.watch('test_type')}
+                    onValueChange={(v) => form.setValue('test_type', v as CampaignFormValues['test_type'], { shouldDirty: true })}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nenhum">Nenhum</SelectItem>
+                      <SelectItem value="segmentacao">Segmentação</SelectItem>
+                      <SelectItem value="anuncio">Anúncio</SelectItem>
+                      <SelectItem value="campanha">Campanha</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Diferente de "Nenhum" ganha uma aba "Testes" comparando as campanhas vinculadas abaixo como
+                    variantes.
+                  </p>
+                </div>
+
+                <div>
                   <p className="mb-2 text-sm text-foreground">Campanhas vinculadas (opcional)</p>
                   <ProjectCampaignLinksField projectId={project.id} clientId={project.client_id} links={campaignLinks} />
                 </div>
@@ -423,6 +463,18 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
               <TabsContent value="ad-groups">
                 <AdGroupsTab links={campaignLinks} connections={digitalAssetConnections.data ?? []} />
               </TabsContent>
+
+              {project.test_type !== 'nenhum' && (
+                <TabsContent value="tests">
+                  <CampaignTestsTab
+                    projectId={project.id}
+                    testType={project.test_type}
+                    testMinSpend={project.test_min_spend}
+                    links={campaignLinks}
+                    connections={digitalAssetConnections.data ?? []}
+                  />
+                </TabsContent>
+              )}
             </Tabs>
           </>
         )}

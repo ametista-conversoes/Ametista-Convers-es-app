@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { aggregateAudienceInsights, type AudienceRawResponse } from '@/lib/audience-insights'
@@ -90,6 +90,10 @@ export interface ManagerProjectRecord {
   external_campaign_id: string | null
   external_campaign_name: string | null
   conversion_type: 'vendas' | 'leads'
+  /** Fase 33 — Teste A/B de Campanhas: 'nenhum' é o padrão (projeto
+   * normal, sem aba "Testes"). */
+  test_type: 'nenhum' | 'segmentacao' | 'anuncio' | 'campanha'
+  test_min_spend: number | null
 }
 
 export interface ManagerTaskRecord {
@@ -509,7 +513,7 @@ export function useAllProjects() {
       const { data, error } = await supabase
         .from('projects')
         .select(
-          'id, title, client_id, status, spend, objective, description, icp, segmentations, systems, channel, cpa, roas, ctr, revenue, health_score, start_date, end_date, external_connection_id, external_campaign_id, external_campaign_name, conversion_type',
+          'id, title, client_id, status, spend, objective, description, icp, segmentations, systems, channel, cpa, roas, ctr, revenue, health_score, start_date, end_date, external_connection_id, external_campaign_id, external_campaign_name, conversion_type, test_type, test_min_spend',
         )
       if (error) throw error
       return data as ManagerProjectRecord[]
@@ -523,6 +527,7 @@ export interface NewProjectInput {
   objective: string | null
   description: string | null
   conversion_type: 'vendas' | 'leads'
+  test_type: 'nenhum' | 'segmentacao' | 'anuncio' | 'campanha'
 }
 
 /** Devolve o projeto criado (id) porque `NewProjectDialog` precisa dele
@@ -555,6 +560,8 @@ export interface UpdateProjectCampaignInput {
   revenue?: number | null
   conversion_type?: 'vendas' | 'leads'
   status?: string
+  test_type?: 'nenhum' | 'segmentacao' | 'anuncio' | 'campanha'
+  test_min_spend?: number | null
 }
 
 export function useUpdateProject() {
@@ -596,6 +603,7 @@ export interface ProjectCampaignLink {
   connection_id: string
   external_campaign_id: string
   external_campaign_name: string | null
+  created_at: string
 }
 
 /** Campanhas vinculadas a UM projeto (Fase 32 — um projeto pode ter
@@ -609,7 +617,7 @@ export function useProjectCampaignLinks(projectId: string | null) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('project_campaign_links')
-        .select('id, project_id, connection_id, external_campaign_id, external_campaign_name')
+        .select('id, project_id, connection_id, external_campaign_id, external_campaign_name, created_at')
         .eq('project_id', projectId as string)
         .order('created_at', { ascending: true })
       if (error) throw error
@@ -654,6 +662,72 @@ export function useRemoveProjectCampaignLink() {
     },
     onError: () => {
       toast.error('Não foi possível remover o vínculo.')
+    },
+  })
+}
+
+export interface CampaignAdChangeLogEntry {
+  id: string
+  campaign_link_id: string
+  changed_at: string
+  description: string
+}
+
+/** Fase 33 — Teste A/B de Campanhas, modo "anúncio": registro manual de
+ * quando o criativo/anúncio de uma campanha vinculada foi trocado
+ * (data + descrição livre). O app não sincroniza nem verifica o
+ * conteúdo do anúncio via API — é só um histórico/contexto que o
+ * gestor mesmo mantém. */
+export function useCampaignAdChangeLog(campaignLinkId: string | null) {
+  return useQuery({
+    queryKey: ['campaign-ad-change-log', campaignLinkId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('campaign_ad_change_log')
+        .select('id, campaign_link_id, changed_at, description')
+        .eq('campaign_link_id', campaignLinkId as string)
+        .order('changed_at', { ascending: false })
+      if (error) throw error
+      return data as CampaignAdChangeLogEntry[]
+    },
+    enabled: !!campaignLinkId,
+  })
+}
+
+export interface AddCampaignAdChangeLogEntryInput {
+  campaign_link_id: string
+  changed_at: string
+  description: string
+}
+
+export function useAddCampaignAdChangeLogEntry() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: AddCampaignAdChangeLogEntryInput) => {
+      const { error } = await supabase.from('campaign_ad_change_log').insert(input)
+      if (error) throw error
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['campaign-ad-change-log', variables.campaign_link_id] })
+    },
+    onError: () => {
+      toast.error('Não foi possível registrar a troca de anúncio.')
+    },
+  })
+}
+
+export function useRemoveCampaignAdChangeLogEntry() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; campaign_link_id: string }) => {
+      const { error } = await supabase.from('campaign_ad_change_log').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['campaign-ad-change-log', variables.campaign_link_id] })
+    },
+    onError: () => {
+      toast.error('Não foi possível apagar o registro.')
     },
   })
 }
@@ -704,68 +778,95 @@ type CampaignSnapshotRow = {
   conversion_value: number | null
 }
 
+const CAMPAIGN_SNAPSHOT_SELECT =
+  'spend, clicks, impressions, conversions, snapshot_date, search_rank_lost_impression_share, search_budget_lost_impression_share, budget_amount, campaign_type, conversion_value'
+
+/** Busca+resume `campaign_performance_snapshots` dos últimos 30 dias de
+ * uma LISTA de campanhas (`connection_id`+`external_campaign_id`),
+ * somando spend/clicks/impressions/conversions/valor de conversão de
+ * todas juntas — extraído pra função à parte (Fase 33) porque tanto
+ * `useCampaignPerformance` (agregado do projeto inteiro) quanto
+ * `useCampaignVariantPerformances` (Teste A/B, 1 chamada por variante)
+ * precisam do mesmo cálculo, só que com listas de tamanhos diferentes
+ * (várias campanhas vs. 1 só por vez). Sem ROAS/receita — os
+ * provedores de anúncio não reportam isso nessa sincronização (mesma
+ * limitação que já existe hoje pro agregado por conta em
+ * `performance_snapshots`). */
+async function fetchCampaignPerformance(links: CampaignLinkRef[]): Promise<CampaignPerformance> {
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const perCampaignRows = await Promise.all(
+    links.map(async (link) => {
+      const { data, error } = await supabase
+        .from('campaign_performance_snapshots')
+        .select(CAMPAIGN_SNAPSHOT_SELECT)
+        .eq('connection_id', link.connectionId)
+        .eq('external_campaign_id', link.campaignId)
+        .gte('snapshot_date', since)
+        .order('snapshot_date', { ascending: true })
+      if (error) throw error
+      return data as CampaignSnapshotRow[]
+    }),
+  )
+
+  const rows = perCampaignRows.flat()
+  const totals = rows.reduce(
+    (acc, row) => ({
+      spend: acc.spend + (row.spend ?? 0),
+      clicks: acc.clicks + (row.clicks ?? 0),
+      impressions: acc.impressions + (row.impressions ?? 0),
+      conversions: acc.conversions + (row.conversions ?? 0),
+      conversionValue: acc.conversionValue + (row.conversion_value ?? 0),
+    }),
+    { spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 },
+  )
+
+  const average = (values: Array<number | null>) => {
+    const known = values.filter((v): v is number => v != null)
+    return known.length > 0 ? known.reduce((sum, v) => sum + v, 0) / known.length : null
+  }
+
+  const latestPerCampaign = perCampaignRows.map((campaignRows) => ({
+    budget: [...campaignRows].reverse().find((r) => r.budget_amount != null)?.budget_amount ?? null,
+    type: [...campaignRows].reverse().find((r) => r.campaign_type != null)?.campaign_type ?? null,
+  }))
+  const knownBudgets = latestPerCampaign.map((c) => c.budget).filter((b): b is number => b != null)
+  const campaignTypes = Array.from(new Set(latestPerCampaign.map((c) => c.type).filter((t): t is string => t != null)))
+
+  return {
+    ...totals,
+    ...computeRateMetrics(totals.spend, totals.clicks, totals.impressions, totals.conversions),
+    searchRankLostImpressionShare: average(rows.map((r) => r.search_rank_lost_impression_share)),
+    searchBudgetLostImpressionShare: average(rows.map((r) => r.search_budget_lost_impression_share)),
+    budgetAmount: knownBudgets.length > 0 ? knownBudgets.reduce((sum, b) => sum + b, 0) : null,
+    campaignTypes,
+  } as CampaignPerformance
+}
+
 /** Últimos 30 dias de `campaign_performance_snapshots` somados de TODAS
  * as campanhas vinculadas ao projeto (Fase 32 — um projeto pode ter
  * mais de uma campanha, ex: Search + Performance Max juntas; antes era
- * só 1 par connectionId/campaignId). Sem ROAS/receita — os provedores
- * de anúncio não reportam isso nessa sincronização (mesma limitação
- * que já existe hoje pro agregado por conta em `performance_snapshots`). */
+ * só 1 par connectionId/campaignId). */
 export function useCampaignPerformance(links: CampaignLinkRef[]) {
   const sortedKey = [...links].map((l) => `${l.connectionId}:${l.campaignId}`).sort()
   return useQuery({
     queryKey: ['campaign-performance', sortedKey],
-    queryFn: async () => {
-      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-      const perCampaignRows = await Promise.all(
-        links.map(async (link) => {
-          const { data, error } = await supabase
-            .from('campaign_performance_snapshots')
-            .select(
-              'spend, clicks, impressions, conversions, snapshot_date, search_rank_lost_impression_share, search_budget_lost_impression_share, budget_amount, campaign_type, conversion_value',
-            )
-            .eq('connection_id', link.connectionId)
-            .eq('external_campaign_id', link.campaignId)
-            .gte('snapshot_date', since)
-            .order('snapshot_date', { ascending: true })
-          if (error) throw error
-          return data as CampaignSnapshotRow[]
-        }),
-      )
-
-      const rows = perCampaignRows.flat()
-      const totals = rows.reduce(
-        (acc, row) => ({
-          spend: acc.spend + (row.spend ?? 0),
-          clicks: acc.clicks + (row.clicks ?? 0),
-          impressions: acc.impressions + (row.impressions ?? 0),
-          conversions: acc.conversions + (row.conversions ?? 0),
-          conversionValue: acc.conversionValue + (row.conversion_value ?? 0),
-        }),
-        { spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 },
-      )
-
-      const average = (values: Array<number | null>) => {
-        const known = values.filter((v): v is number => v != null)
-        return known.length > 0 ? known.reduce((sum, v) => sum + v, 0) / known.length : null
-      }
-
-      const latestPerCampaign = perCampaignRows.map((campaignRows) => ({
-        budget: [...campaignRows].reverse().find((r) => r.budget_amount != null)?.budget_amount ?? null,
-        type: [...campaignRows].reverse().find((r) => r.campaign_type != null)?.campaign_type ?? null,
-      }))
-      const knownBudgets = latestPerCampaign.map((c) => c.budget).filter((b): b is number => b != null)
-      const campaignTypes = Array.from(new Set(latestPerCampaign.map((c) => c.type).filter((t): t is string => t != null)))
-
-      return {
-        ...totals,
-        ...computeRateMetrics(totals.spend, totals.clicks, totals.impressions, totals.conversions),
-        searchRankLostImpressionShare: average(rows.map((r) => r.search_rank_lost_impression_share)),
-        searchBudgetLostImpressionShare: average(rows.map((r) => r.search_budget_lost_impression_share)),
-        budgetAmount: knownBudgets.length > 0 ? knownBudgets.reduce((sum, b) => sum + b, 0) : null,
-        campaignTypes,
-      } as CampaignPerformance
-    },
+    queryFn: () => fetchCampaignPerformance(links),
     enabled: links.length > 0,
+  })
+}
+
+/** Fase 33 — Teste A/B de Campanhas: performance de CADA campanha
+ * vinculada SEPARADA (não somada), uma consulta por variante via
+ * `useQueries` (mesmo cálculo de `fetchCampaignPerformance`, só que
+ * chamado com 1 campanha por vez em vez da lista inteira) — é como o
+ * projeto compara CPA/CTR/Taxa de Conversão entre as variantes do
+ * teste. */
+export function useCampaignVariantPerformances(links: ProjectCampaignLink[]) {
+  return useQueries({
+    queries: links.map((link) => ({
+      queryKey: ['campaign-performance', [`${link.connection_id}:${link.external_campaign_id}`]],
+      queryFn: () => fetchCampaignPerformance([{ connectionId: link.connection_id, campaignId: link.external_campaign_id }]),
+    })),
   })
 }
 
