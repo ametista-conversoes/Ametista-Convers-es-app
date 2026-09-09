@@ -75,7 +75,8 @@
 ## 12. Tipo de conversão por projeto (Vendas/Leads) + Receita automática
 - Criar um projeto novo → confirma que o campo "Tipo de conversão" aparece com Vendas/Leads, padrão "Leads".
 - Projeto tipo "Vendas" vinculado a uma campanha real com o cliente tendo Ticket Médio configurado (Central de Informações) → aba Visão Geral mostra a Receita calculada automaticamente (Conversões × Ticket Médio), com o link "editar manualmente" pra sobrescrever se precisar.
-- Projeto tipo "Leads" segue mostrando o campo de Receita manual como sempre (sem cálculo automático).
+- Projeto tipo "Leads" vinculado, com o cliente tendo Ticket Médio **e** Leads pra Fechar configurados → também calcula automático (Conversões ÷ Leads pra Fechar × Ticket Médio, mesma fórmula que a Receita da conta inteira já usava) — **não é só a Vendas que ganhou o automático, os dois tipos ganharam**; a diferença entre os tipos é só a fórmula. Sem os dois campos configurados no cliente, aí sim fica manual (mesmo comportamento de antes desta fase).
+- Em qualquer um dos dois casos, editar manualmente uma vez faz o valor manual "vencer" pra sempre (não volta a calcular sozinho depois), mesmo que o número editado seja igual ao automático por coincidência.
 
 ## 13. Aba "Grupos de Anúncios" + Parcela de impressão perdida + Índice de Qualidade — PRECISA DE DEPLOY MANUAL DA EDGE FUNCTION
 - **Atenção**: a Edge Function `integrations` só atualiza depois de rodar `supabase functions deploy integrations` (CLI ou painel) — não sobe sozinha com o `git push`. Sem o deploy, a aba nova só vai dar erro/lista vazia.
