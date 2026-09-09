@@ -1233,6 +1233,54 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
         byCampaign.set(key, campAcc)
       }
     }
+
+    // Campanha sem NENHUM dia com métrica nos últimos 30 dias (comum
+    // em conta de teste, que não serve anúncio de verdade) nunca
+    // aparece na consulta acima — a consulta é `FROM campaign` mas só
+    // devolve linha pra combinação campanha+dia que teve alguma
+    // atividade. Sem isso, tipo de campanha/status/orçamento nunca
+    // eram sincronizados pra essa campanha, mesmo já vinculada a um
+    // projeto. Consulta separada, sem filtro de data (tipo/status/
+    // orçamento não mudam por dia), pra pegar TODA campanha ativa da
+    // conta — cria uma linha "hoje" com métricas zeradas só pra essas
+    // que não têm nenhuma linha ainda.
+    const campaignMetaQuery = `
+      SELECT campaign.id, campaign.name, campaign.advertising_channel_type, campaign.status, campaign_budget.amount_micros
+      FROM campaign
+      WHERE campaign.status != 'REMOVED'
+    `
+    const campaignMetaRes = await fetch(
+      `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${connection.external_account_id}/googleAds:search`,
+      { method: 'POST', headers: googleAdsHeaders(accessToken, connection.login_customer_id), body: JSON.stringify({ query: campaignMetaQuery }) },
+    )
+    if (campaignMetaRes.ok) {
+      const campaignMetaBody = await campaignMetaRes.json()
+      const knownCampaignIds = new Set(Array.from(byCampaign.values()).map((c) => c.campaignId))
+      const today = new Date().toISOString().slice(0, 10)
+      for (const row of (campaignMetaBody.results ?? []) as Array<Record<string, Record<string, unknown>>>) {
+        const campaignId = row.campaign?.id != null ? String(row.campaign.id) : undefined
+        if (!campaignId || knownCampaignIds.has(campaignId)) continue
+        knownCampaignIds.add(campaignId)
+        const budgetMicros = row.campaignBudget?.amountMicros
+        byCampaign.set(`${campaignId}|${today}`, {
+          campaignId,
+          campaignName: (row.campaign?.name as string | undefined) ?? campaignId,
+          date: today,
+          spend: 0,
+          clicks: 0,
+          impressions: 0,
+          conversions: 0,
+          searchRankLostIS: null,
+          searchBudgetLostIS: null,
+          budgetAmount: budgetMicros != null ? Number(budgetMicros) / 1_000_000 : null,
+          campaignType: (row.campaign?.advertisingChannelType as string | undefined) ?? null,
+          conversionValue: 0,
+          status: (row.campaign?.status as string | undefined) ?? null,
+        })
+      }
+    } else {
+      console.error('[integrations] syncConnection: metadados de campanha sem atividade falhou:', await campaignMetaRes.text())
+    }
   } else {
     // meta_ads — Insights da Graph API, já quebrado por dia
     // (time_increment=1). "conversions" não existe como número único
@@ -1266,14 +1314,16 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
     // conhecer 2 vocabulários diferentes.
     const campaignObjectives = new Map<string, string>()
     const campaignStatuses = new Map<string, string>()
+    const campaignNames = new Map<string, string>()
     try {
       const objectivesUrl = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/${connection.external_account_id}/campaigns`)
-      objectivesUrl.searchParams.set('fields', 'id,objective,status')
+      objectivesUrl.searchParams.set('fields', 'id,name,objective,status')
       objectivesUrl.searchParams.set('access_token', accessToken)
       const objectivesRes = await fetch(objectivesUrl.toString())
       const objectivesBody = await objectivesRes.json()
       if (objectivesRes.ok) {
-        for (const c of (objectivesBody.data ?? []) as Array<{ id: string; objective?: string; status?: string }>) {
+        for (const c of (objectivesBody.data ?? []) as Array<{ id: string; name?: string; objective?: string; status?: string }>) {
+          if (c.name) campaignNames.set(c.id, c.name)
           if (c.objective) campaignObjectives.set(c.id, c.objective)
           if (c.status === 'PAUSED') campaignStatuses.set(c.id, 'PAUSED')
           else if (c.status === 'DELETED' || c.status === 'ARCHIVED') campaignStatuses.set(c.id, 'REMOVED')
@@ -1326,6 +1376,32 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncableConn
         campAcc.conversionValue += conversionValue
         byCampaign.set(key, campAcc)
       }
+    }
+
+    // Mesma lacuna do Google Ads: campanha sem nenhum dia de Insights
+    // nos últimos 30 dias nunca aparece no loop acima — cria uma linha
+    // "hoje" zerada só pra essas, pra objetivo/status não ficarem sem
+    // sincronizar.
+    const knownMetaCampaignIds = new Set(Array.from(byCampaign.values()).map((c) => c.campaignId))
+    const allMetaCampaignIds = new Set([...campaignObjectives.keys(), ...campaignStatuses.keys(), ...campaignNames.keys()])
+    const todayMeta = new Date().toISOString().slice(0, 10)
+    for (const campaignId of allMetaCampaignIds) {
+      if (knownMetaCampaignIds.has(campaignId)) continue
+      byCampaign.set(`${campaignId}|${todayMeta}`, {
+        campaignId,
+        campaignName: campaignNames.get(campaignId) ?? campaignId,
+        date: todayMeta,
+        spend: 0,
+        clicks: 0,
+        impressions: 0,
+        conversions: 0,
+        searchRankLostIS: null,
+        searchBudgetLostIS: null,
+        budgetAmount: null,
+        campaignType: campaignObjectives.get(campaignId) ?? null,
+        conversionValue: 0,
+        status: campaignStatuses.get(campaignId) ?? null,
+      })
     }
   }
 
