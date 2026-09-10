@@ -31,13 +31,13 @@
 
 ## 4. Link de convite/recuperação de senha expirado
 - [ ] Clicar num link de convite ou de "esqueci a senha" já expirado/já usado → antes disso podia deixar entrar no app mesmo assim (sessão antiga guardada no navegador); agora o app detecta o erro que o Supabase manda no fragmento da URL (`#error=access_denied&error_code=otp_expired...`), desloga de propósito e mostra um aviso pra pedir um novo link.
-- [ ] Confirmar que um link válido (recém-recebido, não expirado) continua funcionando normalmente — não pode ter virado um falso positivo.
+- [X] Confirmar que um link válido (recém-recebido, não expirado) continua funcionando normalmente — não pode ter virado um falso positivo.
 
 ## 5. Fase 29 — Atividades filtradas por plano do cliente
 - [X] Teste de aceite do próprio pedido: Workflow de Atividades com item A (todos os planos marcados) e item B (só Dominação) — aplicar no Kanban/projeto de um cliente Validação cria só A; aplicar num cliente Dominação cria A e B.
-- [ ] Cliente novo cadastrado já com um plano definido → gatilho automático do Workflow de Atividades padrão (`handle_new_client_activity_template`) já nasce filtrado certo pelo plano.
-- [ ] Cliente cadastrado **sem** plano nenhum definido (campo vazio) → precisa continuar recebendo todos os itens do checklist padrão, sem quebrar o onboarding automático.
-- [ ] Card do Workflow de Atividades (listagem) mostrando o resumo "N itens · M exclusivos de <plano>" batendo com o que foi marcado em cada item.
+- [X] Cliente novo cadastrado já com um plano definido → gatilho automático do Workflow de Atividades padrão (`handle_new_client_activity_template`) já nasce filtrado certo pelo plano.
+- [X] Cliente cadastrado **sem** plano nenhum definido (campo vazio) → precisa continuar recebendo todos os itens do checklist padrão, sem quebrar o onboarding automático.
+- [X] Card do Workflow de Atividades (listagem) mostrando o resumo "N itens · M exclusivos de <plano>" batendo com o que foi marcado em cada item.
 
 ## 6. Reset de senha / convite — tela `/reset-password` quebrando com "Algo deu errado" (causa confirmada e corrigida, 10/09)
 - [ ] **Causa real, achada em Configurações → Erros** (a entrada logada pelo próprio `ErrorBoundary` deu a resposta na hora — exatamente o caminho certo pra esse tipo de bug, ver Fase 21.1): `Error: useFormField should be used within <FormField>`. O bloco estático do campo "E-mail" em `ResetPassword.tsx` usava `<FormItem><FormLabel>...</FormLabel><FormControl>...</FormControl></FormItem>` sem estar dentro de um `<FormField>` — `FormLabel`/`FormControl` (shadcn) chamam um hook (`useFormField`) que só existe dentro do contexto que `<FormField>` provê (`FormItem` sozinho não basta, é um contexto diferente, só de geração de id). Por isso quebrava com QUALQUER link (normal ou expirado) — não tinha nada a ver com o Supabase, era um bug de render puro, sempre presente. Corrigido trocando esse bloco por `<Label>`/`<Input>` direto (campo só de exibição, nunca fez parte do `useForm`/`resetSchema` mesmo).
@@ -71,27 +71,27 @@
 - [ ] Desconectar a conta administradora em Configurações → Agência.
 
 ## 11. Apagar projeto e mudar status direto na lista de Projetos
-- [ ] Central de Informações do Cliente → card "Projetos": clicar no badge de status de um projeto (ex: "Planejamento") abre um menu com as 5 opções (Planejamento/Ativo/Pausado/Concluído/Cancelado) — confirma que muda na hora, sem precisar abrir o projeto.
-- [ ] Clicar no ícone de lixeira ao lado do badge → confirma o diálogo de confirmação com o nome do projeto; "Apagar" remove o projeto da lista de vez. Se o projeto apagado tinha uma integração vinculada (Google Ads/Meta Ads), confirma que a conexão em si não some (só desvincula) — testar em cima de um projeto de teste sem dado importante.
-- [ ] Cancelar no diálogo → projeto continua normalmente.
+- [X] Central de Informações do Cliente → card "Projetos": clicar no badge de status de um projeto (ex: "Planejamento") abre um menu com as 5 opções (Planejamento/Ativo/Pausado/Concluído/Cancelado) — confirma que muda na hora, sem precisar abrir o projeto.
+- [X] Clicar no ícone de lixeira ao lado do badge → confirma o diálogo de confirmação com o nome do projeto; "Apagar" remove o projeto da lista de vez. Se o projeto apagado tinha uma integração vinculada (Google Ads/Meta Ads), confirma que a conexão em si não some (só desvincula) — testar em cima de um projeto de teste sem dado importante.
+- [X] Cancelar no diálogo → projeto continua normalmente.
 
 ## 12. Tipo de conversão por projeto (Vendas/Leads) + Receita automática
-- [ ] Criar um projeto novo → confirma que o campo "Tipo de conversão" aparece com Vendas/Leads, padrão "Leads".
-- [ ] Projeto tipo "Vendas" vinculado a uma campanha real com o cliente tendo Ticket Médio configurado (Central de Informações) → aba Visão Geral mostra a Receita calculada automaticamente (Conversões × Ticket Médio), com o link "editar manualmente" pra sobrescrever se precisar.
-- [ ] Projeto tipo "Leads" vinculado, com o cliente tendo Ticket Médio **e** Leads pra Fechar configurados → também calcula automático (Conversões ÷ Leads pra Fechar × Ticket Médio, mesma fórmula que a Receita da conta inteira já usava) — **não é só a Vendas que ganhou o automático, os dois tipos ganharam**; a diferença entre os tipos é só a fórmula. Sem os dois campos configurados no cliente, aí sim fica manual (mesmo comportamento de antes desta fase).
+- [X] Criar um projeto novo → confirma que o campo "Tipo de conversão" aparece com Vendas/Leads, padrão "Leads".
+- [X] Projeto tipo "Vendas" vinculado a uma campanha real com o cliente tendo Ticket Médio configurado (Central de Informações) → aba Visão Ger l mostra a Receita calculada automaticamente (Conversões × Ticket Médio), com o link "editar manualmente" pra sobrescrever se precisar.
+- [X] Projeto tipo "Leads" vinculado, com o cliente tendo Ticket Médio **e** Leads pra Fechar configurados → também calcula automático (Conversões ÷ Leads pra Fechar × Ticket Médio, mesma fórmula que a Receita da conta inteira já usava) — **não é só a Vendas que ganhou o automático, os dois tipos ganharam**; a diferença entre os tipos é só a fórmula. Sem os dois campos configurados no cliente, aí sim fica manual (mesmo comportamento de antes desta fase).
 - [ ] Em qualquer um dos dois casos, editar manualmente uma vez faz o valor manual "vencer" pra sempre (não volta a calcular sozinho depois), mesmo que o número editado seja igual ao automático por coincidência.
 
 ## 13. Aba "Grupos de Anúncios" + Parcela de impressão perdida + Índice de Qualidade — PRECISA DE DEPLOY MANUAL DA EDGE FUNCTION
-- [ ] **Atenção**: a Edge Function `integrations` só atualiza depois de rodar `supabase functions deploy integrations` (CLI ou painel) — não sobe sozinha com o `git push`. Sem o deploy, a aba nova só vai dar erro/lista vazia.
-- [ ] Rodar as migrations `migration-062-tipo-campanha-projeto.sql` e `migration-063-impression-share-orcamento.sql` antes de testar (adicionam as colunas novas).
-- [ ] Abrir um projeto vinculado a uma campanha real do Google Ads → aba nova "Grupos de Anúncios" mostra, no topo, Orçamento + as 2 métricas de parcela de impressão perdida (classificação/orçamento) da campanha; embaixo, um cartão por grupo de anúncios com Custo/Cliques/CTR/CPC méd./Taxa de Conversão/Índice de Qualidade.
-- [ ] Numa campanha que não seja de Pesquisa (Display/Vídeo/PMax) → confirma que impressão perdida e índice de qualidade aparecem como "—" em vez de erro ou zero enganoso.
-- [ ] Projeto sem campanha vinculada, ou vinculado a uma conexão que não seja Google Ads (Meta Ads) → aba mostra o aviso certo em vez de tentar buscar e quebrar.
+- [X] **Atenção**: a Edge Function `integrations` só atualiza depois de rodar `supabase functions deploy integrations` (CLI ou painel) — não sobe sozinha com o `git push`. Sem o deploy, a aba nova só vai dar erro/lista vazia.
+- [X] Rodar as migrations `migration-062-tipo-campanha-projeto.sql` e `migration-063-impression-share-orcamento.sql` antes de testar (adicionam as colunas novas).
+- [X] Abrir um projeto vinculado a uma campanha real do Google Ads → aba nova "Grupos de Anúncios" mostra, no topo, Orçamento + as 2 métricas de parcela de impressão perdida (classificação/orçamento) da campanha; embaixo, um cartão por grupo de anúncios com Custo/Cliques/CTR/CPC méd./Taxa de Conversão/Índice de Qualidade.
+- [X] Numa campanha que não seja de Pesquisa (Display/Vídeo/PMax) → confirma que impressão perdida e índice de qualidade aparecem como "—" em vez de erro ou zero enganoso.
+- [X] Projeto sem campanha vinculada, ou vinculado a uma conexão que não seja Google Ads (Meta Ads) → aba mostra o aviso certo em vez de tentar buscar e quebrar.
 
 ## 14. Tipo de campanha, CPC médio, valor de conversão e resumos curados (dispositivo/geo/top termos/top keywords) — PRECISA DE DEPLOY MANUAL DA EDGE FUNCTION
-- [ ] **Atenção**: a Edge Function `integrations` só atualiza depois de rodar `supabase functions deploy integrations` (CLI ou painel) — sem o deploy, o badge de tipo de campanha e a aba nova só vão dar erro/vazio.
-- [ ] Rodar `migration-065-tipo-campanha-valor-conversao.sql` antes de testar.
-- [ ] Projeto vinculado a uma campanha do Google Ads → aba Visão Geral mostra um badge novo com o tipo de campanha (Pesquisa/Display/Vídeo/Performance Max/...) e as tiles "CPC médio" e "Valor de conversão (plataforma)" — esse último é o valor de conversão que o próprio Google reporta, diferente da "Receita" do app (calculada por Leads/Ticket Médio); confirma que os dois números aparecem separados, sem se confundir.
+- [X] **Atenção**: a Edge Function `integrations` só atualiza depois de rodar `supabase functions deploy integrations` (CLI ou painel) — sem o deploy, o badge de tipo de campanha e a aba nova só vão dar erro/vazio.
+- [X] Rodar `migration-065-tipo-campanha-valor-conversao.sql` antes de testar.
+- [X] Projeto vinculado a uma campanha do Google Ads → aba Visão Geral mostra um badge novo com o tipo de campanha (Pesquisa/Display/Vídeo/Performance Max/...) e as tiles "CPC médio" e "Valor de conversão (plataforma)" — esse último é o valor de conversão que o próprio Google reporta, diferente da "Receita" do app (calculada por Leads/Ticket Médio); confirma que os dois números aparecem separados, sem se confundir.
 - [ ] No topo da aba "Grupos de Anúncios", confirma a nova tile "Utilização de orçamento (30 dias)" ao lado das 2 de impressão perdida — é gasto real ÷ (orçamento diário × 30); bem abaixo de 100% pode ser orçamento sobrando, isso é só informativo interno (o cliente não vê essa aba).
 - [ ] Abaixo da lista de grupos, confirma os blocos novos — "Dispositivo" (custo/cliques/conversões por Celular/Computador/Tablet), "Desempenho geográfico (cidade/região)", "Top termos de pesquisa", "Top palavras-chave", "Breakdown por ação de conversão" (ex: separar "Compra" de "Lead" quando o cliente rastreia mais de uma), uma frase "Melhor desempenho: [dia da semana], período da [manhã/tarde/noite/madrugada]" e, só quando existir dado, "Demográfico" (faixa etária + gênero).
 - [ ] Numa campanha que não seja de Pesquisa (Display/Vídeo/PMax) → "Top termos de pesquisa" e "Top palavras-chave" devem aparecer vazios com a mensagem explicando o motivo, não um erro; "Demográfico" só aparece de verdade em campanhas com segmentação de público (Display/Vídeo/Demand Gen/PMax) — numa campanha de Pesquisa pura, a seção inteira some (sem bloco vazio/quebrado).
@@ -132,7 +132,7 @@
 ## 19. Catálogo de Criativos e Segmentações (Central de Informações do Cliente)
 - [ ] Rodar `migration-069-catalogo-criativos-segmentacoes.sql` antes de testar.
 - [ ] Central de Informações do Cliente → confirma que aparecem os 2 cards novos, "Catálogo de Criativos" e "Catálogo de Segmentações", cada um sempre restrito àquele cliente (sem opção de reaproveitar entrada de outro cliente).
-- [ ] "Adicionar" no Catálogo de Criativos → formulário com Tipo (Texto/Vídeo), Conteúdo (texto do anúncio ou caminho do arquivo de vídeo — confirma que o placeholder muda ao trocar pra Vídeo), Origem (IA/Forms/Manual), Prioridade (Alta/Média/Baixa) e "Variação de" opcional → salva e aparece em "Em Triagem" com status Rascunho.
+- [ ] "Adicionar" no Catálogo de Criativos → formulário com Tipo (**atualizado**: Headline/Descrição/Frase de destaque/Vídeo, em vez do "Texto" genérico de antes), Conteúdo (o placeholder muda pra cada um dos 4 tipos — confirma isso), Origem (IA/Forms/Manual), Prioridade (Alta/Média/Baixa — confirma que o badge cabe numa linha só, sem quebrar) e "Variação de" opcional → salva e aparece em "Em Triagem" com status Rascunho.
 - [ ] "Adicionar" no Catálogo de Segmentações → mesmo formulário, sem o campo Tipo (não existe distinção texto/vídeo pra segmentação).
 - [ ] Clicar no badge de Prioridade ou de Status de uma entrada → menu abre e troca na hora, sem recarregar a página.
 - [ ] Marcar uma entrada como "Aprovado/Implementado" → confirma que ela some da aba "Em Triagem" e passa a aparecer em "Confirmados/Implementados".
@@ -157,7 +157,17 @@
 - [ ] **Mudança de escopo pedida junto**: o "Workflow Operacional" (Workflows → aba "Operacional", ou "Aplicar Workflow" na Central de Informações do Cliente) perdeu a opção de destino "Tarefas do cliente (aparece no Portal Cliente)" — agora só cria tarefas internas do Kanban (com ou sem projeto vinculado). "Workflows do Cliente" passa a ser o único caminho pra mandar tarefa pro Portal Cliente. Testar: no diálogo "Aplicar Workflow Operacional", confirma que só aparecem as opções "Tarefas de um projeto" e "Tarefas do Kanban" — nada de Portal Cliente ali.
 - [ ] **Ainda a confirmar pelo usuário**: se isso também explica o relato "mandei uma tarefa e ela apareceu por um momento e depois desapareceu" — não reproduzi isso especificamente, só a causa mais provável (aplicar via um caminho que ia pro Kanban enquanto se esperava ver no Portal Cliente). Se o sumiço continuar acontecendo mesmo depois desse fix, precisa descrever de novo qual tela/botão exato foi usado.
 
-## 22. Aprovações externas do Google/Meta — bloqueiam validação com dados reais de terceiros
+## 22. Página global "Catálogo" (todos os clientes) + avaliação em estrelas + subtipos de texto
+- [ ] Rodar `migration-071-catalogo-subtipos-avaliacao.sql` antes de testar — se já existia algum criativo tipo "Texto" (Fase 34 original), confirma que virou "Headline" sozinho depois da migration (o backfill), sem quebrar nem sumir.
+- [ ] Item novo "Catálogo" no menu do Portal Gestor (entre Workflows e Incidentes) → abre a página com 2 abas, "Criativos" e "Segmentações", mostrando entradas de **todos os clientes juntos**.
+- [ ] Busca (lupa) → digitar um termo filtra pelas entradas que contêm ele no texto, nas duas abas.
+- [ ] Seletor "Todos os clientes" → escolher um cliente específico mostra só as entradas dele; confirma que cada linha tem um badge roxo com o nome do cliente (só aparece nessa página — no card por cliente, dentro da Central de Informações, não faz sentido repetir o nome).
+- [ ] Aba "Criativos" → cada entrada mostra 5 estrelas clicáveis; clicar na 3ª estrela avalia com nota 3 (as 3 primeiras ficam preenchidas); clicar de novo na mesma estrela desmarca (volta pra "sem avaliação"). Aba "Segmentações" não mostra estrela (rating só faz sentido pra Criativos, por pedido do usuário).
+- [ ] Ordenação da lista: entrada com nota mais alta aparece primeiro; empate quebra pela prioridade (Alta > Média > Baixa); descartadas sempre vão pro final, independente de nota/prioridade.
+- [ ] Ícone de lixeira (`DeleteModeToggle`, mesmo ícone do Kanban/Clientes/Ativos Digitais) → liga o modo de exclusão, cada linha ganha seu próprio ícone de apagar com diálogo de confirmação (diferente do card por cliente, que apaga direto sem confirmar) — apagar aqui reflete também no card da Central de Informações do cliente correspondente.
+- [ ] Trocar status/prioridade/Grupo de Teste de uma entrada aqui → confirma que a mudança também aparece no card da Central de Informações desse cliente (mesmo dado, 2 telas).
+
+## 23. Aprovações externas do Google/Meta — bloqueiam validação com dados reais de terceiros
 - [ ] **Google Ads API "Basic Access" — CONFIRMADO (07/09), não é mais suspeita**: o diagnóstico novo (item 10) mostrou o erro real do Google nas 4 contas raiz que o MCC "Ametista Conversões" enxerga: `"The developer token is only approved for use with test accounts. To access non-test accounts, apply for Basic or Standard access."` — ou seja, o developer token do app só pode mexer em contas de teste (vazias) até essa aprovação sair; nenhuma conta de cliente de verdade funciona antes disso, não importa o quanto o vínculo no MCC esteja certo. **Não é bug de código, é aprovação que só o Google concede** — peça em Google Ads → Ferramentas e Configurações → Configuração → API Center, dentro da conta MCC. A Fase 28 (lado Google) e a sincronização de métricas reais (Fase 19.1) só validam de verdade depois disso.
 - [ ] Duas das 4 contas também deram um segundo erro, independente do developer token: `"The customer account can't be accessed because it is not yet enabled or has been..."` — sugere que essas 2 contas específicas têm o próprio setup incompleto do lado do Google (ex: sem faturamento configurado) — vale conferir direto no Google Ads, mas só faz sentido investigar isso depois que o Basic Access sair, já que sem ele nada funciona de qualquer forma.
 - [ ] **Verificação de escopo sensível do Google (Forms)** + vídeo de demonstração enviado: pendente de review do Google.

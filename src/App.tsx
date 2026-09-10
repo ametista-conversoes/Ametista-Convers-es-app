@@ -23,6 +23,7 @@ import Settings from '@/pages/Settings'
 import Assets from '@/pages/admin/Assets'
 import Activities from '@/pages/admin/Activities'
 import AudienceInsights from '@/pages/admin/AudienceInsights'
+import Catalog from '@/pages/admin/Catalog'
 import ClientComments from '@/pages/admin/ClientComments'
 import ClientDetail from '@/pages/admin/ClientDetail'
 import Clients from '@/pages/admin/Clients'
@@ -61,6 +62,7 @@ const managerPagesReady: Record<string, ComponentType> = {
   '/kanban': Kanban,
   '/client-tasks': ManagerClientTasks,
   '/workflows': Workflows,
+  '/catalog': Catalog,
   '/incidents': Incidents,
   '/timeline': Timeline,
   '/assets': Assets,

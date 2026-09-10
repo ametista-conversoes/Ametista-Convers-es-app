@@ -929,7 +929,10 @@ export function useCampaignInsights(connectionId: string | null, campaignId: str
 // arquivo local), só a referência de texto do caminho esperado — o
 // campo "conteudo" serve pros dois casos, igual ao texto do anúncio.
 export type CatalogType = 'criativo' | 'segmentacao'
-export type CatalogEntryTipo = 'texto' | 'video'
+/** Só em Criativos — headline/descrição/frase de destaque são os 3
+ * componentes reais de um anúncio de texto (Google/Meta, cada um com
+ * regra e tamanho diferentes); "video" não tem subtipo. */
+export type CatalogEntryTipo = 'headline' | 'descricao' | 'frase_destaque' | 'video'
 export type CatalogEntryOrigem = 'ia' | 'forms' | 'manual'
 export type CatalogEntryStatus = 'rascunho' | 'em_teste' | 'aprovado_implementado' | 'descartado'
 export type CatalogEntryPrioridade = 'alta' | 'media' | 'baixa'
@@ -945,11 +948,14 @@ export interface CatalogEntryRecord {
   prioridade: CatalogEntryPrioridade
   derivado_de: string | null
   campaign_link_id: string | null
+  /** 1 a 5, null = sem avaliação — só usado na UI pra Criativos, mas o
+   * campo é genérico. */
+  rating: number | null
   created_at: string
 }
 
 const CATALOG_ENTRY_SELECT =
-  'id, client_id, catalog_type, tipo, conteudo, origem, status, prioridade, derivado_de, campaign_link_id, created_at'
+  'id, client_id, catalog_type, tipo, conteudo, origem, status, prioridade, derivado_de, campaign_link_id, rating, created_at'
 
 export function useCatalogEntries(clientId: string | null, catalogType: CatalogType) {
   return useQuery({
@@ -965,6 +971,30 @@ export function useCatalogEntries(clientId: string | null, catalogType: CatalogT
       return data as CatalogEntryRecord[]
     },
     enabled: !!clientId,
+  })
+}
+
+export interface CatalogEntryWithClient extends CatalogEntryRecord {
+  client: { name: string } | null
+}
+
+/** Todas as entradas de um catálogo, de TODOS os clientes de uma vez —
+ * usada pela página global "Catálogo" (Portal Gestor), que deixa ver,
+ * avaliar, buscar e apagar criativos/segmentações de qualquer cliente
+ * num só lugar. Busca tudo e filtra por cliente/texto no componente,
+ * mesmo padrão de `useAllProjects`/`useAllClients`. */
+export function useAllCatalogEntries(catalogType: CatalogType) {
+  return useQuery({
+    queryKey: ['all-catalog-entries', catalogType],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('catalog_entries')
+        .select(`${CATALOG_ENTRY_SELECT}, client:clients(name)`)
+        .eq('catalog_type', catalogType)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data as unknown as CatalogEntryWithClient[]
+    },
   })
 }
 
@@ -1001,6 +1031,7 @@ export interface UpdateCatalogEntryInput {
   status?: CatalogEntryStatus
   prioridade?: CatalogEntryPrioridade
   campaign_link_id?: string | null
+  rating?: number | null
 }
 
 export function useUpdateCatalogEntry() {
@@ -1012,6 +1043,7 @@ export function useUpdateCatalogEntry() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['catalog-entries', variables.client_id, variables.catalog_type] })
+      queryClient.invalidateQueries({ queryKey: ['all-catalog-entries', variables.catalog_type] })
     },
     onError: () => {
       toast.error('Não foi possível atualizar a entrada do catálogo.')
@@ -1028,6 +1060,7 @@ export function useDeleteCatalogEntry() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['catalog-entries', variables.client_id, variables.catalog_type] })
+      queryClient.invalidateQueries({ queryKey: ['all-catalog-entries', variables.catalog_type] })
     },
     onError: () => {
       toast.error('Não foi possível apagar a entrada do catálogo.')

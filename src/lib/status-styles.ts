@@ -360,7 +360,9 @@ export const catalogTypeLabels: Record<string, string> = {
 }
 
 export const catalogEntryTipoLabels: Record<string, string> = {
-  texto: 'Texto',
+  headline: 'Headline',
+  descricao: 'Descrição',
+  frase_destaque: 'Frase de destaque',
   video: 'Vídeo',
 }
 
