@@ -910,6 +910,259 @@ export function useCampaignInsights(connectionId: string | null, campaignId: str
   })
 }
 
+// Fase 34 — Catálogo de Criativos e Segmentações: organização e
+// classificação de anúncios (texto/vídeo) e segmentações, sempre por
+// cliente específico. Vídeo não guarda o arquivo (navegador não abre
+// arquivo local), só a referência de texto do caminho esperado — o
+// campo "conteudo" serve pros dois casos, igual ao texto do anúncio.
+export type CatalogType = 'criativo' | 'segmentacao'
+export type CatalogEntryTipo = 'texto' | 'video'
+export type CatalogEntryOrigem = 'ia' | 'forms' | 'manual'
+export type CatalogEntryStatus = 'rascunho' | 'em_teste' | 'aprovado_implementado' | 'descartado'
+export type CatalogEntryPrioridade = 'alta' | 'media' | 'baixa'
+
+export interface CatalogEntryRecord {
+  id: string
+  client_id: string
+  catalog_type: CatalogType
+  tipo: CatalogEntryTipo | null
+  conteudo: string
+  origem: CatalogEntryOrigem
+  status: CatalogEntryStatus
+  prioridade: CatalogEntryPrioridade
+  derivado_de: string | null
+  campaign_link_id: string | null
+  created_at: string
+}
+
+const CATALOG_ENTRY_SELECT =
+  'id, client_id, catalog_type, tipo, conteudo, origem, status, prioridade, derivado_de, campaign_link_id, created_at'
+
+export function useCatalogEntries(clientId: string | null, catalogType: CatalogType) {
+  return useQuery({
+    queryKey: ['catalog-entries', clientId, catalogType],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('catalog_entries')
+        .select(CATALOG_ENTRY_SELECT)
+        .eq('client_id', clientId as string)
+        .eq('catalog_type', catalogType)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data as CatalogEntryRecord[]
+    },
+    enabled: !!clientId,
+  })
+}
+
+export interface NewCatalogEntryInput {
+  client_id: string
+  catalog_type: CatalogType
+  tipo: CatalogEntryTipo | null
+  conteudo: string
+  origem: CatalogEntryOrigem
+  prioridade: CatalogEntryPrioridade
+  derivado_de: string | null
+}
+
+export function useCreateCatalogEntry() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: NewCatalogEntryInput) => {
+      const { error } = await supabase.from('catalog_entries').insert(input)
+      if (error) throw error
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['catalog-entries', variables.client_id, variables.catalog_type] })
+    },
+    onError: () => {
+      toast.error('Não foi possível criar a entrada do catálogo.')
+    },
+  })
+}
+
+export interface UpdateCatalogEntryInput {
+  id: string
+  client_id: string
+  catalog_type: CatalogType
+  status?: CatalogEntryStatus
+  prioridade?: CatalogEntryPrioridade
+  campaign_link_id?: string | null
+}
+
+export function useUpdateCatalogEntry() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, client_id, catalog_type, ...input }: UpdateCatalogEntryInput) => {
+      const { error } = await supabase.from('catalog_entries').update(input).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['catalog-entries', variables.client_id, variables.catalog_type] })
+    },
+    onError: () => {
+      toast.error('Não foi possível atualizar a entrada do catálogo.')
+    },
+  })
+}
+
+export function useDeleteCatalogEntry() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; client_id: string; catalog_type: CatalogType }) => {
+      const { error } = await supabase.from('catalog_entries').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['catalog-entries', variables.client_id, variables.catalog_type] })
+    },
+    onError: () => {
+      toast.error('Não foi possível apagar a entrada do catálogo.')
+    },
+  })
+}
+
+export interface CampaignLinkWithProject {
+  id: string
+  project_id: string
+  project_title: string
+  project_test_type: 'nenhum' | 'segmentacao' | 'anuncio' | 'campanha'
+  client_id: string
+  connection_id: string
+  external_campaign_id: string
+  external_campaign_name: string | null
+}
+
+/** Todas as campanhas vinculadas de todos os projetos, já com o título/
+ * tipo de teste/cliente do projeto embutido — usada pelo Catálogo pra
+ * montar a lista "Vincular a Grupo de Teste" (só projetos com
+ * `test_type !== 'nenhum'` têm de fato um Grupo de Teste, ver Fase 33)
+ * sem precisar de uma rota nova: busca tudo e filtra no componente,
+ * mesmo padrão de `useAllProjects`/`useAllClients`. */
+export function useAllCampaignLinksWithProject() {
+  return useQuery({
+    queryKey: ['all-campaign-links-with-project'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('project_campaign_links')
+        .select(
+          'id, project_id, connection_id, external_campaign_id, external_campaign_name, project:projects(title, test_type, client_id)',
+        )
+      if (error) throw error
+      return (
+        data as unknown as Array<{
+          id: string
+          project_id: string
+          connection_id: string
+          external_campaign_id: string
+          external_campaign_name: string | null
+          project: { title: string; test_type: CampaignLinkWithProject['project_test_type']; client_id: string } | null
+        }>
+      ).map((row) => ({
+        id: row.id,
+        project_id: row.project_id,
+        connection_id: row.connection_id,
+        external_campaign_id: row.external_campaign_id,
+        external_campaign_name: row.external_campaign_name,
+        project_title: row.project?.title ?? '',
+        project_test_type: row.project?.test_type ?? 'nenhum',
+        client_id: row.project?.client_id ?? '',
+      })) as CampaignLinkWithProject[]
+    },
+  })
+}
+
+export interface CampaignLinkTestResult {
+  eligible: boolean
+  hasEnoughVariants: boolean
+  spend: number
+  cpa: number | null
+  ctr: number | null
+  conversionRate: number | null
+  beatsCpa: boolean | null
+  beatsCtr: boolean | null
+  beatsConversionRate: boolean | null
+}
+
+/** Resultado herdado do Grupo de Teste (Fase 33) pra UMA campanha
+ * vinculada — mesmo cálculo de `CampaignTestsTab` (elegibilidade pelo
+ * gasto mínimo do projeto, média do grupo, "bate a média"), só que
+ * autocontido a partir só do `campaignLinkId` (o Catálogo não tem o
+ * contexto de projeto/lista de variantes já carregado como a aba
+ * Testes tem). Usado pra entrada do catálogo vinculada a um Grupo de
+ * Teste mostrar o resultado sozinha, sem duplicar o número em lugar
+ * nenhum. */
+export function useCampaignLinkTestResult(campaignLinkId: string | null) {
+  return useQuery({
+    queryKey: ['campaign-link-test-result', campaignLinkId],
+    queryFn: async (): Promise<CampaignLinkTestResult> => {
+      const { data: link, error: linkError } = await supabase
+        .from('project_campaign_links')
+        .select('id, project_id')
+        .eq('id', campaignLinkId as string)
+        .single()
+      if (linkError) throw linkError
+
+      const { data: project, error: projectError } = await supabase
+        .from('projects')
+        .select('test_min_spend')
+        .eq('id', link.project_id)
+        .single()
+      if (projectError) throw projectError
+
+      const { data: siblingLinks, error: siblingsError } = await supabase
+        .from('project_campaign_links')
+        .select('id, connection_id, external_campaign_id')
+        .eq('project_id', link.project_id)
+      if (siblingsError) throw siblingsError
+
+      const performances = await Promise.all(
+        (siblingLinks as Array<{ id: string; connection_id: string; external_campaign_id: string }>).map(
+          async (sibling) => ({
+            id: sibling.id,
+            performance: await fetchCampaignPerformance([
+              { connectionId: sibling.connection_id, campaignId: sibling.external_campaign_id },
+            ]),
+          }),
+        ),
+      )
+
+      const minSpend = project.test_min_spend as number | null
+      const eligiblePerformances = performances.filter((p) => minSpend == null || p.performance.spend >= minSpend)
+      const average = (values: Array<number | null>) => {
+        const known = values.filter((v): v is number => v != null)
+        return known.length > 0 ? known.reduce((sum, v) => sum + v, 0) / known.length : null
+      }
+      const avgCpa = average(eligiblePerformances.map((p) => p.performance.cpa))
+      const avgCtr = average(eligiblePerformances.map((p) => p.performance.ctr))
+      const avgConversionRate = average(eligiblePerformances.map((p) => p.performance.conversionRate))
+      const hasEnoughVariants = eligiblePerformances.length >= 2
+
+      const mine = performances.find((p) => p.id === campaignLinkId)
+      const mineSpend = mine?.performance.spend ?? 0
+      const eligible = minSpend == null || mineSpend >= minSpend
+
+      const beats = (value: number | null | undefined, avg: number | null, lowerIsBetter: boolean) => {
+        if (!eligible || !hasEnoughVariants || value == null || avg == null) return null
+        return lowerIsBetter ? value < avg : value > avg
+      }
+
+      return {
+        eligible,
+        hasEnoughVariants,
+        spend: mineSpend,
+        cpa: mine?.performance.cpa ?? null,
+        ctr: mine?.performance.ctr ?? null,
+        conversionRate: mine?.performance.conversionRate ?? null,
+        beatsCpa: beats(mine?.performance.cpa, avgCpa, true),
+        beatsCtr: beats(mine?.performance.ctr, avgCtr, false),
+        beatsConversionRate: beats(mine?.performance.conversionRate, avgConversionRate, false),
+      }
+    },
+    enabled: !!campaignLinkId,
+  })
+}
+
 export function useAllTasks() {
   return useQuery({
     queryKey: ['manager-tasks'],

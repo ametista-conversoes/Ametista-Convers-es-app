@@ -351,3 +351,55 @@ export const campaignTypeLabels: Record<string, string> = {
   REACH: 'Alcance',
   APP_INSTALLS: 'Instalações de App',
 }
+
+// Catálogo de Criativos e Segmentações (Fase 34) — sempre por cliente
+// específico, sem reaproveitamento entre clientes.
+export const catalogTypeLabels: Record<string, string> = {
+  criativo: 'Criativo',
+  segmentacao: 'Segmentação',
+}
+
+export const catalogEntryTipoLabels: Record<string, string> = {
+  texto: 'Texto',
+  video: 'Vídeo',
+}
+
+export const catalogEntryOrigemLabels: Record<string, string> = {
+  ia: 'IA (Cassie)',
+  forms: 'Forms',
+  manual: 'Manual',
+}
+
+export const catalogEntryStatusLabels: Record<string, string> = {
+  rascunho: 'Rascunho',
+  em_teste: 'Em Teste',
+  aprovado_implementado: 'Aprovado/Implementado',
+  descartado: 'Descartado',
+}
+
+export const catalogEntryStatusStyles: Record<string, string> = {
+  rascunho: 'border-slate-500/20 bg-slate-500/10 text-slate-400',
+  em_teste: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
+  aprovado_implementado: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+  descartado: 'border-destructive/20 bg-destructive/10 text-destructive',
+}
+
+export const catalogEntryPrioridadeLabels: Record<string, string> = {
+  alta: 'Alta',
+  media: 'Média',
+  baixa: 'Baixa',
+}
+
+export const catalogEntryPrioridadeStyles: Record<string, string> = {
+  alta: 'border-destructive/20 bg-destructive/10 text-destructive',
+  media: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
+  baixa: 'border-slate-500/20 bg-slate-500/10 text-slate-400',
+}
+
+// Usado pra ordenar candidatas em triagem com as de prioridade mais
+// alta primeiro (número maior = mais prioritária).
+export const catalogEntryPrioridadeRank: Record<string, number> = {
+  alta: 2,
+  media: 1,
+  baixa: 0,
+}

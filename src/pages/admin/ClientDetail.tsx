@@ -16,6 +16,7 @@ import {
   UsersRound,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { CatalogCard } from '@/components/admin/CatalogCard'
 import { ClientAccessCard } from '@/components/admin/ClientAccessCard'
 import { ClientPerformanceMetricsCard } from '@/components/admin/ClientPerformanceMetricsCard'
 import { ClientPlatformCard } from '@/components/admin/ClientPlatformCard'
@@ -426,6 +427,10 @@ export default function ClientDetail() {
       <ClientPerformanceMetricsCard client={client} />
 
       <MetricAlertThresholdsCard clientId={client.id} />
+
+      <CatalogCard clientId={client.id} catalogType="criativo" />
+
+      <CatalogCard clientId={client.id} catalogType="segmentacao" />
 
       {/* Cliente em risco — só aparece se houver algum problema de verdade */}
       {riskDetails.hasProblems && (
