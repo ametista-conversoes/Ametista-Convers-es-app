@@ -65,7 +65,7 @@ export function ClientAccessCard({ clientId }: ClientAccessCardProps) {
   async function handleResend(accountId: string) {
     try {
       await resendInvite.mutateAsync(accountId)
-      toast.success('Convite reenviado.')
+      toast.success('Link reenviado — chega com o assunto "Redefinir senha" (não "convite"), mas leva pro mesmo fluxo de criar a senha.')
       startCooldown(accountId)
     } catch {
       // erro já avisado pelo onError do hook

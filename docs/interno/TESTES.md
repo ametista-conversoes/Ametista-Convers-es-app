@@ -47,16 +47,16 @@
 - [X] Ainda não sabemos exatamente o que quebra. Antes de virar um teste de aceite de verdade, precisa o usuário reproduzir e descrever: o que acontece ao mudar o campo Plano do cliente e clicar em Salvar (mensagem de erro? não salva? salva errado?).
 
 ## 8. Fase 30 — Tarefas do cliente separadas do Kanban interno
-- [ ] **Atenção ao testar**: depois desse deploy, `/tasks` do Portal Cliente e o checklist de `/project` vão aparecer **vazios** pra todo cliente (a tabela nova `client_tasks` nasce sem nenhum dado) — isso é esperado, não é bug. Só volta a mostrar algo depois que o gestor aplicar um Workflow com destino "Tarefas do cliente" ou o próprio cliente criar uma tarefa avulsa.
-- [ ] No diálogo "Aplicar Workflow", escolher o destino "Tarefas do cliente (aparece no Portal Cliente)" num cliente de teste → confirma que a tarefa aparece em `/tasks` do Portal Cliente e **não aparece** no Kanban interno.
-- [ ] Criar uma tarefa direto no Kanban (ou aplicar com destino "Kanban") → confirma que **não aparece** em `/tasks` do cliente.
+- [ ] **Atenção ao testar**: depois desse deploy, `/tasks` do Portal Cliente e o checklist de `/project` vão aparecer **vazios** pra todo cliente (a tabela nova `client_tasks` nasce sem nenhum dado) — isso é esperado, não é bug. Só volta a mostrar algo depois que o gestor aplicar um Workflow do Cliente ou o próprio cliente criar uma tarefa avulsa.
+- [ ] **Atualizado (item 21)**: o destino "Tarefas do cliente (aparece no Portal Cliente)" saiu do diálogo "Aplicar Workflow" (Operacional) — hoje o único caminho pra `client_tasks` é a aba "Workflows do Cliente" (ver item 21). Testar por lá em vez de procurar essa opção em "Aplicar Workflow".
+- [ ] Criar uma tarefa direto no Kanban (ou aplicar um Workflow Operacional) → confirma que **não aparece** em `/tasks` do cliente.
 - [ ] `/client-tasks` (Portal Gestor) continua mostrando só as tarefas do Kanban, sem nenhuma mudança — essa página é internamente separada da Fase 30, não deveria mudar.
 - [ ] Cliente criando uma tarefa avulsa pra si mesmo (botão "Nova tarefa" em `/tasks`) e marcando como concluída → confirma que grava/atualiza certo na tabela nova.
 
 ## 9. Fase 31/31b — Plataforma Escolhida (Meta/Google) pra clientes Validação
-- [ ] No editor de item do Workflow de Atividades: confirma que agora tem 2 seções separadas de checkbox — "Plano" (Validação/Escala/Dominação) e "Plataforma" (Meta Ads/Google Ads), com as 2 de plataforma marcadas por padrão em item novo.
-- [ ] Cliente Validação sem `chosen_platform` definido → só vê itens com as 2 plataformas marcadas (universal) na aba Atividades, com um aviso pra definir a plataforma.
-- [ ] Definir a plataforma (Meta ou Google) na Central de Informações → passa a ver os universais + os exclusivos da plataforma escolhida; itens exclusivos da outra plataforma não aparecem (nem escondidos visualmente — nem chegam a renderizar).
+- [X] No editor de item do Workflow de Atividades: confirma que agora tem 2 seções separadas de checkbox — "Plano" (Validação/Escala/Dominação) e "Plataforma" (Meta Ads/Google Ads), com as 2 de plataforma marcadas por padrão em item novo.
+- [X] Cliente Validação sem `chosen_platform` definido → só vê itens com as 2 plataformas marcadas (universal) na aba Atividades, com um aviso pra definir a plataforma.
+- [X] Definir a plataforma (Meta ou Google) na Central de Informações → passa a ver os universais + os exclusivos da plataforma escolhida; itens exclusivos da outra plataforma não aparecem (nem escondidos visualmente — nem chegam a renderizar).
 - [ ] Trocar de plataforma depois de já ter algum item concluído exclusivo da plataforma antiga → aparece a confirmação avisando quantos itens concluídos vão sumir da vista antes de trocar de fato (itens universais não entram nessa conta, porque continuam aparecendo).
 - [ ] Cliente Escala/Dominação → aba Atividades sem nenhuma mudança de comportamento (sem filtro, sem aviso, sem card de plataforma na Central de Informações).
 - [ ] **Pendente de dado real**: os itens dos Workflows de Atividades já existentes ficaram todos com as 2 plataformas marcadas (universal, nenhum perde visibilidade) — o `checklist-meta-google-validacao.md` revelou que várias fases precisam de itens novos com texto diferente por plataforma (não só uma marcação), então a tagueação real precisa ser feita à mão pelo usuário, item por item, usando os checkboxes novos como referência o arquivo.
@@ -142,10 +142,11 @@
 - [ ] Projeto sem nenhum "Tipo de teste A/B" configurado → confirma que não aparece na lista do seletor "Vincular a Grupo de Teste" (só projetos com teste configurado têm Grupo de Teste de verdade).
 - [ ] Apagar uma entrada (ícone de lixeira) → confirma que some da lista na hora, sem confirmação extra (mesmo padrão do log de troca de anúncio da Fase 33).
 
-## 20. Reenviar convite pendente + badge "Convite pendente" (Central de Informações do Cliente → Acesso ao Portal)
-- [ ] Veio de um pedido do usuário: convidar um e-mail novo criava a conta na hora (comportamento inerente do Supabase — é assim que ele sabe pra quem mandar o link), mas tentar convidar de novo o mesmo e-mail (ex: convite perdido/expirado) não reenviava nada — a conta já existia nesse ponto, então o botão só revinculava em silêncio, sem mandar e-mail.
+## 20. Reenviar convite pendente + badge "Convite pendente" (Central de Informações do Cliente → Acesso ao Portal) — PRECISA DE DEPLOY MANUAL DA EDGE FUNCTION
+- [ ] **Atenção**: `supabase functions deploy client-access` — sem o deploy, o botão "Reenviar convite" continua dando o erro antigo.
+- [ ] **Bug real achado ao vivo pelo usuário na 1ª versão**: `handleResendInvite` chamava `inviteUserByEmail` de novo pro mesmo e-mail — deu `AuthApiError: A user with this email address has already been registered` (a conta já existe desde o primeiro convite, minha suposta "o Supabase reenvia pra quem não confirmou" estava errada). Corrigido trocando por `resetPasswordForEmail` (o mesmo "esqueci minha senha" público) — funciona pra qualquer conta já existente, confirmada ou não. Efeito colateral aceito: o e-mail reenviado chega com o assunto "Redefinir senha" em vez de "Você foi convidado" — a UI já avisa isso no toast de sucesso.
 - [ ] Convidar um e-mail novo → confirma que a conta aparece na lista com o badge amarelo "Convite pendente" (a pessoa ainda não terminou de escolher a senha em `/reset-password`) e um botão "Reenviar convite" ao lado de "Remover acesso".
-- [ ] Clicar em "Reenviar convite" → confirma que um novo e-mail chega, e que o botão vira "Aguarde 20s" (contando regressivamente) por 20 segundos antes de poder clicar de novo.
+- [ ] Clicar em "Reenviar convite" → confirma que chega um novo e-mail (procurar por "Redefinir senha", não "convite"), o link funciona igual (cai em `/reset-password`), e que o botão vira "Aguarde 20s" (contando regressivamente) por 20 segundos antes de poder clicar de novo.
 - [ ] Depois que a pessoa completa `/reset-password` de verdade (escolhe nome + senha) → confirma que o badge "Convite pendente" e o botão "Reenviar convite" somem da lista (só restou "Remover acesso").
 - [ ] Tentar reenviar convite de uma conta que já está confirmada (sem o botão aparecer, isso não deveria nem ser possível pela UI) → se forçado direto na Edge Function, confirma que devolve erro 409 explicando pra usar "Esqueci minha senha" em vez disso.
 

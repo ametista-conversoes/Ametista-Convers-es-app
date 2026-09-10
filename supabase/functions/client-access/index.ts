@@ -36,13 +36,19 @@
 //     -> { created: boolean }
 //
 //   POST .../client-access/resend-invite   { profile_id: string }
-//     Reenvia o e-mail de convite pra uma conta que ainda está pendente
-//     (full_name vazio) — chama inviteUserByEmail de novo pro mesmo
-//     e-mail (o Supabase reenvia pra quem ainda não confirmou, em vez de
-//     dar erro de "já cadastrado"). Recusa com 409 se a conta já foi
-//     confirmada (full_name preenchido) — nesse caso a pessoa já tem
-//     senha, não é mais um convite pendente, e deve usar "Esqueci minha
-//     senha" na tela de login.
+//     Reenvia um link de acesso pra uma conta que ainda está pendente
+//     (full_name vazio). Achado ao vivo: inviteUserByEmail de novo pro
+//     MESMO e-mail dá erro "A user with this email address has already
+//     been registered" — a conta já existe desde o primeiro convite,
+//     diferente do que o comentário original aqui assumia. Usa
+//     resetPasswordForEmail em vez disso (o mesmo "esqueci minha senha"
+//     público, funciona pra qualquer conta existente independente de
+//     confirmação) — chega com o assunto "Redefinir senha" em vez de
+//     "Você foi convidado", mas cai no mesmo link/fluxo (sessão
+//     temporária + /reset-password), então funciona igual. Recusa com
+//     409 se a conta já foi confirmada (full_name preenchido) — nesse
+//     caso a pessoa já tem senha, não é mais um convite pendente, e deve
+//     usar "Esqueci minha senha" na tela de login.
 //     -> { ok: true }
 //
 //   POST .../client-access/unlink   { profile_id: string }
@@ -207,11 +213,19 @@ async function handleResendInvite(req: Request): Promise<Response> {
     )
   }
 
+  // inviteUserByEmail de novo pro mesmo e-mail dá "already been
+  // registered" (a conta já existe desde o primeiro convite) —
+  // resetPasswordForEmail é o caminho certo pra reenviar um link de
+  // acesso pra uma conta que já existe, confirmada ou não.
   const frontendUrl = Deno.env.get('FRONTEND_URL') ?? 'http://localhost:5173'
-  const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(profile.email, {
+  const { error: resendError } = await supabase.auth.resetPasswordForEmail(profile.email, {
     redirectTo: `${frontendUrl}/reset-password`,
   })
-  if (inviteError) return dbErrorResponse('handleResendInvite: reenviar convite', inviteError)
+  if (resendError) {
+    console.error('[client-access] handleResendInvite: reenviar convite:', resendError)
+    await logServerError('client-access', 'handleResendInvite: reenviar convite', resendError)
+    return jsonResponse({ error: resendError.message || 'Não foi possível reenviar o convite. Tente novamente.' }, 500)
+  }
 
   return jsonResponse({ ok: true })
 }
