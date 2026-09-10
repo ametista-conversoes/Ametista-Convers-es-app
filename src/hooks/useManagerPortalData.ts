@@ -1297,10 +1297,11 @@ export function useApplyWorkflow() {
       workflowName: string
       steps: { title: string; category: string }[]
       activityTemplateIds?: string[]
-      /** Fase 30 — 'kanban' (padrão) cria em `tasks` (interno da
-       * agência); 'client_tasks' cria em `client_tasks` (aparece pro
-       * cliente em /tasks do Portal Cliente). */
-      target?: 'kanban' | 'client_tasks'
+      /** Sempre 'kanban' (interno da agência) — o destino "client_tasks"
+       * que a Fase 30 tinha dado ao Workflow Operacional foi removido:
+       * "Workflows do Cliente" (`useApplyClientWorkflow`) é o único
+       * caminho pra mandar tarefa pro Portal Cliente daqui pra frente. */
+      target?: 'kanban'
     }) => {
       const { error } = await supabase.rpc('apply_workflow', {
         p_client_id: clientId,
@@ -1543,7 +1544,9 @@ export function useApplyClientWorkflow() {
       if (error) throw error
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['manager-tasks'] })
+      // As tarefas nascem em client_tasks, direto no Portal Cliente do
+      // outro usuário — nada na tela do gestor mostra client_tasks pra
+      // invalidar; só o audit_log de "Workflow de cliente aplicado".
       queryClient.invalidateQueries({ queryKey: ['manager-timeline'] })
     },
     onError: () => {

@@ -30,7 +30,7 @@ interface ApplyWorkflowDialogProps {
   lockedClientId?: string
 }
 
-type Target = 'project' | 'kanban' | 'client_tasks'
+type Target = 'project' | 'kanban'
 
 export function ApplyWorkflowDialog({ template: fixedTemplate, lockedClientId }: ApplyWorkflowDialogProps) {
   const [open, setOpen] = useState(false)
@@ -78,15 +78,14 @@ export function ApplyWorkflowDialog({ template: fixedTemplate, lockedClientId }:
         workflowName: template.name,
         steps: template.steps,
         activityTemplateIds: template.activity_template_ids,
-        target: target === 'client_tasks' ? 'client_tasks' : 'kanban',
+        target: 'kanban',
       })
       if (markAsDefault) {
         await setDefaultWorkflow.mutateAsync({ clientId: client.id, workflowTemplateId: template.id })
       }
       const activitiesMsg =
         template.activity_template_ids.length > 0 ? ' + itens de checklist criados em Atividades.' : ''
-      const destinationMsg =
-        target === 'project' ? 'no projeto escolhido' : target === 'client_tasks' ? 'nas Tarefas do cliente' : 'no Kanban do cliente'
+      const destinationMsg = target === 'project' ? 'no projeto escolhido' : 'no Kanban do cliente'
       toast.success(`${template.steps.length} tarefas criadas ${destinationMsg}.${activitiesMsg}`)
       handleOpenChange(false)
     } catch {
@@ -109,7 +108,7 @@ export function ApplyWorkflowDialog({ template: fixedTemplate, lockedClientId }:
           <DialogTitle>{fixedTemplate ? `Aplicar "${fixedTemplate.name}"` : 'Aplicar Workflow Operacional'}</DialogTitle>
           <DialogDescription>
             {template
-              ? `Cria ${template.steps.length} tarefas em Backlog, uma para cada etapa do modelo — o prazo de cada uma (quando o modelo tiver) já nasce calculado a partir de hoje.`
+              ? `Cria ${template.steps.length} tarefas em Backlog no Kanban interno da agência, uma para cada etapa do modelo — o prazo de cada uma (quando o modelo tiver) já nasce calculado a partir de hoje. Pra mandar tarefa direto pro Portal Cliente, use Workflows do Cliente em vez deste.`
               : 'Escolha um cliente e um modelo pra continuar.'}
             {template &&
               template.activity_template_ids.length > 0 &&
@@ -168,9 +167,8 @@ export function ApplyWorkflowDialog({ template: fixedTemplate, lockedClientId }:
                 <SelectValue placeholder="Aplicar em..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="project">Tarefas de um projeto</SelectItem>
-                <SelectItem value="kanban">Tarefas do Kanban (interno da agência)</SelectItem>
-                <SelectItem value="client_tasks">Tarefas do cliente (aparece no Portal Cliente)</SelectItem>
+                <SelectItem value="project">Tarefas de um projeto (Kanban interno)</SelectItem>
+                <SelectItem value="kanban">Tarefas do Kanban (sem projeto)</SelectItem>
               </SelectContent>
             </Select>
 
