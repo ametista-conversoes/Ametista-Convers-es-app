@@ -18,15 +18,32 @@
 //
 // Rotas (só admin/gestor):
 //   GET  .../client-access/linked?client_id=<uuid>
-//     -> { accounts: [{ id, email, full_name }] } — contas hoje vinculadas
-//        a esse cliente (profiles.client_id = client_id).
+//     -> { accounts: [{ id, email, full_name, pending }] } — contas hoje
+//        vinculadas a esse cliente (profiles.client_id = client_id).
+//        `pending: true` quando `full_name` ainda está vazio — sinal de
+//        que a pessoa nunca terminou de aceitar o convite (a tela
+//        /reset-password só grava full_name depois de escolher a
+//        senha), mesmo que o Supabase já tenha criado a conta no
+//        momento do convite.
 //
 //   POST .../client-access/link   { client_id: string, email: string }
 //     Se já existe uma conta com esse e-mail: vincula (profiles.client_id
-//     + role='cliente'). Se não existe: convida via
-//     supabase.auth.admin.inviteUserByEmail (cria a conta E manda o
-//     e-mail de convite do próprio Supabase) e já vincula em seguida.
+//     + role='cliente'), sem mandar e-mail nenhum de novo — pra reenviar
+//     o convite de uma conta que já existe, usar /resend-invite. Se não
+//     existe: convida via supabase.auth.admin.inviteUserByEmail (cria a
+//     conta E manda o e-mail de convite do próprio Supabase) e já
+//     vincula em seguida.
 //     -> { created: boolean }
+//
+//   POST .../client-access/resend-invite   { profile_id: string }
+//     Reenvia o e-mail de convite pra uma conta que ainda está pendente
+//     (full_name vazio) — chama inviteUserByEmail de novo pro mesmo
+//     e-mail (o Supabase reenvia pra quem ainda não confirmou, em vez de
+//     dar erro de "já cadastrado"). Recusa com 409 se a conta já foi
+//     confirmada (full_name preenchido) — nesse caso a pessoa já tem
+//     senha, não é mais um convite pendente, e deve usar "Esqueci minha
+//     senha" na tela de login.
+//     -> { ok: true }
 //
 //   POST .../client-access/unlink   { profile_id: string }
 //     Remove o vínculo (client_id = null). Não apaga a conta nem muda o
@@ -109,7 +126,8 @@ async function handleLinked(req: Request): Promise<Response> {
     .eq('role', 'cliente')
   if (error) return dbErrorResponse('handleLinked', error)
 
-  return jsonResponse({ accounts: data ?? [] })
+  const accounts = (data ?? []).map((account) => ({ ...account, pending: !account.full_name }))
+  return jsonResponse({ accounts })
 }
 
 async function handleLink(req: Request): Promise<Response> {
@@ -163,6 +181,41 @@ async function handleLink(req: Request): Promise<Response> {
   return jsonResponse({ created: true })
 }
 
+async function handleResendInvite(req: Request): Promise<Response> {
+  const auth = await requireAdminOrGestor(req)
+  if (auth instanceof Response) return auth
+
+  const body = await req.json().catch(() => null)
+  const profileId = body?.profile_id as string | undefined
+  if (!profileId) return jsonResponse({ error: 'profile_id é obrigatório' }, 400)
+
+  const supabase = getServiceClient()
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('id, email, full_name, role')
+    .eq('id', profileId)
+    .maybeSingle()
+  if (profileError) return dbErrorResponse('handleResendInvite: buscar conta', profileError)
+  if (!profile) return jsonResponse({ error: 'Conta não encontrada' }, 404)
+  if (profile.role !== 'cliente') return jsonResponse({ error: 'Essa conta não é de um cliente' }, 409)
+  if (!profile.email) return jsonResponse({ error: 'Essa conta não tem e-mail cadastrado' }, 409)
+  if (profile.full_name) {
+    return jsonResponse(
+      { error: 'Essa conta já foi confirmada — peça pra usar "Esqueci minha senha" na tela de login.' },
+      409,
+    )
+  }
+
+  const frontendUrl = Deno.env.get('FRONTEND_URL') ?? 'http://localhost:5173'
+  const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(profile.email, {
+    redirectTo: `${frontendUrl}/reset-password`,
+  })
+  if (inviteError) return dbErrorResponse('handleResendInvite: reenviar convite', inviteError)
+
+  return jsonResponse({ ok: true })
+}
+
 async function handleUnlink(req: Request): Promise<Response> {
   const auth = await requireAdminOrGestor(req)
   if (auth instanceof Response) return auth
@@ -187,8 +240,9 @@ Deno.serve(async (req) => {
   try {
     if (req.method === 'GET' && url.pathname.endsWith('/linked')) return await handleLinked(req)
     if (req.method === 'POST' && url.pathname.endsWith('/link')) return await handleLink(req)
+    if (req.method === 'POST' && url.pathname.endsWith('/resend-invite')) return await handleResendInvite(req)
     if (req.method === 'POST' && url.pathname.endsWith('/unlink')) return await handleUnlink(req)
-    return jsonResponse({ error: 'Rota não encontrada. Use /linked, /link ou /unlink.' }, 404)
+    return jsonResponse({ error: 'Rota não encontrada. Use /linked, /link, /resend-invite ou /unlink.' }, 404)
   } catch (err) {
     console.error('[client-access] erro inesperado:', err)
     await logServerError('client-access', 'erro inesperado', err)

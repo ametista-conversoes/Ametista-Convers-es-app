@@ -2,7 +2,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { aggregateAudienceInsights, type AudienceRawResponse } from '@/lib/audience-insights'
-import { fetchLinkedClientAccounts, linkClientAccount, unlinkClientAccount } from '@/lib/client-access'
+import { fetchLinkedClientAccounts, linkClientAccount, resendClientInvite, unlinkClientAccount } from '@/lib/client-access'
 import type { PerformanceSnapshotRecord } from '@/hooks/useClientPortalData'
 import { listAdGroups, listCampaignInsights, type ExternalAdGroup } from '@/lib/integrations'
 import type { ClientHealthScoreSnapshotRecord, ExecutiveKpiSnapshotRecord } from '@/lib/manager-metrics'
@@ -185,6 +185,19 @@ export function useLinkClientAccount(clientId: string) {
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Não foi possível vincular a conta.')
+    },
+  })
+}
+
+export function useResendClientInvite(clientId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (profileId: string) => resendClientInvite(profileId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['client-linked-accounts', clientId] })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Não foi possível reenviar o convite.')
     },
   })
 }

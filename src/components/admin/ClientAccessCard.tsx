@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { KeyRound, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { useLinkClientAccount, useLinkedClientAccounts, useUnlinkClientAccount } from '@/hooks/useManagerPortalData'
+import { useLinkClientAccount, useLinkedClientAccounts, useResendClientInvite, useUnlinkClientAccount } from '@/hooks/useManagerPortalData'
+
+const RESEND_COOLDOWN_MS = 20_000
 
 interface ClientAccessCardProps {
   clientId: string
@@ -13,12 +16,38 @@ interface ClientAccessCardProps {
 /** Fase 26 — vincula um login (conta com role='cliente') a esse
  * cliente, ou convida uma conta nova se o e-mail digitado ainda não
  * existir. Antes só dava pra fazer isso com um UPDATE manual em
- * profiles.client_id no SQL Editor do Supabase. */
+ * profiles.client_id no SQL Editor do Supabase.
+ *
+ * Achado ao vivo: clicar em "Vincular ou convidar" de novo pro mesmo
+ * e-mail (ex: convite perdido/expirado) não reenviava nada — a conta já
+ * existia nesse ponto, então só revinculava em silêncio. Agora toda
+ * conta ainda pendente (nunca terminou de escolher a senha, ver
+ * `LinkedClientAccount.pending`) ganha um botão "Reenviar convite"
+ * próprio, com um intervalo mínimo de 20s entre envios pra não estourar
+ * limite de e-mail do Supabase. */
 export function ClientAccessCard({ clientId }: ClientAccessCardProps) {
   const { data: accounts, isLoading, isError } = useLinkedClientAccounts(clientId)
   const link = useLinkClientAccount(clientId)
+  const resendInvite = useResendClientInvite(clientId)
   const unlink = useUnlinkClientAccount(clientId)
   const [email, setEmail] = useState('')
+  const [cooldownUntil, setCooldownUntil] = useState<Record<string, number>>({})
+  const [, forceTick] = useState(0)
+
+  useEffect(() => {
+    if (!Object.values(cooldownUntil).some((until) => until > Date.now())) return
+    const id = setInterval(() => forceTick((n) => n + 1), 1000)
+    return () => clearInterval(id)
+  }, [cooldownUntil])
+
+  function secondsLeft(key: string) {
+    const remaining = (cooldownUntil[key] ?? 0) - Date.now()
+    return remaining > 0 ? Math.ceil(remaining / 1000) : 0
+  }
+
+  function startCooldown(key: string) {
+    setCooldownUntil((prev) => ({ ...prev, [key]: Date.now() + RESEND_COOLDOWN_MS }))
+  }
 
   async function handleLink() {
     const trimmed = email.trim()
@@ -26,7 +55,18 @@ export function ClientAccessCard({ clientId }: ClientAccessCardProps) {
     try {
       const result = await link.mutateAsync(trimmed)
       toast.success(result.created ? 'Convite enviado — a pessoa recebe um e-mail pra criar a senha.' : 'Conta vinculada a esse cliente.')
+      if (result.created) startCooldown(trimmed)
       setEmail('')
+    } catch {
+      // erro já avisado pelo onError do hook
+    }
+  }
+
+  async function handleResend(accountId: string) {
+    try {
+      await resendInvite.mutateAsync(accountId)
+      toast.success('Convite reenviado.')
+      startCooldown(accountId)
     } catch {
       // erro já avisado pelo onError do hook
     }
@@ -52,25 +92,47 @@ export function ClientAccessCard({ clientId }: ClientAccessCardProps) {
           <p className="text-sm text-destructive">Erro ao carregar as contas vinculadas. Tente novamente.</p>
         ) : accounts && accounts.length > 0 ? (
           <div className="space-y-2">
-            {accounts.map((account) => (
-              <div key={account.id} className="flex items-center justify-between gap-3 rounded-lg bg-secondary/50 px-3 py-2 text-sm">
-                <div className="min-w-0">
-                  <p className="truncate text-foreground">{account.full_name ?? 'Sem nome'}</p>
-                  <p className="truncate text-xs text-muted-foreground">{account.email}</p>
+            {accounts.map((account) => {
+              const remaining = secondsLeft(account.id)
+              return (
+                <div key={account.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-secondary/50 px-3 py-2 text-sm">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-foreground">{account.full_name ?? 'Sem nome'}</p>
+                      {account.pending && (
+                        <Badge className="border-amber-500/20 bg-amber-500/10 text-amber-400">Convite pendente</Badge>
+                      )}
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground">{account.email}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {account.pending && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                        disabled={resendInvite.isPending || remaining > 0}
+                        onClick={() => handleResend(account.id)}
+                      >
+                        {remaining > 0 ? `Aguarde ${remaining}s` : 'Reenviar convite'}
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs text-muted-foreground hover:text-destructive"
+                      disabled={unlink.isPending}
+                      onClick={() => unlink.mutate(account.id)}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Remover acesso
+                    </Button>
+                  </div>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 shrink-0 text-xs text-muted-foreground hover:text-destructive"
-                  disabled={unlink.isPending}
-                  onClick={() => unlink.mutate(account.id)}
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Remover acesso
-                </Button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">Nenhuma conta com acesso ainda.</p>
