@@ -142,7 +142,7 @@ export function ActivityTemplateCard({ template, deleteMode, canEdit, linkedWork
                   className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotColorForScope(item.plan_scope)}`}
                   title={dotTitleForScope(item.plan_scope)}
                 />
-                <span className="min-w-0 truncate">{item.title}</span>
+                <span className="min-w-0">{item.title}</span>
                 {platformTag && (
                   <Badge className="shrink-0 border-[#1A2540] bg-secondary/50 text-[10px] text-muted-foreground">
                     {platformTag}

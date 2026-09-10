@@ -12,7 +12,6 @@ import {
   LayoutDashboard,
   ListChecks,
   MessageSquare,
-  Plug,
   Settings,
   Sparkles,
   Target,
@@ -40,22 +39,25 @@ export const clientNavItems: NavItem[] = [
   { title: 'Configurações', href: '/settings', icon: Settings },
 ]
 
+// Ordem pedida pelo usuário (Fase 34e): Metas SMART e Atividades logo
+// abaixo de Kanban; Ativos Digitais logo abaixo de Tarefas do Cliente
+// (7º item); Timeline por último, abaixo de Cassie IA. "Integrações"
+// não tem mais item próprio — virou sub-aba dentro de "Ativos Digitais".
 export const managerNavItems: NavItem[] = [
   { title: 'Dashboard Executivo', href: '/admin', icon: LayoutDashboard },
   { title: 'Clientes', href: '/clients', icon: Users },
   { title: 'Kanban', href: '/kanban', icon: Columns3 },
+  { title: 'Metas SMART', href: '/smart-goals', icon: Target },
+  { title: 'Atividades', href: '/activities', icon: ListChecks },
   { title: 'Tarefas do Cliente', href: '/client-tasks', icon: CheckSquare },
+  { title: 'Ativos Digitais', href: '/assets', icon: Boxes },
   { title: 'Workflows', href: '/workflows', icon: Workflow },
   { title: 'Catálogo', href: '/catalog', icon: Layers },
   { title: 'Incidentes e Alertas', href: '/incidents', icon: AlertTriangle },
-  { title: 'Ativos Digitais', href: '/assets', icon: Boxes },
-  { title: 'Integrações', href: '/integrations', icon: Plug },
   { title: 'Públicos-Alvo', href: '/audiences', icon: UsersRound },
-  { title: 'Timeline', href: '/timeline', icon: History },
-  { title: 'Metas SMART', href: '/smart-goals', icon: Target },
-  { title: 'Atividades', href: '/activities', icon: ListChecks },
   { title: 'Comentários', href: '/client-comments', icon: MessageSquare },
   { title: 'Reuniões', href: '/client-meetings', icon: Calendar },
   { title: 'Arquivos', href: '/client-files', icon: FileText },
   { title: 'Cassie IA', href: '/client-cassie', icon: Sparkles },
+  { title: 'Timeline', href: '/timeline', icon: History },
 ]

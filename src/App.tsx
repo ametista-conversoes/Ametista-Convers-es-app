@@ -29,7 +29,6 @@ import ClientDetail from '@/pages/admin/ClientDetail'
 import Clients from '@/pages/admin/Clients'
 import DashboardExecutivo from '@/pages/admin/DashboardExecutivo'
 import Incidents from '@/pages/admin/Incidents'
-import Integrations from '@/pages/admin/Integrations'
 import Kanban from '@/pages/admin/Kanban'
 import ManagerCassie from '@/pages/admin/ManagerCassie'
 import ManagerClientTasks from '@/pages/admin/ManagerClientTasks'
@@ -66,7 +65,6 @@ const managerPagesReady: Record<string, ComponentType> = {
   '/incidents': Incidents,
   '/timeline': Timeline,
   '/assets': Assets,
-  '/integrations': Integrations,
   '/audiences': AudienceInsights,
   '/smart-goals': SmartGoals,
   '/activities': Activities,
@@ -142,6 +140,9 @@ function App() {
             {/* "/onboarding" virou "/activities" na Fase 6.6.2 — mesmo
                 padrão de redirecionamento do "/alerts" acima. */}
             <Route path="/onboarding" element={<Navigate to="/activities" replace />} />
+            {/* "/integrations" virou uma sub-aba de "/assets" na Fase 34e —
+                mesmo padrão de redirecionamento do "/alerts" acima. */}
+            <Route path="/integrations" element={<Navigate to="/assets?tab=integracoes" replace />} />
             {/* Central de Informações do Cliente — acessada clicando num card em "/clients" */}
             <Route path="/clients/:id" element={<ClientDetail />} />
           </Route>
