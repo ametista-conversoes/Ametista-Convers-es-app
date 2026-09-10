@@ -404,127 +404,7 @@ export default function ClientDetail() {
 
       <ClientPlatformCard clientId={client.id} />
 
-      <ClientAccessCard clientId={client.id} />
-
-      {/* Observações internas */}
-      <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
-        <CardHeader className="p-0">
-          <CardTitle className="text-base">Observações internas</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 p-0 pt-4">
-          <p className="text-xs text-muted-foreground">Só a agência vê isso — o cliente nunca tem acesso.</p>
-          <Textarea
-            placeholder="Anotações internas sobre esse cliente..."
-            value={notesValue}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-          <Button onClick={handleSaveDetails} disabled={savingDetails}>
-            {savingDetails ? 'Salvando...' : 'Salvar'}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <ClientPerformanceMetricsCard client={client} />
-
-      <MetricAlertThresholdsCard clientId={client.id} />
-
-      <CatalogCard clientId={client.id} catalogType="criativo" />
-
-      <CatalogCard clientId={client.id} catalogType="segmentacao" />
-
-      {/* Cliente em risco — só aparece se houver algum problema de verdade */}
-      {riskDetails.hasProblems && (
-        <Card className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 md:p-6">
-          <CardHeader className="p-0">
-            <CardTitle className="flex items-center gap-2 text-base text-destructive">
-              <AlertTriangle className="h-4 w-4" />
-              Cliente em risco
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3 p-0 pt-4 text-sm sm:grid-cols-4">
-            <div>
-              <p className="text-lg font-semibold text-foreground">{riskDetails.overdueTasks}</p>
-              <p className="text-xs text-muted-foreground">Tarefas atrasadas</p>
-            </div>
-            <div>
-              <p className="text-lg font-semibold text-foreground">{riskDetails.overdueGoals}</p>
-              <p className="text-xs text-muted-foreground">Metas não concluídas no prazo</p>
-            </div>
-            <div>
-              <p className="text-lg font-semibold text-foreground">{riskDetails.activeAlerts}</p>
-              <p className="text-xs text-muted-foreground">Alertas não resolvidos</p>
-            </div>
-            <div>
-              <p className="text-lg font-semibold text-foreground">{riskDetails.activeIncidents}</p>
-              <p className="text-xs text-muted-foreground">Incidentes abertos</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Projetos */}
-      <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
-        <CardHeader className="flex flex-wrap items-center justify-between gap-2 p-0">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <FolderKanban className="h-4 w-4 text-purple-400" />
-            Projetos
-          </CardTitle>
-          <div className="flex flex-wrap items-center gap-2">
-            <ApplyWorkflowDialog lockedClientId={client.id} />
-            <NewProjectDialog clientId={client.id} />
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-2 p-0 pt-4">
-          {clientProjects.length === 0 && <p className="text-sm text-muted-foreground">Nenhum projeto ainda.</p>}
-          {clientProjects.map((project) => (
-            <div key={project.id} className="rounded-lg bg-secondary/50 px-3 py-2 hover:bg-secondary">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p
-                  className="cursor-pointer text-sm font-medium text-foreground"
-                  onClick={() => setSelectedProject(project)}
-                >
-                  {project.title}
-                </p>
-                <div className="flex items-center gap-1">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild disabled={updateProject.isPending}>
-                      <Badge className={cn('cursor-pointer', projectStatusStyles[project.status])}>
-                        {projectStatusLabels[project.status] ?? project.status}
-                      </Badge>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {PROJECT_CHANGEABLE_STATUSES.map((status) => (
-                        <DropdownMenuItem
-                          key={status}
-                          onSelect={() => updateProject.mutate({ id: project.id, status })}
-                        >
-                          {projectStatusLabels[status]}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                    onClick={() => setProjectToDelete(project)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-              <div className="cursor-pointer" onClick={() => setSelectedProject(project)}>
-                {project.objective && <p className="mt-1 text-xs text-muted-foreground">Objetivo: {project.objective}</p>}
-                {project.description && (
-                  <p className="mt-1 text-xs text-muted-foreground/70">{project.description}</p>
-                )}
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Tarefas, Metas, Reuniões */}
+      {/* Tarefas, Metas, Reuniões, Atividades */}
       <div className="content-grid-container">
         <div className="content-grid gap-4">
           <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
@@ -648,6 +528,104 @@ export default function ClientDetail() {
         </div>
       </div>
 
+      <ClientPerformanceMetricsCard client={client} />
+
+      {/* Cliente em risco — só aparece se houver algum problema de verdade */}
+      {riskDetails.hasProblems && (
+        <Card className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 md:p-6">
+          <CardHeader className="p-0">
+            <CardTitle className="flex items-center gap-2 text-base text-destructive">
+              <AlertTriangle className="h-4 w-4" />
+              Cliente em risco
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-3 p-0 pt-4 text-sm sm:grid-cols-4">
+            <div>
+              <p className="text-lg font-semibold text-foreground">{riskDetails.overdueTasks}</p>
+              <p className="text-xs text-muted-foreground">Tarefas atrasadas</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-foreground">{riskDetails.overdueGoals}</p>
+              <p className="text-xs text-muted-foreground">Metas não concluídas no prazo</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-foreground">{riskDetails.activeAlerts}</p>
+              <p className="text-xs text-muted-foreground">Alertas não resolvidos</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-foreground">{riskDetails.activeIncidents}</p>
+              <p className="text-xs text-muted-foreground">Incidentes abertos</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Projetos */}
+      <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
+        <CardHeader className="flex flex-wrap items-center justify-between gap-2 p-0">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FolderKanban className="h-4 w-4 text-purple-400" />
+            Projetos
+          </CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <ApplyWorkflowDialog lockedClientId={client.id} />
+            <NewProjectDialog clientId={client.id} />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2 p-0 pt-4">
+          {clientProjects.length === 0 && <p className="text-sm text-muted-foreground">Nenhum projeto ainda.</p>}
+          {clientProjects.map((project) => (
+            <div key={project.id} className="rounded-lg bg-secondary/50 px-3 py-2 hover:bg-secondary">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p
+                  className="cursor-pointer text-sm font-medium text-foreground"
+                  onClick={() => setSelectedProject(project)}
+                >
+                  {project.title}
+                </p>
+                <div className="flex items-center gap-1">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild disabled={updateProject.isPending}>
+                      <Badge className={cn('cursor-pointer', projectStatusStyles[project.status])}>
+                        {projectStatusLabels[project.status] ?? project.status}
+                      </Badge>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {PROJECT_CHANGEABLE_STATUSES.map((status) => (
+                        <DropdownMenuItem
+                          key={status}
+                          onSelect={() => updateProject.mutate({ id: project.id, status })}
+                        >
+                          {projectStatusLabels[status]}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => setProjectToDelete(project)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+              <div className="cursor-pointer" onClick={() => setSelectedProject(project)}>
+                {project.objective && <p className="mt-1 text-xs text-muted-foreground">Objetivo: {project.objective}</p>}
+                {project.description && (
+                  <p className="mt-1 text-xs text-muted-foreground/70">{project.description}</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <CatalogCard clientId={client.id} catalogType="criativo" />
+
+      <CatalogCard clientId={client.id} catalogType="segmentacao" />
+
       {/* Público-Alvo (Fase 8.5) — síntese em % das perguntas fechadas
           dos Google Forms conectados (mesmo cálculo/gráfico da aba
           dedicada "Públicos-Alvo", Fase 8.3). Visão simples, sem
@@ -678,6 +656,28 @@ export default function ClientDetail() {
           </CardContent>
         </Card>
       )}
+
+      {/* Observações internas */}
+      <Card className="rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
+        <CardHeader className="p-0">
+          <CardTitle className="text-base">Observações internas</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 p-0 pt-4">
+          <p className="text-xs text-muted-foreground">Só a agência vê isso — o cliente nunca tem acesso.</p>
+          <Textarea
+            placeholder="Anotações internas sobre esse cliente..."
+            value={notesValue}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+          <Button onClick={handleSaveDetails} disabled={savingDetails}>
+            {savingDetails ? 'Salvando...' : 'Salvar'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <ClientAccessCard clientId={client.id} />
+
+      <MetricAlertThresholdsCard clientId={client.id} />
 
       {/* Cassie IA — conversa própria do gestor sobre esse cliente,
           separada da conversa que o próprio cliente tem com a Cassie.

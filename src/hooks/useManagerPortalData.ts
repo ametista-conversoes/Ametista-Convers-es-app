@@ -1017,9 +1017,34 @@ export function useCreateCatalogEntry() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['catalog-entries', variables.client_id, variables.catalog_type] })
+      queryClient.invalidateQueries({ queryKey: ['all-catalog-entries', variables.catalog_type] })
     },
     onError: () => {
       toast.error('Não foi possível criar a entrada do catálogo.')
+    },
+  })
+}
+
+/** Criação em massa — "colar várias linhas" (Fase 34c): cada linha
+ * colada numa textarea vira uma entrada separada, um único insert.
+ * Todas as entradas do lote compartilham client_id/catalog_type (é
+ * sempre assim que a UI monta o payload), então basta olhar a
+ * primeira pra invalidar o cache certo. */
+export function useCreateCatalogEntries() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (inputs: NewCatalogEntryInput[]) => {
+      const { error } = await supabase.from('catalog_entries').insert(inputs)
+      if (error) throw error
+    },
+    onSuccess: (_data, variables) => {
+      const first = variables[0]
+      if (!first) return
+      queryClient.invalidateQueries({ queryKey: ['catalog-entries', first.client_id, first.catalog_type] })
+      queryClient.invalidateQueries({ queryKey: ['all-catalog-entries', first.catalog_type] })
+    },
+    onError: () => {
+      toast.error('Não foi possível criar as entradas do catálogo.')
     },
   })
 }

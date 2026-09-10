@@ -92,36 +92,36 @@
 - [X] **Atenção**: a Edge Function `integrations` só atualiza depois de rodar `supabase functions deploy integrations` (CLI ou painel) — sem o deploy, o badge de tipo de campanha e a aba nova só vão dar erro/vazio.
 - [X] Rodar `migration-065-tipo-campanha-valor-conversao.sql` antes de testar.
 - [X] Projeto vinculado a uma campanha do Google Ads → aba Visão Geral mostra um badge novo com o tipo de campanha (Pesquisa/Display/Vídeo/Performance Max/...) e as tiles "CPC médio" e "Valor de conversão (plataforma)" — esse último é o valor de conversão que o próprio Google reporta, diferente da "Receita" do app (calculada por Leads/Ticket Médio); confirma que os dois números aparecem separados, sem se confundir.
-- [ ] No topo da aba "Grupos de Anúncios", confirma a nova tile "Utilização de orçamento (30 dias)" ao lado das 2 de impressão perdida — é gasto real ÷ (orçamento diário × 30); bem abaixo de 100% pode ser orçamento sobrando, isso é só informativo interno (o cliente não vê essa aba).
-- [ ] Abaixo da lista de grupos, confirma os blocos novos — "Dispositivo" (custo/cliques/conversões por Celular/Computador/Tablet), "Desempenho geográfico (cidade/região)", "Top termos de pesquisa", "Top palavras-chave", "Breakdown por ação de conversão" (ex: separar "Compra" de "Lead" quando o cliente rastreia mais de uma), uma frase "Melhor desempenho: [dia da semana], período da [manhã/tarde/noite/madrugada]" e, só quando existir dado, "Demográfico" (faixa etária + gênero).
-- [ ] Numa campanha que não seja de Pesquisa (Display/Vídeo/PMax) → "Top termos de pesquisa" e "Top palavras-chave" devem aparecer vazios com a mensagem explicando o motivo, não um erro; "Demográfico" só aparece de verdade em campanhas com segmentação de público (Display/Vídeo/Demand Gen/PMax) — numa campanha de Pesquisa pura, a seção inteira some (sem bloco vazio/quebrado).
-- [ ] Projeto vinculado a uma campanha do Meta Ads → confirma que só o badge de tipo de campanha (objetivo) e CPC/valor de conversão aparecem; a aba "Grupos de Anúncios" inteira (incluindo todos os blocos novos) mostra o aviso de "só Google Ads por enquanto", sem quebrar.
+- [X] No topo da aba "Grupos de Anúncios", confirma a nova tile "Utilização de orçamento (30 dias)" ao lado das 2 de impressão perdida — é gasto real ÷ (orçamento diário × 30); bem abaixo de 100% pode ser orçamento sobrando, isso é só informativo interno (o cliente não vê essa aba).
+- [X] Abaixo da lista de grupos, confirma os blocos novos — "Dispositivo" (custo/cliques/conversões por Celular/Computador/Tablet), "Desempenho geográfico (cidade/região)", "Top termos de pesquisa", "Top palavras-chave", "Breakdown por ação de conversão" (ex: separar "Compra" de "Lead" quando o cliente rastreia mais de uma), uma frase "Melhor desempenho: [dia da semana], período da [manhã/tarde/noite/madrugada]" e, só quando existir dado, "Demográfico" (faixa etária + gênero).
+- [X] Numa campanha que não seja de Pesquisa (Display/Vídeo/PMax) → "Top termos de pesquisa" e "Top palavras-chave" devem aparecer vazios com a mensagem explicando o motivo, não um erro; "Demográfico" só aparece de verdade em campanhas com segmentação de público (Display/Vídeo/Demand Gen/PMax) — numa campanha de Pesquisa pura, a seção inteira some (sem bloco vazio/quebrado).
+- [X] Projeto vinculado a uma campanha do Meta Ads → confirma que só o badge de tipo de campanha (objetivo) e CPC/valor de conversão aparecem; a aba "Grupos de Anúncios" inteira (incluindo todos os blocos novos) mostra o aviso de "só Google Ads por enquanto", sem quebrar.
 
 ## 15. Múltiplas campanhas por projeto (project_campaign_links)
-- [ ] Rodar `migration-066-multiplas-campanhas-projeto.sql` antes de testar — se algum projeto já tinha campanha vinculada (link único antigo), confirma que ela aparece automaticamente na lista nova depois de rodar a migration (é o backfill), sem precisar vincular de novo.
-- [ ] Aba "Campanha" do projeto: "Campanhas vinculadas" agora é uma lista, com "Adicionar campanha" abrindo o mesmo fluxo de escolher conta → campanha de antes, e "Remover" em cada linha já vinculada.
-- [ ] Vincular 2 campanhas ao mesmo projeto (idealmente de tipos diferentes, ex: Search + Performance Max) → aba Visão Geral mostra os badges de tipo de campanha das duas, e CPA/CTR/Gasto/Receita passam a somar as duas juntas.
-- [ ] Aba "Grupos de Anúncios" → confirma uma seção por campanha vinculada, cada uma com seu próprio orçamento/impressão perdida/ad groups/resumos curados — não uma lista só misturando tudo.
-- [ ] Criar um projeto novo já escolhendo uma campanha na hora da criação → confirma que ela aparece certinho na lista de "Campanhas vinculadas" depois (não só nas 3 colunas antigas, que não são mais lidas em lugar nenhum).
-- [ ] Remover a única campanha vinculada de um projeto → volta a mostrar "Nenhuma campanha vinculada" e os campos da Visão Geral voltam a usar os valores manuais do projeto (spend/cpa/ctr/revenue).
+- [X] Rodar `migration-066-multiplas-campanhas-projeto.sql` antes de testar — se algum projeto já tinha campanha vinculada (link único antigo), confirma que ela aparece automaticamente na lista nova depois de rodar a migration (é o backfill), sem precisar vincular de novo.
+- [X] Aba "Campanha" do projeto: "Campanhas vinculadas" agora é uma lista, com "Adicionar campanha" abrindo o mesmo fluxo de escolher conta → campanha de antes, e "Remover" em cada linha já vinculada.
+- [X] Vincular 2 campanhas ao mesmo projeto (idealmente de tipos diferentes, ex: Search + Performance Max) → aba Visão Geral mostra os badges de tipo de campanha das duas, e CPA/CTR/Gasto/Receita passam a somar as duas juntas.
+- [X] Aba "Grupos de Anúncios" → confirma uma seção por campanha vinculada, cada uma com seu próprio orçamento/impressão perdida/ad groups/resumos curados — não uma lista só misturando tudo.
+- [X] Criar um projeto novo já escolhendo uma campanha na hora da criação → confirma que ela aparece certinho na lista de "Campanhas vinculadas" depois (não só nas 3 colunas antigas, que não são mais lidas em lugar nenhum).
+- [X] Remover a única campanha vinculada de um projeto → volta a mostrar "Nenhuma campanha vinculada" e os campos da Visão Geral voltam a usar os valores manuais do projeto (spend/cpa/ctr/revenue).
 
 ## 16. Alerta automático de mudança de estado da campanha — PRECISA DE DEPLOY MANUAL DA EDGE FUNCTION
-- [ ] **Atenção**: `supabase functions deploy integrations` de novo — sem o deploy, o status/orçamento novo não é sincronizado e o alerta nunca dispara.
-- [ ] Rodar `migration-067-alerta-mudanca-estado-campanha.sql` antes de testar.
+- [X] **Atenção**: `supabase functions deploy integrations` de novo — sem o deploy, o status/orçamento novo não é sincronizado e o alerta nunca dispara.
+- [X] Rodar `migration-067-alerta-mudanca-estado-campanha.sql` antes de testar.
 - [ ] Com uma campanha de teste vinculada a um projeto: rodar uma sincronização (pra gravar o 1º status conhecido), depois pausar essa campanha direto no Google Ads/Meta Ads, rodar a sincronização de novo → confirma que aparece um Alerta novo em `/alerts` do tipo "Campanha "X" mudou de estado" (severidade alta se removida, média se pausada).
 - [ ] Rodar a sincronização uma 3ª vez sem mudar nada → confirma que **não** cria um alerta duplicado pra mesma transição (o último status conhecido já foi atualizado).
 - [ ] Mudar o orçamento diário da campanha de teste em mais de 20% (pra cima ou pra baixo) e sincronizar → confirma o alerta "Orçamento da campanha mudou bruscamente".
 - [ ] Reverter a campanha pra ENABLED e sincronizar → não deve criar alerta nenhum (só PAUSED/REMOVED disparam, não o retorno ao normal).
 
 ## 17. Tipo de campanha/status/orçamento agora sincroniza mesmo sem gasto real — PRECISA DE DEPLOY MANUAL DA EDGE FUNCTION
-- [ ] **Atenção**: `supabase functions deploy integrations` de novo.
+- [X] **Atenção**: `supabase functions deploy integrations` de novo.
 - [ ] Veio de um bug real que você reportou: campanha de teste do Google Ads vinculada a um projeto não mostrava o badge de tipo (Search/PMax/etc.), mesmo já linkada corretamente — porque a consulta de métricas só grava linha pra campanha+dia com atividade real, e conta de teste normalmente tem zero atividade.
 - [ ] Testar: com aquela mesma campanha de teste (ex: "Sales-Search-2") vinculada a um projeto, rodar a sincronização → confirma que agora o badge de tipo aparece na Visão Geral mesmo com Gasto R$ 0,00.
 
 ## 18. Teste A/B de Campanhas (aba "Testes")
-- [ ] Rodar `migration-068-teste-ab-campanhas.sql` antes de testar.
-- [ ] Criar (ou editar) um projeto com "Tipo de teste A/B" diferente de "Nenhum" → confirma que aparece a aba "Testes" e o badge roxo "Teste A/B — [tipo]" na Visão Geral.
-- [ ] Com pelo menos 2 campanhas vinculadas na aba Campanha: aba Testes mostra um cartão por campanha (variante) com nome/ID/tipo, "vinculada há X dias", Gasto/CPA/CTR/Taxa de Conversão.
+- [X] Rodar `migration-068-teste-ab-campanhas.sql` antes de testar.
+- [X] Criar (ou editar) um projeto com "Tipo de teste A/B" diferente de "Nenhum" → confirma que aparece a aba "Testes" e o badge roxo "Teste A/B — [tipo]" na Visão Geral.
+- [X] Com pelo menos 2 campanhas vinculadas na aba Campanha: aba Testes mostra um cartão por campanha (variante) com nome/ID/tipo, "vinculada há X dias", Gasto/CPA/CTR/Taxa de Conversão.
 - [ ] Configurar um "Gasto mínimo" (ex: R$100) → variante com gasto abaixo disso fica marcada "Dados insuficientes" e some do cálculo da média do grupo (mas continua aparecendo na lista).
 - [ ] Com pelo menos 2 variantes elegíveis: confirma que a variante com CPA mais baixo (ou CTR/Taxa de Conversão mais alta) que a média do grupo fica destacada em verde com uma setinha — pode ter mais de uma destacada ao mesmo tempo, não é uma "vencedora" única.
 - [ ] Tipo de teste "Segmentação" → cada variante mostra um resumo extra (dispositivo/local/faixa etária/gênero top), reaproveitando o mesmo dado da aba Grupos de Anúncios.
@@ -130,13 +130,13 @@
 - [ ] Projeto com só 1 campanha vinculada (ou nenhuma) e tipo de teste configurado → aba Testes mostra aviso pra vincular mais uma, em vez de comparar sozinho ou quebrar.
 
 ## 19. Catálogo de Criativos e Segmentações (Central de Informações do Cliente)
-- [ ] Rodar `migration-069-catalogo-criativos-segmentacoes.sql` antes de testar.
-- [ ] Central de Informações do Cliente → confirma que aparecem os 2 cards novos, "Catálogo de Criativos" e "Catálogo de Segmentações", cada um sempre restrito àquele cliente (sem opção de reaproveitar entrada de outro cliente).
-- [ ] "Adicionar" no Catálogo de Criativos → formulário com Tipo (**atualizado**: Headline/Descrição/Frase de destaque/Vídeo, em vez do "Texto" genérico de antes), Conteúdo (o placeholder muda pra cada um dos 4 tipos — confirma isso), Origem (IA/Forms/Manual), Prioridade (Alta/Média/Baixa — confirma que o badge cabe numa linha só, sem quebrar) e "Variação de" opcional → salva e aparece em "Em Triagem" com status Rascunho.
-- [ ] "Adicionar" no Catálogo de Segmentações → mesmo formulário, sem o campo Tipo (não existe distinção texto/vídeo pra segmentação).
-- [ ] Clicar no badge de Prioridade ou de Status de uma entrada → menu abre e troca na hora, sem recarregar a página.
-- [ ] Marcar uma entrada como "Aprovado/Implementado" → confirma que ela some da aba "Em Triagem" e passa a aparecer em "Confirmados/Implementados".
-- [ ] Marcar uma entrada como "Descartado" → some das 2 abas principais; confirma que aparece em "Mostrar descartados (N)" no rodapé do card, sem se perder.
+- [X] Rodar `migration-069-catalogo-criativos-segmentacoes.sql` antes de testar.
+- [X] Central de Informações do Cliente → confirma que aparecem os 2 cards novos, "Catálogo de Criativos" e "Catálogo de Segmentações", cada um sempre restrito àquele cliente (sem opção de reaproveitar entrada de outro cliente).
+- [X] "Adicionar" no Catálogo de Criativos → formulário com Tipo (**atualizado**: Headline/Descrição/Frase de destaque/Vídeo, em vez do "Texto" genérico de antes), Conteúdo (o placeholder muda pra cada um dos 4 tipos — confirma isso), Origem (IA/Forms/Manual), Prioridade (Alta/Média/Baixa — confirma que o badge cabe numa linha só, sem quebrar) e "Variação de" opcional → salva e aparece em "Em Triagem" com status Rascunho.
+- [X] "Adicionar" no Catálogo de Segmentações → mesmo formulário, sem o campo Tipo (não existe distinção texto/vídeo pra segmentação).
+- [X] Clicar no badge de Prioridade ou de Status de uma entrada → menu abre e troca na hora, sem recarregar a página.
+- [X] Marcar uma entrada como "Aprovado/Implementado" → confirma que ela some da aba "Em Triagem" e passa a aparecer em "Confirmados/Implementados".
+- [X] Marcar uma entrada como "Descartado" → some das 2 abas principais; confirma que aparece em "Mostrar descartados (N)" no rodapé do card, sem se perder.
 - [ ] Criar uma 2ª entrada escolhendo a 1ª em "Variação de" → confirma que a 2ª mostra "↳ variação de: [texto da 1ª]" na lista.
 - [ ] Com um projeto que já tenha "Tipo de teste A/B" configurado (Fase 33) e pelo menos 2 campanhas vinculadas: numa entrada do catálogo, confirma que o seletor "Vincular a Grupo de Teste" lista esse projeto + a campanha; vincular e marcar a entrada como "Em Teste" → confirma que aparece o resultado herdado (CPA/CTR/Taxa de Conversão com a setinha verde quando bate a média do grupo), igual à aba Testes do projeto.
 - [ ] Projeto sem nenhum "Tipo de teste A/B" configurado → confirma que não aparece na lista do seletor "Vincular a Grupo de Teste" (só projetos com teste configurado têm Grupo de Teste de verdade).
@@ -167,7 +167,21 @@
 - [ ] Ícone de lixeira (`DeleteModeToggle`, mesmo ícone do Kanban/Clientes/Ativos Digitais) → liga o modo de exclusão, cada linha ganha seu próprio ícone de apagar com diálogo de confirmação (diferente do card por cliente, que apaga direto sem confirmar) — apagar aqui reflete também no card da Central de Informações do cliente correspondente.
 - [ ] Trocar status/prioridade/Grupo de Teste de uma entrada aqui → confirma que a mudança também aparece no card da Central de Informações desse cliente (mesmo dado, 2 telas).
 
-## 23. Aprovações externas do Google/Meta — bloqueiam validação com dados reais de terceiros
+## 23. Erro "campaign_status column not found in schema cache" ao sincronizar — provável cache do PostgREST, não bug de código
+- [ ] Os itens 16 e 17 já estão marcados `[X]` (migration-067 e 068 rodadas) — o código em `syncConnection` já grava `campaign_status` em `campaign_performance_snapshots` desde a Fase do Item 4 do plano Google Ads. Se o erro `PGRST204 "Could not find the 'campaign_status' column"` aparecer mesmo com a migration já rodada, o mais provável é o **cache de schema do PostgREST não ter atualizado** (gotcha comum do Supabase depois de um `ALTER TABLE` manual no SQL Editor) — não precisa de código novo.
+- [ ] **Se ainda não rodou** `migration-067-alerta-mudanca-estado-campanha.sql`: rode primeiro, resolve sozinho.
+- [ ] **Se já rodou e o erro persiste**: Supabase Dashboard → Settings → API → botão "Reload schema cache" (ou rode `NOTIFY pgrst, 'reload schema';` no SQL Editor) → sincronizar de novo.
+- [ ] **Gasto mínimo da campanha** (usado no Teste A/B e no resultado herdado do Catálogo, "Dados insuficientes"): configurado por projeto, campo "Gasto mínimo pra entrar na comparação" dentro do próprio projeto → aba "Testes" — essa aba só aparece quando o campo "Tipo de teste A/B" do projeto (aba Campanha) está diferente de "Nenhum". Não tem uma tela separada pra isso; se a aba Testes não aparece, o tipo de teste ainda não foi escolhido pra esse projeto.
+
+## 24. Catálogo: criação em massa (colar várias linhas), criar direto na página global, reorganização da Central de Informações
+- [ ] Sem migration nova nessa rodada — é só frontend (reordenação de seções + formulário de criação reaproveitado).
+- [ ] Central de Informações do Cliente → nova ordem de cima pra baixo: Cabeçalho → Contato/Plano/Renovação → Plataforma Escolhida → **Tarefas/Metas SMART/Reuniões/Atividades** → Métricas de Performance → Cliente em risco (se houver) → **Projetos** → **Catálogo** (Criativos + Segmentações) → Público-Alvo (se houver) → **Observações internas** → **Acesso ao Portal** → **Alertas por limiar de métricas** → Cassie IA. Confirma que nada sumiu, só mudou de lugar.
+- [ ] No card de Catálogo por cliente (Central de Informações), o botão "Adicionar" saiu do canto do cabeçalho e foi pro topo do conteúdo do card (antes da lista) — confirma que ainda funciona igual, formulário abre/fecha do mesmo jeito.
+- [ ] Dentro do formulário "Adicionar" (Criativos ou Segmentações), botão "Colar várias em massa" → troca pra uma textarea grande; colar um bloco com várias linhas (ex: 5 headlines, uma por linha) → confirma que o botão mostra "Criar 5 entradas"; salvar → confirma que criou 5 entradas separadas (nunca uma headline partida em duas, nunca duas na mesma entrada), todas com o mesmo Tipo/Origem/Prioridade escolhido no formulário. Linhas em branco no meio do texto colado são ignoradas.
+- [ ] Botão "Uma entrada por vez" (dentro do modo em massa) → volta pro formulário normal, sem perder o Tipo/Origem/Prioridade já escolhidos.
+- [ ] Página global "Catálogo" (/catalog) → com "Todos os clientes" selecionado, aparece um aviso pra escolher um cliente específico em vez do formulário de criação. Selecionar um cliente específico → aparece o mesmo formulário "Adicionar" (incluindo "Colar várias em massa") direto na página global → criar uma entrada ali → confirma que ela aparece tanto na página global quanto no card daquele cliente na Central de Informações (mesmo dado, 2 telas, sem precisar recarregar a página pra sincronizar).
+
+## 25. Aprovações externas do Google/Meta — bloqueiam validação com dados reais de terceiros
 - [ ] **Google Ads API "Basic Access" — CONFIRMADO (07/09), não é mais suspeita**: o diagnóstico novo (item 10) mostrou o erro real do Google nas 4 contas raiz que o MCC "Ametista Conversões" enxerga: `"The developer token is only approved for use with test accounts. To access non-test accounts, apply for Basic or Standard access."` — ou seja, o developer token do app só pode mexer em contas de teste (vazias) até essa aprovação sair; nenhuma conta de cliente de verdade funciona antes disso, não importa o quanto o vínculo no MCC esteja certo. **Não é bug de código, é aprovação que só o Google concede** — peça em Google Ads → Ferramentas e Configurações → Configuração → API Center, dentro da conta MCC. A Fase 28 (lado Google) e a sincronização de métricas reais (Fase 19.1) só validam de verdade depois disso.
 - [ ] Duas das 4 contas também deram um segundo erro, independente do developer token: `"The customer account can't be accessed because it is not yet enabled or has been..."` — sugere que essas 2 contas específicas têm o próprio setup incompleto do lado do Google (ex: sem faturamento configurado) — vale conferir direto no Google Ads, mas só faz sentido investigar isso depois que o Basic Access sair, já que sem ele nada funciona de qualquer forma.
 - [ ] **Verificação de escopo sensível do Google (Forms)** + vídeo de demonstração enviado: pendente de review do Google.

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Search } from 'lucide-react'
+import { CatalogAddForm } from '@/components/catalog/CatalogAddForm'
 import { CatalogEntryRow } from '@/components/catalog/CatalogEntryRow'
 import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { Input } from '@/components/ui/input'
@@ -32,13 +33,15 @@ function sortEntries(entries: CatalogEntryWithClient[]) {
   })
 }
 
-/** Fase 34b — página global "Catálogo" (Portal Gestor): vê, avalia,
- * busca e apaga criativos/segmentações de TODOS os clientes num só
- * lugar (ou filtrado por um cliente específico) — diferente do
- * `CatalogCard` na Central de Informações, que é sempre por cliente e
- * onde as entradas de fato são criadas. Apagar aqui usa o mesmo padrão
- * "modo de exclusão" do resto do app (Kanban, Clientes, etc.), não o
- * ícone direto do CatalogCard. */
+/** Fase 34b/34c — página global "Catálogo" (Portal Gestor): vê, cria,
+ * avalia, busca e apaga criativos/segmentações de TODOS os clientes
+ * num só lugar (ou filtrado por um cliente específico) — diferente do
+ * `CatalogCard` na Central de Informações, que é sempre de um cliente
+ * só. Criar aqui exige um cliente específico selecionado no filtro
+ * (não dá pra criar uma entrada sem dono quando "Todos os clientes"
+ * está selecionado). Apagar usa o mesmo padrão "modo de exclusão" do
+ * resto do app (Kanban, Clientes, etc.), não o ícone direto do
+ * CatalogCard. */
 export default function Catalog() {
   const { data: clients } = useAllClients()
   const criativosQuery = useAllCatalogEntries('criativo')
@@ -48,6 +51,7 @@ export default function Catalog() {
   const deleteEntry = useDeleteCatalogEntry()
 
   const [clientFilter, setClientFilter] = useState(ALL_CLIENTS)
+  const [activeTab, setActiveTab] = useState<CatalogType>('criativo')
   const [deleteMode, setDeleteMode] = useState(false)
   const [search, setSearch] = useState('')
 
@@ -127,15 +131,37 @@ export default function Catalog() {
         </div>
       </div>
 
-      <Tabs defaultValue="criativo">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as CatalogType)}>
         <TabsList>
           <TabsTrigger value="criativo">Criativos</TabsTrigger>
           <TabsTrigger value="segmentacao">Segmentações</TabsTrigger>
         </TabsList>
-        <TabsContent value="criativo" className="mt-4">
+        <TabsContent value="criativo" className="mt-4 space-y-3">
+          {clientFilter === ALL_CLIENTS ? (
+            <p className="text-xs text-muted-foreground">
+              Selecione um cliente específico acima pra poder criar novos criativos.
+            </p>
+          ) : (
+            <CatalogAddForm
+              clientId={clientFilter}
+              catalogType="criativo"
+              entries={(criativosQuery.data ?? []).filter((e) => e.client_id === clientFilter)}
+            />
+          )}
           {renderList('criativo', criativosQuery.data ?? [], criativosQuery.isLoading, 'Nenhum criativo encontrado.')}
         </TabsContent>
-        <TabsContent value="segmentacao" className="mt-4">
+        <TabsContent value="segmentacao" className="mt-4 space-y-3">
+          {clientFilter === ALL_CLIENTS ? (
+            <p className="text-xs text-muted-foreground">
+              Selecione um cliente específico acima pra poder criar novas segmentações.
+            </p>
+          ) : (
+            <CatalogAddForm
+              clientId={clientFilter}
+              catalogType="segmentacao"
+              entries={(segmentacoesQuery.data ?? []).filter((e) => e.client_id === clientFilter)}
+            />
+          )}
           {renderList(
             'segmentacao',
             segmentacoesQuery.data ?? [],
