@@ -79,6 +79,7 @@ import { uploadClientLogo } from '@/lib/storage'
 import {
   clientStatusLabels,
   clientStatusStyles,
+  connectionProviderLabels,
   getHealthScoreColor,
   meetingStatusLabels,
   meetingStatusStyles,
@@ -584,6 +585,11 @@ export default function ClientDetail() {
                   {project.title}
                 </p>
                 <div className="flex items-center gap-1">
+                  {project.platform && (
+                    <Badge className="border-[#1A2540] bg-secondary/50 text-muted-foreground">
+                      {connectionProviderLabels[project.platform] ?? project.platform}
+                    </Badge>
+                  )}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild disabled={updateProject.isPending}>
                       <Badge className={cn('cursor-pointer', projectStatusStyles[project.status])}>

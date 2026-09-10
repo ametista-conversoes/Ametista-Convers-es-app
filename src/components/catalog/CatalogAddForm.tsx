@@ -15,11 +15,13 @@ import {
 import {
   CATALOG_NONE_VALUE,
   CATALOG_PRIORIDADE_OPTIONS,
+  CATALOG_TIPO_MAX_LENGTH,
   CATALOG_TIPO_OPTIONS,
   CATALOG_TIPO_PLACEHOLDERS,
   truncateCatalogText,
 } from '@/lib/catalog'
 import { catalogEntryPrioridadeLabels, catalogEntryTipoLabels } from '@/lib/status-styles'
+import { cn } from '@/lib/utils'
 
 const SEGMENTACAO_PLACEHOLDER = 'Descreva a segmentação (interesses, público personalizado, lookalike 1%...)'
 
@@ -62,8 +64,14 @@ export function CatalogAddForm({ clientId, catalogType, entries }: CatalogAddFor
     setAdding(false)
   }
 
+  // Headline (15 caracteres) e Descrição (90) são obrigatórios pro
+  // formato de anúncio de texto — Frase de destaque e Vídeo, e
+  // Segmentações, não têm limite.
+  const maxLength = catalogType === 'criativo' ? CATALOG_TIPO_MAX_LENGTH[tipo] : undefined
+  const overLimit = maxLength != null && conteudo.trim().length > maxLength
+
   async function handleAdd() {
-    if (!conteudo.trim()) return
+    if (!conteudo.trim() || overLimit) return
     try {
       await createEntry.mutateAsync({
         client_id: clientId,
@@ -86,9 +94,10 @@ export function CatalogAddForm({ clientId, catalogType, entries }: CatalogAddFor
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
+  const bulkLinesOverLimit = maxLength != null ? bulkLines.filter((line) => line.length > maxLength) : []
 
   async function handleBulkAdd() {
-    if (bulkLines.length === 0) return
+    if (bulkLines.length === 0 || bulkLinesOverLimit.length > 0) return
     try {
       await createEntries.mutateAsync(
         bulkLines.map((line) => ({
@@ -146,21 +155,38 @@ export function CatalogAddForm({ clientId, catalogType, entries }: CatalogAddFor
       </div>
 
       {bulkMode ? (
-        <Textarea
-          placeholder={
-            'Uma por linha — cada linha vira uma entrada separada.\nEx:\nTransforme seu negócio hoje mesmo\nVenda mais todos os dias\nAumente seus resultados agora'
-          }
-          value={bulkConteudo}
-          onChange={(e) => setBulkConteudo(e.target.value)}
-          className="min-h-[120px] text-sm"
-        />
+        <div className="space-y-1">
+          <Textarea
+            placeholder={
+              'Uma por linha — cada linha vira uma entrada separada.\nEx:\nTransforme seu negócio hoje mesmo\nVenda mais todos os dias\nAumente seus resultados agora'
+            }
+            value={bulkConteudo}
+            onChange={(e) => setBulkConteudo(e.target.value)}
+            className="min-h-[120px] text-sm"
+          />
+          {maxLength != null && (
+            <p className={cn('text-[11px]', bulkLinesOverLimit.length > 0 ? 'text-destructive' : 'text-muted-foreground')}>
+              Limite de {maxLength} caracteres por linha ({catalogEntryTipoLabels[tipo]})
+              {bulkLinesOverLimit.length > 0
+                ? ` — ${bulkLinesOverLimit.length} linha${bulkLinesOverLimit.length === 1 ? '' : 's'} passou do limite.`
+                : '.'}
+            </p>
+          )}
+        </div>
       ) : (
-        <Textarea
-          placeholder={catalogType === 'criativo' ? CATALOG_TIPO_PLACEHOLDERS[tipo] : SEGMENTACAO_PLACEHOLDER}
-          value={conteudo}
-          onChange={(e) => setConteudo(e.target.value)}
-          className="text-sm"
-        />
+        <div className="space-y-1">
+          <Textarea
+            placeholder={catalogType === 'criativo' ? CATALOG_TIPO_PLACEHOLDERS[tipo] : SEGMENTACAO_PLACEHOLDER}
+            value={conteudo}
+            onChange={(e) => setConteudo(e.target.value)}
+            className="text-sm"
+          />
+          {maxLength != null && (
+            <p className={cn('text-right text-[11px]', overLimit ? 'text-destructive' : 'text-muted-foreground')}>
+              {conteudo.trim().length}/{maxLength} caracteres
+            </p>
+          )}
+        </div>
       )}
 
       <div className="flex flex-wrap gap-2">
@@ -208,13 +234,18 @@ export function CatalogAddForm({ clientId, catalogType, entries }: CatalogAddFor
           <Button
             type="button"
             size="sm"
-            disabled={createEntries.isPending || bulkLines.length === 0}
+            disabled={createEntries.isPending || bulkLines.length === 0 || bulkLinesOverLimit.length > 0}
             onClick={handleBulkAdd}
           >
             Criar {bulkLines.length} entrada{bulkLines.length === 1 ? '' : 's'}
           </Button>
         ) : (
-          <Button type="button" size="sm" disabled={createEntry.isPending || !conteudo.trim()} onClick={handleAdd}>
+          <Button
+            type="button"
+            size="sm"
+            disabled={createEntry.isPending || !conteudo.trim() || overLimit}
+            onClick={handleAdd}
+          >
             Salvar
           </Button>
         )}

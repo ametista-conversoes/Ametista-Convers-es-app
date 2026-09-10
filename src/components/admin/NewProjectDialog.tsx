@@ -29,6 +29,7 @@ const newProjectSchema = z.object({
   external_campaign_name: z.string().nullable(),
   conversion_type: z.enum(['vendas', 'leads']),
   test_type: z.enum(['nenhum', 'segmentacao', 'anuncio', 'campanha']),
+  platform: z.enum(['google_ads', 'meta_ads']),
 })
 
 type NewProjectValues = z.infer<typeof newProjectSchema>
@@ -57,6 +58,7 @@ export function NewProjectDialog({ clientId }: NewProjectDialogProps) {
       external_campaign_name: null,
       conversion_type: 'leads',
       test_type: 'nenhum',
+      platform: 'google_ads',
     },
   })
 
@@ -74,6 +76,7 @@ export function NewProjectDialog({ clientId }: NewProjectDialogProps) {
         description: values.description?.trim() ? values.description.trim() : null,
         conversion_type: values.conversion_type,
         test_type: values.test_type,
+        platform: values.platform,
       })
       if (values.external_connection_id && values.external_campaign_id) {
         await addCampaignLink.mutateAsync({
@@ -114,6 +117,28 @@ export function NewProjectDialog({ clientId }: NewProjectDialogProps) {
                   <FormControl>
                     <Input placeholder="Ex: Campanha de Verão 2026" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="platform"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Plataforma</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="google_ads">Google Ads</SelectItem>
+                      <SelectItem value="meta_ads">Meta Ads</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

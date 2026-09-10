@@ -94,6 +94,14 @@ export interface ManagerProjectRecord {
    * normal, sem aba "Testes"). */
   test_type: 'nenhum' | 'segmentacao' | 'anuncio' | 'campanha'
   test_min_spend: number | null
+  /** Fase 34d — plataforma de anúncios do projeto (escolhida na
+   * criação, editável na aba Campanha) — null só em projeto criado
+   * antes dessa fase. */
+  platform: 'google_ads' | 'meta_ads' | null
+  /** Palavras-chave documentadas manualmente pro gestor — só mostrado
+   * na aba Campanha quando a campanha vinculada é do tipo Pesquisa
+   * (Search), igual ao Público-alvo (`icp`) só que específico de Search. */
+  keywords: string | null
 }
 
 export interface ManagerTaskRecord {
@@ -526,7 +534,7 @@ export function useAllProjects() {
       const { data, error } = await supabase
         .from('projects')
         .select(
-          'id, title, client_id, status, spend, objective, description, icp, segmentations, systems, channel, cpa, roas, ctr, revenue, health_score, start_date, end_date, external_connection_id, external_campaign_id, external_campaign_name, conversion_type, test_type, test_min_spend',
+          'id, title, client_id, status, spend, objective, description, icp, segmentations, systems, channel, cpa, roas, ctr, revenue, health_score, start_date, end_date, external_connection_id, external_campaign_id, external_campaign_name, conversion_type, test_type, test_min_spend, platform, keywords',
         )
       if (error) throw error
       return data as ManagerProjectRecord[]
@@ -541,6 +549,7 @@ export interface NewProjectInput {
   description: string | null
   conversion_type: 'vendas' | 'leads'
   test_type: 'nenhum' | 'segmentacao' | 'anuncio' | 'campanha'
+  platform: 'google_ads' | 'meta_ads'
 }
 
 /** Devolve o projeto criado (id) porque `NewProjectDialog` precisa dele
@@ -575,6 +584,8 @@ export interface UpdateProjectCampaignInput {
   status?: string
   test_type?: 'nenhum' | 'segmentacao' | 'anuncio' | 'campanha'
   test_min_spend?: number | null
+  platform?: 'google_ads' | 'meta_ads' | null
+  keywords?: string | null
 }
 
 export function useUpdateProject() {

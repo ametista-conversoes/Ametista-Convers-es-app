@@ -26,7 +26,7 @@ import {
 import { formatCurrency, formatDate, formatMultiplier, formatPercent } from '@/lib/format'
 import { computeRoas } from '@/lib/metrics'
 import { segmentationOptionGroups } from '@/lib/segmentation-options'
-import { campaignTypeLabels, projectStatusLabels, projectStatusStyles } from '@/lib/status-styles'
+import { campaignTypeLabels, connectionProviderLabels, projectStatusLabels, projectStatusStyles } from '@/lib/status-styles'
 import { useForm } from 'react-hook-form'
 
 interface ProjectDetailDialogProps {
@@ -37,12 +37,14 @@ interface ProjectDetailDialogProps {
 
 interface CampaignFormValues {
   icp: string
+  keywords: string
   segmentations: string[]
   objective: string
   systems: string
   description: string
   conversion_type: 'vendas' | 'leads'
   test_type: 'nenhum' | 'segmentacao' | 'anuncio' | 'campanha'
+  platform: 'google_ads' | 'meta_ads'
 }
 
 const conversionTypeLabels: Record<'vendas' | 'leads', string> = {
@@ -66,12 +68,14 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
   const form = useForm<CampaignFormValues>({
     defaultValues: {
       icp: '',
+      keywords: '',
       segmentations: [],
       objective: '',
       systems: '',
       description: '',
       conversion_type: 'leads',
       test_type: 'nenhum',
+      platform: 'google_ads',
     },
   })
 
@@ -79,12 +83,17 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
     if (!project) return
     form.reset({
       icp: project.icp ?? '',
+      keywords: project.keywords ?? '',
       segmentations: project.segmentations,
       objective: project.objective ?? '',
       systems: project.systems ?? '',
       description: project.description ?? '',
       conversion_type: project.conversion_type,
       test_type: project.test_type,
+      // Projeto criado antes da Fase 34d não tem plataforma salva —
+      // cai em "google_ads" só pra sempre ter uma seleção válida no
+      // Select; salvar de novo já grava a plataforma de verdade.
+      platform: project.platform ?? 'google_ads',
     })
     setEditingRevenue(false)
   }, [project, form])
@@ -111,12 +120,14 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
       await updateProject.mutateAsync({
         id: project.id,
         icp: values.icp.trim() ? values.icp.trim() : null,
+        keywords: values.keywords.trim() ? values.keywords.trim() : null,
         segmentations: values.segmentations,
         objective: values.objective.trim() ? values.objective.trim() : null,
         systems: values.systems.trim() ? values.systems.trim() : null,
         description: values.description.trim() ? values.description.trim() : null,
         conversion_type: values.conversion_type,
         test_type: values.test_type,
+        platform: values.platform,
       })
       toast.success('Campanha atualizada.')
     } catch {
@@ -182,6 +193,11 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                   <Badge className={projectStatusStyles[project.status]}>
                     {projectStatusLabels[project.status] ?? project.status}
                   </Badge>
+                  {project.platform && (
+                    <Badge className="border-[#1A2540] bg-secondary/50 text-muted-foreground">
+                      {connectionProviderLabels[project.platform] ?? project.platform}
+                    </Badge>
+                  )}
                   {project.channel && (
                     <Badge className="border-[#1A2540] bg-secondary/50 text-muted-foreground">{project.channel}</Badge>
                   )}
@@ -349,6 +365,22 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
 
               <TabsContent value="campaign" className="space-y-4">
                 <div>
+                  <label className="text-sm text-foreground">Plataforma</label>
+                  <Select
+                    value={form.watch('platform')}
+                    onValueChange={(v) => form.setValue('platform', v as CampaignFormValues['platform'], { shouldDirty: true })}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="google_ads">Google Ads</SelectItem>
+                      <SelectItem value="meta_ads">Meta Ads</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
                   <label className="text-sm text-foreground">Tipo de conversão</label>
                   <Select value={form.watch('conversion_type')} onValueChange={(v) => form.setValue('conversion_type', v as 'vendas' | 'leads', { shouldDirty: true })}>
                     <SelectTrigger className="mt-1">
@@ -396,6 +428,22 @@ export function ProjectDetailDialog({ project, tasks, onOpenChange }: ProjectDet
                     className="mt-1"
                   />
                 </div>
+
+                {(campaignPerformance.data?.campaignTypes ?? []).includes('SEARCH') && (
+                  <div>
+                    <label className="text-sm text-foreground">Palavras-chave</label>
+                    <Textarea
+                      placeholder="Palavras-chave dessa campanha de Pesquisa (uma por linha, ou como preferir documentar)..."
+                      {...form.register('keywords')}
+                      className="mt-1"
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Só aparece porque essa campanha é do tipo Pesquisa (Search) — documentação manual, não
+                      sincronizada. Termos de pesquisa e keywords de verdade já aparecem sincronizados na aba
+                      "Grupos de Anúncios".
+                    </p>
+                  </div>
+                )}
 
                 <div>
                   <p className="text-sm text-foreground">Segmentações</p>

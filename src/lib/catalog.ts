@@ -20,6 +20,16 @@ export const CATALOG_TIPO_PLACEHOLDERS: Record<CatalogEntryTipo, string> = {
   video: 'Caminho/nome do arquivo (ex: ClienteX/Videos/anuncio_v3_final.mp4)',
 }
 
+/** Limite de caracteres por subtipo de texto — Headline e Descrição são
+ * obrigatórios (pedido do usuário: "são necessários"), Frase de
+ * destaque e Vídeo não têm limite. Só vale pra entradas NOVAS — não é
+ * uma constraint no banco, então nenhuma entrada antiga (criada antes
+ * desse limite existir) quebra. */
+export const CATALOG_TIPO_MAX_LENGTH: Partial<Record<CatalogEntryTipo, number>> = {
+  headline: 15,
+  descricao: 90,
+}
+
 export function truncateCatalogText(text: string, max = 70) {
   return text.length > max ? `${text.slice(0, max)}…` : text
 }
