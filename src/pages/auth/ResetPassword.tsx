@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { PasswordInput } from '@/components/ui/password-input'
 import { useAuth } from '@/contexts/AuthContext'
 import { useUpdateProfile } from '@/hooks/useClientPortalData'
@@ -80,12 +81,10 @@ export default function ResetPassword() {
     <AuthLayout title="Configurar sua conta" subtitle="Confirme seus dados e escolha uma senha">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormItem>
-            <FormLabel>E-mail</FormLabel>
-            <FormControl>
-              <Input value={user?.email ?? ''} disabled />
-            </FormControl>
-          </FormItem>
+          <div className="space-y-2">
+            <Label>E-mail</Label>
+            <Input value={user?.email ?? ''} disabled />
+          </div>
 
           <FormField
             control={form.control}
