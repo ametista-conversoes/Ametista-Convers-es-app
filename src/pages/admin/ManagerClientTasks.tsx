@@ -1,19 +1,25 @@
 import { useState } from 'react'
 import { CheckSquare, Plus, Search } from 'lucide-react'
-import { KanbanTaskFormDialog } from '@/components/kanban/KanbanTaskFormDialog'
-import { ManagerTaskRow } from '@/components/tasks/ManagerTaskRow'
+import { ClientTaskFormDialog } from '@/components/tasks/ClientTaskFormDialog'
+import { ManagerClientTaskRow } from '@/components/tasks/ManagerClientTaskRow'
 import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useAllClients, useAllTasks } from '@/hooks/useManagerPortalData'
+import { useAllClients, useAllClientTasks } from '@/hooks/useManagerPortalData'
 
 const ALL_CLIENTS = 'all'
 
+/** "Tarefas do Cliente" (Fase 6.5.3, corrigida na Fase 35.1) — mostra o
+ * que o CLIENTE cria/completa em `/tasks` (Portal Cliente) e o que
+ * "Workflows do Cliente" aplica (`client_tasks`), nunca o Kanban
+ * interno da agência — esse é o propósito original da página, que
+ * durante a Fase 30 (separação client_tasks/tasks) acabou ficando presa
+ * lendo `public.tasks` filtrado por cliente por engano. */
 export default function ManagerClientTasks() {
   const { data: clients } = useAllClients()
-  const { data: tasks, isLoading } = useAllTasks()
+  const { data: tasks, isLoading } = useAllClientTasks()
   const [clientFilter, setClientFilter] = useState(ALL_CLIENTS)
   const [deleteMode, setDeleteMode] = useState(false)
   const [search, setSearch] = useState('')
@@ -60,7 +66,8 @@ export default function ManagerClientTasks() {
               ))}
             </SelectContent>
           </Select>
-          <KanbanTaskFormDialog
+          <ClientTaskFormDialog
+            defaultClientId={clientFilter !== ALL_CLIENTS ? clientFilter : undefined}
             trigger={
               <Button>
                 <Plus className="h-4 w-4" />
@@ -81,7 +88,7 @@ export default function ManagerClientTasks() {
         <CardContent className="space-y-2 p-0 pt-4">
           {filteredTasks.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma tarefa encontrada.</p>}
           {filteredTasks.map((task) => (
-            <ManagerTaskRow key={task.id} task={task} showClientName={clientFilter === ALL_CLIENTS} deleteMode={deleteMode} />
+            <ManagerClientTaskRow key={task.id} task={task} showClientName={clientFilter === ALL_CLIENTS} deleteMode={deleteMode} />
           ))}
         </CardContent>
       </Card>

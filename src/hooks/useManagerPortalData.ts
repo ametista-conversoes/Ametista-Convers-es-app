@@ -1351,6 +1351,123 @@ export function useUpdateManagerTask() {
   })
 }
 
+// Tarefas do Cliente (`client_tasks`) — vistas pelo gestor em
+// `/client-tasks` (Fase 35.1, corrigindo um bug real: essa página
+// sempre leu `public.tasks`/Kanban filtrado por cliente, então nunca
+// mostrava as tarefas que o próprio cliente cria/completa em `/tasks`
+// (Portal Cliente) nem as que "Workflows do Cliente" aplica — o
+// propósito original da página, segundo o usuário, sempre foi mostrar
+// isso). Tabela igual à de `useClientPortalData.ts`, só que aqui o
+// gestor pode ver/editar/apagar TODAS (RLS "admin_gestor_full_client_tasks"
+// já libera), com o mesmo filtro de plataforma que o Kanban não tem.
+export interface ManagerClientTaskRecord {
+  id: string
+  title: string
+  description: string | null
+  client_id: string
+  project_id: string | null
+  status: string
+  priority: string
+  category: string | null
+  due_date: string | null
+  recurrence_interval: RecurrenceInterval | null
+  completed_at: string | null
+  client: { name: string; plan: string | null } | null
+}
+
+export function useAllClientTasks() {
+  return useQuery({
+    queryKey: ['manager-client-tasks'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('client_tasks')
+        .select(
+          'id, title, description, client_id, project_id, status, priority, category, due_date, recurrence_interval, completed_at, client:clients(name, plan)',
+        )
+        .order('due_date', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data as unknown as ManagerClientTaskRecord[]
+    },
+  })
+}
+
+/** Mesma RPC que o Portal Cliente usa (`set_client_task_status`) — ela
+ * já aceita admin/gestor, não só o próprio cliente, e carimba
+ * `completed_at` quando o novo status é "done" (Fase 35, recorrência). */
+export function useUpdateClientTaskStatusAsManager() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ taskId, status }: { taskId: string; status: string }) => {
+      const { error } = await supabase.rpc('set_client_task_status', { task_id: taskId, new_status: status })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-client-tasks'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível atualizar o status da tarefa.')
+    },
+  })
+}
+
+export function useDeleteManagerClientTask() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (taskId: string) => {
+      const { error } = await supabase.from('client_tasks').delete().eq('id', taskId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-client-tasks'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível excluir a tarefa.')
+    },
+  })
+}
+
+export interface NewManagerClientTaskInput {
+  title: string
+  client_id: string
+  project_id: string | null
+  category: string | null
+  priority: string
+  due_date: string | null
+}
+
+export function useCreateManagerClientTask() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: NewManagerClientTaskInput) => {
+      const { error } = await supabase.from('client_tasks').insert(input)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-client-tasks'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível criar a tarefa.')
+    },
+  })
+}
+
+export function useUpdateManagerClientTask() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...input }: NewManagerClientTaskInput & { id: string }) => {
+      const { error } = await supabase.from('client_tasks').update(input).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager-client-tasks'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível atualizar a tarefa.')
+    },
+  })
+}
+
 export function useApplyWorkflow() {
   const queryClient = useQueryClient()
   return useMutation({
