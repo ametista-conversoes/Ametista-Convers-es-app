@@ -57,6 +57,11 @@ export interface TaskRecord {
   priority: string
   due_date: string | null
   category: string | null
+  /** Fase 35 — recorrência (ver `src/lib/recurrence.ts`); usados pra
+   * calcular o status "efetivo" (uma tarefa "done" recorrente volta a
+   * aparecer como "todo" sozinha depois do intervalo vencer). */
+  recurrence_interval: string | null
+  completed_at: string | null
 }
 
 export interface MeetingRecord {
@@ -349,6 +354,84 @@ export function useDeleteTask() {
     },
     onError: () => {
       toast.error('Não foi possível excluir a tarefa.')
+    },
+  })
+}
+
+// Leads (Fase 35, Parte 2 — Fechamento do Loop de Venda): cada resposta
+// de Formulário já sincronizada (Fase 8.2) ganha um status manual
+// (Novo/Qualificado/Venda/Perdido), marcado por aqui OU pelo gestor
+// (Portal Gestor → Ativos Digitais → Integrações → Ver respostas) —
+// mesma linha, os dois lados enxergam o mesmo status.
+export type LeadStatus = 'novo' | 'qualificado' | 'venda' | 'perdido'
+
+export interface LeadAnswerRecord {
+  external_question_id: string
+  answer_text: string | null
+}
+
+export interface LeadResponseRecord {
+  id: string
+  connection_id: string
+  submitted_at: string | null
+  status: LeadStatus
+  form_answers: LeadAnswerRecord[]
+}
+
+export function useLeads() {
+  const { clientId } = useAuth()
+  return useQuery({
+    queryKey: ['leads', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('form_responses')
+        .select('id, connection_id, submitted_at, status, form_answers(external_question_id, answer_text)')
+        .eq('client_id', clientId as string)
+        .order('submitted_at', { ascending: false })
+      if (error) throw error
+      return data as unknown as LeadResponseRecord[]
+    },
+    enabled: !!clientId,
+  })
+}
+
+export interface LeadQuestionRecord {
+  connection_id: string
+  external_question_id: string
+  title: string
+}
+
+/** Título de cada pergunta, pra rotular as respostas de `useLeads` —
+ * `form_questions` não tem client_id direto (é por conexão), por isso
+ * busca separada filtrada pelas conexões que aparecem nos leads. */
+export function useLeadQuestions(connectionIds: string[]) {
+  return useQuery({
+    queryKey: ['lead-questions', connectionIds],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('form_questions')
+        .select('connection_id, external_question_id, title')
+        .in('connection_id', connectionIds)
+      if (error) throw error
+      return data as LeadQuestionRecord[]
+    },
+    enabled: connectionIds.length > 0,
+  })
+}
+
+export function useSetLeadStatus() {
+  const { clientId } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ responseId, status }: { responseId: string; status: LeadStatus }) => {
+      const { error } = await supabase.rpc('set_form_response_status', { p_response_id: responseId, p_status: status })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads', clientId] })
+    },
+    onError: () => {
+      toast.error('Não foi possível atualizar o status do lead.')
     },
   })
 }

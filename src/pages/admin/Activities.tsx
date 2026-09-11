@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { ListChecks, Trash2 } from 'lucide-react'
+import { ListChecks, Repeat, Trash2 } from 'lucide-react'
 import { NewActivityChecklistItemDialog } from '@/components/onboarding/NewActivityChecklistItemDialog'
 import { BulkDeleteToggle } from '@/components/shared/BulkDeleteToggle'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -15,6 +16,7 @@ import {
   useToggleActivityChecklistItem,
 } from '@/hooks/useManagerPortalData'
 import { useMarkNavSeen } from '@/hooks/useNavSeen'
+import { effectiveActivityCompleted, recurrenceShortLabels, type RecurrenceInterval } from '@/lib/recurrence'
 import { cn } from '@/lib/utils'
 
 const ALL_CLIENTS = 'all'
@@ -134,7 +136,9 @@ export default function Activities() {
             const clientItems = selectMode ? allClientItems : allClientItems.filter((item) => platformVisible(item, client))
             const hiddenCount = allClientItems.length - allClientItems.filter((item) => platformVisible(item, client)).length
             const total = clientItems.length
-            const done = clientItems.filter((item) => item.completed).length
+            const done = clientItems.filter((item) =>
+              effectiveActivityCompleted(item.completed, item.recurrence_interval, item.completed_at, client.plan),
+            ).length
             const percent = total > 0 ? Math.round((done / total) * 100) : 0
 
             const itemsByGroup = new Map<string, ActivityChecklistItemRecord[]>()
@@ -180,6 +184,12 @@ export default function Activities() {
                       <p className="text-xs font-medium text-muted-foreground">{groupName}</p>
                       {groupItems.map((item) => {
                         const selected = selectedIds.has(item.id)
+                        const isDone = effectiveActivityCompleted(
+                          item.completed,
+                          item.recurrence_interval,
+                          item.completed_at,
+                          client.plan,
+                        )
                         return (
                           <div
                             key={item.id}
@@ -190,19 +200,27 @@ export default function Activities() {
                           >
                             <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
                               <Checkbox
-                                checked={item.completed}
+                                checked={isDone}
                                 disabled={toggleItem.isPending}
                                 onCheckedChange={(checked) =>
                                   toggleItem.mutate({ itemId: item.id, completed: checked === true })
                                 }
                               />
                               <div className="min-w-0">
-                                <p
-                                  className={`break-words text-sm ${item.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}
-                                >
+                                <p className={`break-words text-sm ${isDone ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
                                   {item.title}
                                 </p>
-                                {item.category && <p className="text-xs text-muted-foreground">{item.category}</p>}
+                                {(item.category || item.recurrence_interval) && (
+                                  <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                                    {item.category}
+                                    {item.recurrence_interval && (
+                                      <Badge className="gap-1 border-purple-600/20 bg-purple-600/10 text-[10px] text-purple-300">
+                                        <Repeat className="h-2.5 w-2.5" />
+                                        {recurrenceShortLabels[item.recurrence_interval as RecurrenceInterval]}
+                                      </Badge>
+                                    )}
+                                  </p>
+                                )}
                               </div>
                             </label>
                             {selectMode && (

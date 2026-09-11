@@ -8,6 +8,7 @@ import { listAdGroups, listCampaignInsights, type ExternalAdGroup } from '@/lib/
 import type { ClientHealthScoreSnapshotRecord, ExecutiveKpiSnapshotRecord } from '@/lib/manager-metrics'
 import { computeRateMetrics } from '@/lib/metrics'
 import { fetchLatestUpdatedAt, latestOf } from '@/lib/nav-activity'
+import type { RecurrenceInterval } from '@/lib/recurrence'
 import { severityRank } from '@/lib/status-styles'
 import { supabase } from '@/lib/supabase'
 
@@ -1443,6 +1444,12 @@ export interface WorkflowTemplateStep {
    * hoje + esse número (calculado no banco, ver apply_workflow /
    * apply_client_workflow). Sem valor, a tarefa não ganha prazo. */
   due_days?: number | null
+  /** Fase 35 — recorrência (ver `src/lib/recurrence.ts`), só usada de
+   * verdade pelo Workflow do Cliente (`apply_client_workflow` copia pra
+   * `client_tasks.recurrence_interval`); o Workflow Operacional
+   * (`apply_workflow`, tarefas do Kanban) ignora esse campo — a UI de
+   * edição dele nem mostra a opção. */
+  recurrence?: RecurrenceInterval | null
 }
 
 export interface WorkflowTemplateRecord {
@@ -1644,6 +1651,11 @@ export interface ActivityTemplateItem {
    * Validação, ver `clients.chosen_platform`); só 1 marcado = exclusivo
    * daquela plataforma. Ausente/vazio é tratado como "as duas". */
   platform_scope?: ActivityPlatformScope[]
+  /** Fase 35 — recorrência (ver `src/lib/recurrence.ts`): ausente/null =
+   * item único, como sempre foi. Copiado pra `recurrence_interval` na
+   * instância (`activity_checklist_items`) no momento em que o Workflow
+   * é aplicado. */
+  recurrence?: RecurrenceInterval | null
 }
 
 export interface ActivityTemplateRecord {
@@ -1771,7 +1783,13 @@ export interface ActivityChecklistItemRecord {
   /** Fase 31/31b — os 2 juntos aparecem pra qualquer plataforma; só 1
    * aparece pro cliente Validação que escolheu essa plataforma. */
   platform_scope: ActivityPlatformScope[]
-  client: { name: string } | null
+  /** Fase 35 — ver `src/lib/recurrence.ts`. `completed_at` é o carimbo
+   * do último ciclo concluído; junto com `recurrence_interval` e o
+   * plano do cliente (`client.plan`) decide se o item já "venceu" e
+   * deve voltar a aparecer como pendente. */
+  recurrence_interval: RecurrenceInterval | null
+  completed_at: string | null
+  client: { name: string; plan: string | null } | null
 }
 
 export function useActivityChecklistItems() {
@@ -1781,7 +1799,7 @@ export function useActivityChecklistItems() {
       const { data, error } = await supabase
         .from('activity_checklist_items')
         .select(
-          'id, client_id, project_id, title, category, completed, step_order, source_template_name, platform_scope, client:clients(name)',
+          'id, client_id, project_id, title, category, completed, step_order, source_template_name, platform_scope, recurrence_interval, completed_at, client:clients(name, plan)',
         )
         .order('step_order', { ascending: true })
       if (error) throw error
@@ -1816,7 +1834,15 @@ export function useToggleActivityChecklistItem() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ itemId, completed }: { itemId: string; completed: boolean }) => {
-      const { error } = await supabase.from('activity_checklist_items').update({ completed }).eq('id', itemId)
+      // Fase 35 — marcar como concluído carimba completed_at (usado pra
+      // saber quando o próximo ciclo de recorrência vence); desmarcar
+      // limpa o carimbo. Item sem recorrência nenhuma ignora isso, mas
+      // gravar o carimbo sempre é inofensivo (só passa a importar se o
+      // item ganhar recorrência depois).
+      const { error } = await supabase
+        .from('activity_checklist_items')
+        .update({ completed, completed_at: completed ? new Date().toISOString() : null })
+        .eq('id', itemId)
       if (error) throw error
     },
     onSuccess: () => {
@@ -1956,10 +1982,17 @@ export interface FormAnswerRecord {
   answer_values: string[] | null
 }
 
+export type LeadStatus = 'novo' | 'qualificado' | 'venda' | 'perdido'
+
 export interface FormResponseRecord {
   id: string
   external_response_id: string
   submitted_at: string | null
+  /** Fase 35 — Fechamento do Loop de Venda: status manual do lead,
+   * marcado pelo gestor aqui ou pelo próprio cliente (Portal Cliente →
+   * Leads). Alimenta a contagem de "Leads Qualificados"/"Vendas" das
+   * Metas SMART (`useClientLeadStatusCounts`). */
+  status: LeadStatus
   form_answers: FormAnswerRecord[]
 }
 
@@ -1972,7 +2005,9 @@ export function useFormResponses(connectionId: string | null) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('form_responses')
-        .select('id, external_response_id, submitted_at, form_answers(external_question_id, answer_text, answer_values)')
+        .select(
+          'id, external_response_id, submitted_at, status, form_answers(external_question_id, answer_text, answer_values)',
+        )
         .eq('connection_id', connectionId as string)
         .order('submitted_at', { ascending: false })
         .limit(20)
@@ -1980,6 +2015,43 @@ export function useFormResponses(connectionId: string | null) {
       return data as unknown as FormResponseRecord[]
     },
     enabled: !!connectionId,
+  })
+}
+
+export function useSetFormResponseStatus() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ responseId, status }: { responseId: string; status: LeadStatus }) => {
+      const { error } = await supabase.rpc('set_form_response_status', { p_response_id: responseId, p_status: status })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['form-responses'] })
+      queryClient.invalidateQueries({ queryKey: ['lead-status-counts'] })
+    },
+    onError: () => {
+      toast.error('Não foi possível atualizar o status do lead.')
+    },
+  })
+}
+
+/** Contagem de leads por status de um cliente, somando TODOS os
+ * formulários conectados dele — alimenta a sugestão automática nas
+ * Metas SMART de tipo "Leads Qualificados"/"Vendas" (Fase 35, Parte 2).
+ * "Qualificados" conta qualificado + venda (uma venda também passou
+ * pela qualificação); "Vendas" conta só venda. */
+export function useClientLeadStatusCounts(clientId: string | null) {
+  return useQuery({
+    queryKey: ['lead-status-counts', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('form_responses').select('status').eq('client_id', clientId as string)
+      if (error) throw error
+      const rows = data as { status: LeadStatus }[]
+      const qualificados = rows.filter((r) => r.status === 'qualificado' || r.status === 'venda').length
+      const vendas = rows.filter((r) => r.status === 'venda').length
+      return { qualificados, vendas, total: rows.length }
+    },
+    enabled: !!clientId,
   })
 }
 

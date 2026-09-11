@@ -244,6 +244,28 @@ export const smartGoalMetricLabels: Record<string, string> = {
   faturamento: 'Faturamento',
   ticket_medio: 'Ticket Médio',
   taxa_conversao: 'Taxa de Conversão',
+  // Fase 35, Parte 2 — Fechamento do Loop de Venda: alimentados de
+  // verdade pela contagem de status de leads (ver
+  // `useClientLeadStatusCounts`), não é só rótulo decorativo.
+  leads_qualificados: 'Leads Qualificados',
+  vendas: 'Vendas',
+}
+
+// Status de lead (Fase 35, Parte 2) — marcado no Portal Cliente (aba
+// "Leads") ou pelo gestor (Ativos Digitais → Integrações → Ver
+// respostas), sempre a mesma linha em `form_responses`.
+export const leadStatusLabels: Record<string, string> = {
+  novo: 'Novo',
+  qualificado: 'Qualificado',
+  venda: 'Venda',
+  perdido: 'Perdido',
+}
+
+export const leadStatusStyles: Record<string, string> = {
+  novo: 'border-slate-500/20 bg-slate-500/10 text-slate-400',
+  qualificado: 'border-sky-500/20 bg-sky-500/10 text-sky-400',
+  venda: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+  perdido: 'border-destructive/20 bg-destructive/10 text-destructive',
 }
 
 // Conexões de integração (Fase 6.1-6.4) — usados no card de Ativo

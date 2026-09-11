@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { DeleteItemButton } from '@/components/shared/DeleteItemButton'
 import type { ManagerSmartGoalRecord } from '@/hooks/useManagerPortalData'
-import { useDeleteSmartGoal } from '@/hooks/useManagerPortalData'
+import { useClientLeadStatusCounts, useDeleteSmartGoal } from '@/hooks/useManagerPortalData'
 import { formatDate, getGoalDeadlineStatus } from '@/lib/format'
+import { leadCountForMetric } from '@/lib/lead-metrics'
 import {
   goalDeadlineStatusLabels,
   goalDeadlineStatusStyles,
@@ -26,6 +27,15 @@ export function SmartGoalCard({ goal, deleteMode }: SmartGoalCardProps) {
   const percent = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
   const deadlineStatus = getGoalDeadlineStatus(goal.target_date, goal.status)
   const deleteGoal = useDeleteSmartGoal()
+
+  // Fase 35 — "Leads Qualificados"/"Vendas" são alimentados de verdade
+  // pelo status marcado em cada resposta de formulário (Parte 2 do
+  // Fechamento do Loop de Venda); mostra a contagem real ao lado do
+  // valor atual (que continua editável manualmente, igual às outras
+  // métricas) pra confirmar de relance se está desatualizado.
+  const isLeadMetric = goal.metric_type === 'leads_qualificados' || goal.metric_type === 'vendas'
+  const leadCounts = useClientLeadStatusCounts(isLeadMetric ? goal.client_id : null)
+  const realCount = leadCountForMetric(goal.metric_type, leadCounts.data)
 
   return (
     <Card className="flex flex-col rounded-xl border border-[#1A2540] bg-[#131C31] p-5 hover:border-purple-600/30 md:p-6">
@@ -64,6 +74,12 @@ export function SmartGoalCard({ goal, deleteMode }: SmartGoalCardProps) {
             {current} de {target} ({percent}%)
             {goal.target_date ? ` · Prazo: ${formatDate(goal.target_date)}` : ''}
           </p>
+          {realCount != null && realCount !== current && (
+            <p className="mt-1 text-xs text-purple-300">
+              Contagem real nas respostas de formulário: {realCount} (Ativos Digitais → Integrações → Ver respostas,
+              ou o cliente na aba Leads)
+            </p>
+          )}
         </div>
 
         <div className="mt-auto pt-2">

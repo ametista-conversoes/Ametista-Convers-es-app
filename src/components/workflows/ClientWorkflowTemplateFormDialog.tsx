@@ -19,9 +19,11 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import type { ClientWorkflowTemplateRecord } from '@/hooks/useManagerPortalData'
 import { useCreateClientWorkflowTemplate, useUpdateClientWorkflowTemplate } from '@/hooks/useManagerPortalData'
+import { RECURRENCE_NONE_VALUE, RECURRENCE_OPTIONS, recurrenceLabels, type RecurrenceInterval } from '@/lib/recurrence'
 
 const templateFormSchema = z.object({
   name: z.string().min(2, 'Digite um nome'),
@@ -35,6 +37,7 @@ const templateFormSchema = z.object({
           .string()
           .optional()
           .refine((v) => !v || /^\d+$/.test(v), 'Digite um número de dias válido'),
+        recurrence: z.string(),
       }),
     )
     .min(1, 'Adicione pelo menos uma etapa'),
@@ -45,7 +48,7 @@ type TemplateFormValues = z.infer<typeof templateFormSchema>
 const EMPTY_VALUES: TemplateFormValues = {
   name: '',
   description: '',
-  steps: [{ title: '', category: '', due_days: '' }],
+  steps: [{ title: '', category: '', due_days: '', recurrence: RECURRENCE_NONE_VALUE }],
 }
 
 interface SortableStepRowProps {
@@ -104,6 +107,31 @@ function SortableStepRow({ id, index, control, onRemove, disableRemove }: Sortab
               <FormControl>
                 <Input type="number" min="1" placeholder="Prazo em dias (opcional)" {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={control}
+          name={`steps.${index}.recurrence`}
+          render={({ field }) => (
+            <FormItem className="border-t border-[#1A2540] pt-2">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Recorrência</p>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <FormControl>
+                  <SelectTrigger className="h-8 w-full sm:w-64">
+                    <SelectValue />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value={RECURRENCE_NONE_VALUE}>Única (não repete)</SelectItem>
+                  {RECURRENCE_OPTIONS.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {recurrenceLabels[r]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -169,6 +197,7 @@ export function ClientWorkflowTemplateFormDialog({ trigger, template }: ClientWo
                 title: step.title,
                 category: step.category,
                 due_days: step.due_days ? String(step.due_days) : '',
+                recurrence: step.recurrence ?? RECURRENCE_NONE_VALUE,
               })),
             }
           : EMPTY_VALUES,
@@ -184,6 +213,7 @@ export function ClientWorkflowTemplateFormDialog({ trigger, template }: ClientWo
         title: step.title,
         category: step.category,
         due_days: step.due_days?.trim() ? Number(step.due_days) : null,
+        recurrence: step.recurrence === RECURRENCE_NONE_VALUE ? null : (step.recurrence as RecurrenceInterval),
       })),
     }
     try {
@@ -259,7 +289,7 @@ export function ClientWorkflowTemplateFormDialog({ trigger, template }: ClientWo
                 type="button"
                 variant="secondary"
                 className="w-full"
-                onClick={() => append({ title: '', category: '', due_days: '' })}
+                onClick={() => append({ title: '', category: '', due_days: '', recurrence: RECURRENCE_NONE_VALUE })}
               >
                 <Plus className="h-4 w-4" />
                 Adicionar etapa

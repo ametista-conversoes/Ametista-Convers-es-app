@@ -11,6 +11,7 @@ import ResetPassword from '@/pages/auth/ResetPassword'
 import Cassie from '@/pages/client/Cassie'
 import Comments from '@/pages/client/Comments'
 import Files from '@/pages/client/Files'
+import Leads from '@/pages/client/Leads'
 import Meetings from '@/pages/client/Meetings'
 import Project from '@/pages/client/Project'
 import Reports from '@/pages/client/Reports'
@@ -49,6 +50,7 @@ const clientPagesReady: Record<string, ComponentType> = {
   '/files': Files,
   '/comments': Comments,
   '/meetings': Meetings,
+  '/leads': Leads,
   '/cassie': Cassie,
   '/settings': Settings,
 }

@@ -20,9 +20,11 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import type { ActivityPlanScope, ActivityPlatformScope, ActivityTemplateRecord } from '@/hooks/useManagerPortalData'
 import { useCreateActivityTemplate, useUpdateActivityTemplate } from '@/hooks/useManagerPortalData'
+import { RECURRENCE_NONE_VALUE, RECURRENCE_OPTIONS, recurrenceLabels, type RecurrenceInterval } from '@/lib/recurrence'
 import { planLabels } from '@/lib/status-styles'
 
 const PLAN_SCOPE_OPTIONS: ActivityPlanScope[] = ['validacao', 'escala', 'dominacao']
@@ -46,6 +48,7 @@ const templateFormSchema = z.object({
         category: z.string().optional(),
         planScope: z.array(z.enum(['validacao', 'escala', 'dominacao'])).min(1, 'Marque pelo menos um plano'),
         platformScope: z.array(z.enum(['meta', 'google'])).min(1, 'Marque pelo menos uma plataforma'),
+        recurrence: z.string(),
       }),
     )
     .min(1, 'Adicione pelo menos um item'),
@@ -56,7 +59,7 @@ type TemplateFormValues = z.infer<typeof templateFormSchema>
 const EMPTY_VALUES: TemplateFormValues = {
   name: '',
   description: '',
-  items: [{ title: '', category: '', planScope: ALL_PLANS, platformScope: ALL_PLATFORMS }],
+  items: [{ title: '', category: '', planScope: ALL_PLANS, platformScope: ALL_PLATFORMS, recurrence: RECURRENCE_NONE_VALUE }],
 }
 
 interface SortableActivityItemRowProps {
@@ -157,6 +160,31 @@ function SortableActivityItemRow({ id, index, control, onRemove, disableRemove }
             </FormItem>
           )}
         />
+        <FormField
+          control={control}
+          name={`items.${index}.recurrence`}
+          render={({ field }) => (
+            <FormItem className="border-t border-[#1A2540] pt-2">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Recorrência</p>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <FormControl>
+                  <SelectTrigger className="h-8 w-full sm:w-64">
+                    <SelectValue />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value={RECURRENCE_NONE_VALUE}>Única (não repete)</SelectItem>
+                  {RECURRENCE_OPTIONS.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {recurrenceLabels[r]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       </div>
       <Button
         type="button"
@@ -218,6 +246,7 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
                 planScope: item.plan_scope && item.plan_scope.length > 0 ? item.plan_scope : ALL_PLANS,
                 platformScope:
                   item.platform_scope && item.platform_scope.length > 0 ? item.platform_scope : ALL_PLATFORMS,
+                recurrence: item.recurrence ?? RECURRENCE_NONE_VALUE,
               })),
             }
           : EMPTY_VALUES,
@@ -234,6 +263,7 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
         category: item.category?.trim() ? item.category.trim() : null,
         plan_scope: item.planScope,
         platform_scope: item.platformScope,
+        recurrence: item.recurrence === RECURRENCE_NONE_VALUE ? null : (item.recurrence as RecurrenceInterval),
       })),
     }
     try {
@@ -309,7 +339,15 @@ export function ActivityTemplateFormDialog({ trigger, template }: ActivityTempla
                 type="button"
                 variant="secondary"
                 className="w-full"
-                onClick={() => append({ title: '', category: '', planScope: ALL_PLANS, platformScope: ALL_PLATFORMS })}
+                onClick={() =>
+                  append({
+                    title: '',
+                    category: '',
+                    planScope: ALL_PLANS,
+                    platformScope: ALL_PLATFORMS,
+                    recurrence: RECURRENCE_NONE_VALUE,
+                  })
+                }
               >
                 <Plus className="h-4 w-4" />
                 Adicionar item

@@ -10,6 +10,7 @@ import {
   Mail,
   Phone,
   RefreshCw,
+  Repeat,
   Target,
   Trash2,
   Upload,
@@ -75,6 +76,7 @@ import {
 import { CASSIE_MODES, type CassieMode } from '@/lib/cassie-modes'
 import { formatDate, formatDateTime } from '@/lib/format'
 import { getClientRiskDetails } from '@/lib/client-risk'
+import { effectiveActivityCompleted, recurrenceShortLabels, type RecurrenceInterval } from '@/lib/recurrence'
 import { uploadClientLogo } from '@/lib/storage'
 import {
   clientStatusLabels,
@@ -499,31 +501,38 @@ export default function ClientDetail() {
             </CardHeader>
             <CardContent className="max-h-[560px] space-y-2 overflow-y-auto p-0 pt-4 pr-1">
               {clientActivityItems.length === 0 && <p className="text-sm text-muted-foreground">Nenhum item.</p>}
-              {clientActivityItems.map((item) => (
-                <label
-                  key={item.id}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg bg-secondary/50 px-3 py-2"
-                >
-                  <Checkbox
-                    checked={item.completed}
-                    disabled={toggleActivityItem.isPending}
-                    onCheckedChange={(checked) =>
-                      toggleActivityItem.mutate({ itemId: item.id, completed: checked === true })
-                    }
-                  />
-                  <div className="min-w-0">
-                    <p
-                      className={`truncate text-sm ${item.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}
-                    >
-                      {item.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.source_template_name ?? 'Avulsa'}
-                      {item.category ? ` · ${item.category}` : ''}
-                    </p>
-                  </div>
-                </label>
-              ))}
+              {clientActivityItems.map((item) => {
+                const isDone = effectiveActivityCompleted(item.completed, item.recurrence_interval, item.completed_at, client.plan)
+                return (
+                  <label
+                    key={item.id}
+                    className="flex cursor-pointer items-center gap-3 rounded-lg bg-secondary/50 px-3 py-2"
+                  >
+                    <Checkbox
+                      checked={isDone}
+                      disabled={toggleActivityItem.isPending}
+                      onCheckedChange={(checked) =>
+                        toggleActivityItem.mutate({ itemId: item.id, completed: checked === true })
+                      }
+                    />
+                    <div className="min-w-0">
+                      <p className={`truncate text-sm ${isDone ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                        {item.title}
+                      </p>
+                      <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                        {item.source_template_name ?? 'Avulsa'}
+                        {item.category ? ` · ${item.category}` : ''}
+                        {item.recurrence_interval && (
+                          <Badge className="gap-1 border-purple-600/20 bg-purple-600/10 text-[10px] text-purple-300">
+                            <Repeat className="h-2.5 w-2.5" />
+                            {recurrenceShortLabels[item.recurrence_interval as RecurrenceInterval]}
+                          </Badge>
+                        )}
+                      </p>
+                    </div>
+                  </label>
+                )
+              })}
             </CardContent>
           </Card>
         </div>

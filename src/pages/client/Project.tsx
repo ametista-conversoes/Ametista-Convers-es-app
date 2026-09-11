@@ -8,6 +8,7 @@ import { UnlinkedClientNotice } from '@/components/shared/UnlinkedClientNotice'
 import { TaskList } from '@/components/tasks/TaskList'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClient, useProjects, useSmartGoals, useTasks } from '@/hooks/useClientPortalData'
+import { effectiveTaskStatus } from '@/lib/recurrence'
 import { cn } from '@/lib/utils'
 import { projectStatusLabels, projectStatusStyles } from '@/lib/status-styles'
 
@@ -43,7 +44,14 @@ export default function Project() {
     )
   }
 
-  const projectTasks = (tasks ?? []).filter((task) => task.project_id === project.id)
+  // Fase 35 — mesmo status "efetivo" de Tasks.tsx: tarefa recorrente
+  // concluída volta a aparecer como "todo" sozinha quando vence.
+  const projectTasks = (tasks ?? [])
+    .filter((task) => task.project_id === project.id)
+    .map((task) => ({
+      ...task,
+      status: effectiveTaskStatus(task.status, task.recurrence_interval, task.completed_at, client?.plan ?? null),
+    }))
 
   return (
     <div className="space-y-6">

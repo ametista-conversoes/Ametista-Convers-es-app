@@ -5,8 +5,9 @@ import { DeleteModeToggle } from '@/components/shared/DeleteModeToggle'
 import { UnlinkedClientNotice } from '@/components/shared/UnlinkedClientNotice'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/contexts/AuthContext'
-import { useDeleteTask, useSetTaskStatus, useTasks } from '@/hooks/useClientPortalData'
+import { useClient, useDeleteTask, useSetTaskStatus, useTasks } from '@/hooks/useClientPortalData'
 import { useMarkNavSeen } from '@/hooks/useNavSeen'
+import { effectiveTaskStatus } from '@/lib/recurrence'
 import { taskStatusLabels } from '@/lib/status-styles'
 
 const FILTERS = ['todos', 'backlog', 'todo', 'in_progress', 'review', 'done'] as const
@@ -15,6 +16,7 @@ type Filter = (typeof FILTERS)[number]
 export default function Tasks() {
   useMarkNavSeen('/tasks')
   const { clientId } = useAuth()
+  const { data: client } = useClient()
   const { data: tasks, isLoading } = useTasks()
   const setTaskStatus = useSetTaskStatus()
   const deleteTask = useDeleteTask()
@@ -30,7 +32,14 @@ export default function Tasks() {
     return <p className="text-sm text-muted-foreground">Carregando...</p>
   }
 
-  const allTasks = tasks ?? []
+  // Fase 35 — uma tarefa recorrente marcada "done" volta a aparecer como
+  // "todo" sozinha depois que o intervalo dela vence (ver recurrence.ts);
+  // é um status derivado só pra exibição, o banco continua com "done"
+  // até a pessoa marcar de novo (o que só atualiza o carimbo de tempo).
+  const allTasks = (tasks ?? []).map((task) => ({
+    ...task,
+    status: effectiveTaskStatus(task.status, task.recurrence_interval, task.completed_at, client?.plan ?? null),
+  }))
   const filteredTasks = filter === 'todos' ? allTasks : allTasks.filter((task) => task.status === filter)
 
   async function handleChangeStatus(taskId: string, status: string) {
