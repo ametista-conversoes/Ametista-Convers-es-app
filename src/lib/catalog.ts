@@ -26,7 +26,7 @@ export const CATALOG_TIPO_PLACEHOLDERS: Record<CatalogEntryTipo, string> = {
  * uma constraint no banco, então nenhuma entrada antiga (criada antes
  * desse limite existir) quebra. */
 export const CATALOG_TIPO_MAX_LENGTH: Partial<Record<CatalogEntryTipo, number>> = {
-  headline: 15,
+  headline: 30,
   descricao: 90,
 }
 

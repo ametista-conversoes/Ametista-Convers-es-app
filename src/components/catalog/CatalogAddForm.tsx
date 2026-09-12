@@ -64,7 +64,7 @@ export function CatalogAddForm({ clientId, catalogType, entries }: CatalogAddFor
     setAdding(false)
   }
 
-  // Headline (15 caracteres) e Descrição (90) são obrigatórios pro
+  // Headline (30 caracteres) e Descrição (90) são obrigatórios pro
   // formato de anúncio de texto — Frase de destaque e Vídeo, e
   // Segmentações, não têm limite.
   const maxLength = catalogType === 'criativo' ? CATALOG_TIPO_MAX_LENGTH[tipo] : undefined
